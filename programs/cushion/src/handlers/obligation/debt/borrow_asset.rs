@@ -7,6 +7,6 @@ use anchor_lang::prelude::*;
 // -------------------------
 
 #[derive(Accounts)]
-pub struct InjectCollateral<'info>{
+pub struct BorrowAsset<'info> {
     pub dummy: AccountInfo<'info>
 }
