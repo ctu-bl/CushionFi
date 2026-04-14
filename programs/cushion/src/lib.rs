@@ -73,26 +73,34 @@ pub mod cushion {
 
     pub fn deposit(
         ctx: Context<Deposit>,
+        assets_in: u64,
+        min_shares_out: u64,
     ) -> Result<()> {
-        Ok(())
+        deposit_handler(ctx, assets_in, min_shares_out)
     }
 
     pub fn mint(
         ctx: Context<MintShares>,
+        shares_out: u64,
+        max_assets_in: u64,
     ) -> Result<()> {
-        Ok(())
+        mint_handler(ctx, shares_out, max_assets_in)
     }
 
     pub fn redeem(
         ctx: Context<Redeem>,
+        shares_in: u64,
+        min_assets_out: u64,
     ) -> Result<()> {
-        Ok(())
+        redeem_handler(ctx, shares_in, min_assets_out)
     }
 
     pub fn withdraw(
         ctx: Context<Withdraw>,
+        assets_out: u64,
+        max_shares_burn: u64,
     ) -> Result<()> {
-        Ok(())
+        withdraw_handler(ctx, assets_out, max_shares_burn)
     }
 
     pub fn inject_collateral(
@@ -123,8 +131,12 @@ pub mod cushion {
 
     pub fn init_vault(
         ctx: Context<InitVault>,
+        min_deposit: u64,
+        deposit_cap: u64,
+        virtual_assets: u64,
+        virtual_shares: u64,
     ) -> Result<()> {
-        Ok(())
+        init_vault_handler(ctx, min_deposit, deposit_cap, virtual_assets, virtual_shares)
     }
 
     pub fn init_collection(
@@ -134,3 +146,62 @@ pub mod cushion {
     }
 }
 
+#[error_code]
+pub enum CushionError {
+    #[msg("Unauthorized")]
+    Unauthorized,
+    #[msg("Overflow")]
+    Overflow,
+    #[msg("Collateral amount can't be zero when creating the position")]
+    ZeroCollateralAmount,
+    #[msg("Debt amount can't be zero")]
+    ZeroDebtAmount,
+    #[msg("Amount for repaying can't be zero")]
+    ZeroRepayAmount,
+    #[msg("Position is too close to liquidation and cannot be insured")]
+    UnsafePosition,
+    #[msg("Deposit amount cannot be zero")]
+    ZeroDepositAmount,
+    #[msg("Withdraw amount cannot be zero")]
+    ZeroWithdrawAmount,
+    #[msg("Mint amount cannot be zero")]
+    ZeroMintAmount,
+    #[msg("Redeem amount cannot be zero")]
+    ZeroRedeemAmount,
+    #[msg("Vault is paused")]
+    VaultPaused,
+    #[msg("Withdrawals are paused")]
+    WithdrawalsPaused,
+    #[msg("Deposit amount is below vault minimum")]
+    DepositTooSmall,
+    #[msg("Vault deposit cap exceeded")]
+    DepositCapExceeded,
+    #[msg("Share output rounded down to zero")]
+    ZeroSharesOut,
+    #[msg("Asset output rounded down to zero")]
+    ZeroAssetsOut,
+    #[msg("Vault does not have enough idle liquidity")]
+    InsufficientVaultLiquidity,
+    #[msg("Invalid asset mint account")]
+    InvalidAssetMint,
+    #[msg("Invalid share mint account")]
+    InvalidShareMint,
+    #[msg("Invalid vault token account")]
+    InvalidVaultTokenAccount,
+    #[msg("Invalid treasury token account")]
+    InvalidTreasuryAccount,
+    #[msg("Invalid deposit cap configuration")]
+    InvalidDepositCap,
+    #[msg("Division by zero")]
+    DivisionByZero,
+    #[msg("Cast error")]
+    CastError,
+    #[msg("Slippage: min shares out not met")]
+    MinSharesOutNotMet,
+    #[msg("Slippage: max assets in exceeded")]
+    MaxAssetsInExceeded,
+    #[msg("Slippage: min assets out not met")]
+    MinAssetsOutNotMet,
+    #[msg("Slippage: max shares burn exceeded")]
+    MaxSharesBurnExceeded,
+}
