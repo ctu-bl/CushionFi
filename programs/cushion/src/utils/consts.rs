@@ -23,3 +23,9 @@ pub const POSITION_ACCOUNT_SEED: &[u8] = b"loan_position";
 ///
 /// The byte string stays on the legacy value to preserve existing PDA derivations.
 pub const POSITION_AUTHORITY_SEED: &[u8] = b"loan_authority";
+
+/// Seed prefix for the global position registry PDA.
+pub const POSITION_REGISTRY_SEED: &[u8] = b"position_registry";
+
+/// Seed prefix for per-NFT position registry entry PDA.
+pub const POSITION_REGISTRY_ENTRY_SEED: &[u8] = b"position_registry_entry";
