@@ -5,12 +5,6 @@ use crate::{math, state::Vault, CushionError};
 
 // This module contains business logic for the vault
 
-/// Returns the total amount of underlying assets economically managed by the
-/// vault.
-pub fn total_assets(vault: &Vault) -> u128 {
-    vault.total_managed_assets
-}
-
 /// Returns the current total share supply for the vault share mint.
 pub fn total_shares(share_mint: &Mint) -> u64 {
     share_mint.supply
@@ -24,7 +18,7 @@ pub fn total_shares(share_mint: &Mint) -> u64 {
 pub fn convert_to_shares(vault: &Vault, share_mint: &Mint, assets: u64) -> Result<u64> {
     math::convert_to_shares_floor(
         assets,
-        total_assets(vault),
+        vault.total_managed_assets,
         total_shares(share_mint),
         vault.virtual_assets,
         vault.virtual_shares,
@@ -39,7 +33,7 @@ pub fn convert_to_shares(vault: &Vault, share_mint: &Mint, assets: u64) -> Resul
 pub fn convert_to_assets(vault: &Vault, share_mint: &Mint, shares: u64) -> Result<u64> {
     math::convert_to_assets_floor(
         shares,
-        total_assets(vault),
+        vault.total_managed_assets,
         total_shares(share_mint),
         vault.virtual_assets,
         vault.virtual_shares,
@@ -63,7 +57,7 @@ pub fn preview_deposit(vault: &Vault, share_mint: &Mint, assets_in: u64) -> Resu
 pub fn preview_mint(vault: &Vault, share_mint: &Mint, shares_out: u64) -> Result<u64> {
     math::convert_to_assets_ceil(
         shares_out,
-        total_assets(vault),
+        vault.total_managed_assets,
         total_shares(share_mint),
         vault.virtual_assets,
         vault.virtual_shares,
@@ -87,7 +81,7 @@ pub fn preview_redeem(vault: &Vault, share_mint: &Mint, shares_in: u64) -> Resul
 pub fn preview_withdraw(vault: &Vault, share_mint: &Mint, assets_out: u64) -> Result<u64> {
     math::convert_to_shares_ceil(
         assets_out,
-        total_assets(vault),
+        vault.total_managed_assets,
         total_shares(share_mint),
         vault.virtual_assets,
         vault.virtual_shares,
@@ -123,6 +117,7 @@ pub fn assert_deposit_allowed(vault: &Vault, assets_in: u64) -> Result<()> {
 /// # Errors
 /// This currently always succeeds and returns no error.
 pub fn assert_withdrawals_allowed(vault: &Vault) -> Result<()> {
+    let _ = vault;
     Ok(())
 }
 
