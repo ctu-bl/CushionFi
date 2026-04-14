@@ -122,3 +122,88 @@ pub fn decrease_total_managed_assets(vault: &mut Vault, delta: u64) -> Result<()
         .ok_or(CushionError::Overflow)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anchor_lang::prelude::Pubkey;
+    use anchor_lang::solana_program::program_pack::Pack;
+    use anchor_lang::AccountDeserialize;
+    use anchor_spl::token::spl_token::state::{Account as SplTokenAccount, AccountState};
+
+    fn assert_err<T: core::fmt::Debug>(result: Result<T>, expected: CushionError) {
+        assert_eq!(result.unwrap_err(), expected.into());
+    }
+
+    fn vault_with(total_managed_assets: u128, min_deposit: u64, deposit_cap: u64) -> Vault {
+        Vault {
+            bump: 0,
+            authority: Pubkey::default(),
+            asset_mint: Pubkey::default(),
+            share_mint: Pubkey::default(),
+            vault_token_account: Pubkey::default(),
+            treasury_token_account: Pubkey::default(),
+            total_managed_assets,
+            min_deposit,
+            deposit_cap,
+            virtual_assets: 0,
+            virtual_shares: 0,
+            last_update_ts: 0,
+        }
+    }
+
+    fn token_account_with_amount(amount: u64) -> TokenAccount {
+        let spl = SplTokenAccount {
+            amount,
+            state: AccountState::Initialized,
+            ..SplTokenAccount::default()
+        };
+        let mut bytes = [0u8; TokenAccount::LEN];
+        SplTokenAccount::pack(spl, &mut bytes).unwrap();
+        let mut slice: &[u8] = &bytes;
+        TokenAccount::try_deserialize_unchecked(&mut slice).unwrap()
+    }
+
+    #[test]
+    fn assert_deposit_allowed_checks_min_and_cap_boundaries() {
+        let vault = vault_with(100, 10, 150);
+
+        assert!(assert_deposit_allowed(&vault, 10).is_ok());
+        assert!(assert_deposit_allowed(&vault, 50).is_ok());
+
+        assert_err(assert_deposit_allowed(&vault, 9), CushionError::DepositTooSmall);
+        assert_err(assert_deposit_allowed(&vault, 51), CushionError::DepositCapExceeded);
+    }
+
+    #[test]
+    fn assert_deposit_allowed_returns_overflow_on_projection_overflow() {
+        let vault = vault_with(u128::MAX, 1, u64::MAX);
+        assert_err(assert_deposit_allowed(&vault, 1), CushionError::Overflow);
+    }
+
+    #[test]
+    fn assert_vault_liquidity_checks_required_assets() {
+        let enough = token_account_with_amount(500);
+        let not_enough = token_account_with_amount(499);
+
+        assert!(assert_vault_liquidity(&enough, 500).is_ok());
+        assert_err(assert_vault_liquidity(&not_enough, 500), CushionError::InsufficientVaultLiquidity);
+    }
+
+    #[test]
+    fn total_managed_assets_updates_safely_and_detects_overflow_underflow() {
+        let mut vault = vault_with(100, 1, u64::MAX);
+
+        increase_total_managed_assets(&mut vault, 50).unwrap();
+        assert_eq!(vault.total_managed_assets, 150);
+
+        decrease_total_managed_assets(&mut vault, 25).unwrap();
+        assert_eq!(vault.total_managed_assets, 125);
+
+        vault.total_managed_assets = u128::MAX;
+        assert_err(increase_total_managed_assets(&mut vault, 1), CushionError::Overflow);
+
+        vault.total_managed_assets = 0;
+        assert_err(decrease_total_managed_assets(&mut vault, 1), CushionError::Overflow);
+    }
+}

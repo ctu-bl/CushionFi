@@ -150,3 +150,102 @@ pub fn convert_to_shares_ceil(
     let shares_in = mul_div_ceil(assets_out as u128, numerator_ratio, denominator)?;
     u64::try_from(shares_in).map_err(|_| CushionError::CastError.into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_err<T: core::fmt::Debug>(result: Result<T>, expected: CushionError) {
+        assert_eq!(result.unwrap_err(), expected.into());
+    }
+
+    #[test]
+    fn bootstrap_empty_vault_returns_identity_values() {
+        let assets_to_deposit = 123_456u64;
+        let shares_to_redeem = 77_777u64;
+        let total_assets = 0u128;
+        let total_shares = 0u64;
+        let virtual_assets = 0u64;
+        let virtual_shares = 0u64;
+
+        assert_eq!(
+            convert_to_shares_floor(assets_to_deposit, total_assets, total_shares, virtual_assets, virtual_shares).unwrap(),
+            assets_to_deposit
+        );
+        assert_eq!(
+            convert_to_assets_floor(shares_to_redeem, total_assets, total_shares, virtual_assets, virtual_shares).unwrap(),
+            shares_to_redeem
+        );
+        assert_eq!(
+            convert_to_assets_ceil(shares_to_redeem, total_assets, total_shares, virtual_assets, virtual_shares).unwrap(),
+            shares_to_redeem
+        );
+        assert_eq!(
+            convert_to_shares_ceil(assets_to_deposit, total_assets, total_shares, virtual_assets, virtual_shares).unwrap(),
+            assets_to_deposit
+        );
+    }
+
+    #[test]
+    fn floor_and_ceil_rounding_are_directionally_correct() {
+        let total_assets = 10u128;
+        let total_shares = 3u64;
+        let virtual_assets = 0u64;
+        let virtual_shares = 0u64;
+
+        // 4 * 3 / 10 = 1.2 => floor 1, ceil 2
+        let shares_floor = convert_to_shares_floor(4, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        let shares_ceil = convert_to_shares_ceil(4, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        assert_eq!(shares_floor, 1);
+        assert_eq!(shares_ceil, 2);
+
+        // 5 * 10 / 3 = 16.66.. => floor 16, ceil 17
+        let assets_floor = convert_to_assets_floor(5, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        let assets_ceil = convert_to_assets_ceil(5, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        assert_eq!(assets_floor, 16);
+        assert_eq!(assets_ceil, 17);
+    }
+
+    #[test]
+    fn preview_invariants_hold_for_mint_and_withdraw_paths() {
+        let total_assets = 12_345u128;
+        let total_shares = 6_789u64;
+        let virtual_assets = 111u64;
+        let virtual_shares = 222u64;
+
+        // Mint path: after paying preview_mint assets, user should get at least desired shares.
+        let desired_shares = 333u64;
+        let assets_needed = convert_to_assets_ceil(desired_shares, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        let minted_shares = convert_to_shares_floor(assets_needed, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        assert!(minted_shares >= desired_shares);
+
+        // Withdraw path: burning preview_withdraw shares should return at least desired assets.
+        let desired_assets = 444u64;
+        let shares_to_burn = convert_to_shares_ceil(desired_assets, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        let redeemed_assets = convert_to_assets_floor(shares_to_burn, total_assets, total_shares, virtual_assets, virtual_shares).unwrap();
+        assert!(redeemed_assets >= desired_assets);
+    }
+
+    #[test]
+    fn division_by_zero_is_returned_for_inconsistent_zero_ratio_state() {
+        // numerator_ratio == 0 while total_managed_assets != 0 => invalid state.
+        let result = convert_to_shares_floor(10, 1, 0, 0, 0);
+        assert_err(result, CushionError::DivisionByZero);
+    }
+
+    #[test]
+    fn overflow_is_returned_for_ratio_addition_or_multiplication() {
+        let addition_overflow = convert_to_shares_floor(1, u128::MAX, 1, 1, 0);
+        assert_err(addition_overflow, CushionError::Overflow);
+
+        let mul_overflow = convert_to_shares_floor(u64::MAX, 1, u64::MAX, 0, u64::MAX);
+        assert_err(mul_overflow, CushionError::Overflow);
+    }
+
+    #[test]
+    fn cast_error_is_returned_when_result_does_not_fit_u64() {
+        // 2 * u64::MAX does not fit into u64, but still fits into u128.
+        let cast_error = convert_to_shares_floor(u64::MAX, 1, 2, 0, 0);
+        assert_err(cast_error, CushionError::CastError);
+    }
+}
