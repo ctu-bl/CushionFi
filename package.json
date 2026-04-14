@@ -6,6 +6,8 @@
     "sdk"
   ],
   "scripts": {
+    "create:asset:local": "ts-node --transpile-only sdk/scripts/createAssetLocalMint.ts",
+    "init:vault:local": "ts-node --transpile-only sdk/scripts/initVaultLocal.ts",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },

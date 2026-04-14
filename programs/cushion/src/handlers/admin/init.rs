@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::Token;
+use anchor_spl::token_interface::{Mint, TokenAccount};
 
 use crate::{
     state::Vault,
@@ -83,7 +84,7 @@ pub struct InitVault<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    pub asset_mint: Account<'info, Mint>,
+    pub asset_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -103,7 +104,7 @@ pub struct InitVault<'info> {
         mint::authority = vault,
         mint::freeze_authority = vault
     )]
-    pub share_mint: Account<'info, Mint>,
+    pub share_mint: InterfaceAccount<'info, Mint>,
 
     #[account(
         init,
@@ -113,7 +114,7 @@ pub struct InitVault<'info> {
         token::mint = asset_mint,
         token::authority = vault
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
@@ -123,7 +124,7 @@ pub struct InitVault<'info> {
         token::mint = asset_mint,
         token::authority = vault
     )]
-    pub treasury_token_account: Account<'info, TokenAccount>,
+    pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
