@@ -1,3 +1,5 @@
+//! Vault-facing instruction handlers.
+
 pub mod liquidity;
 pub mod position_ops;
 

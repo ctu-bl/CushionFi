@@ -5,17 +5,22 @@ use crate::{math, state::Vault, CushionError};
 
 // This module contains business logic for the vault
 
-// gets the total assets managed by the vault
+/// Returns the total amount of underlying assets economically managed by the
+/// vault.
 pub fn total_assets(vault: &Vault) -> u128 {
     vault.total_managed_assets
 }
 
-// gets the total shares minted by the vault
+/// Returns the current total share supply for the vault share mint.
 pub fn total_shares(share_mint: &Mint) -> u64 {
     share_mint.supply
 }
 
-// how many shares user gets for some amount of assets
+/// Converts an asset amount into vault shares using floor rounding.
+///
+/// # Errors
+/// Returns an error if the share conversion math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn convert_to_shares(vault: &Vault, share_mint: &Mint, assets: u64) -> Result<u64> {
     math::convert_to_shares_floor(
         assets,
@@ -26,7 +31,11 @@ pub fn convert_to_shares(vault: &Vault, share_mint: &Mint, assets: u64) -> Resul
     )
 }
 
-// how many assets user gets for some amount of shares
+/// Converts a share amount into underlying assets using floor rounding.
+///
+/// # Errors
+/// Returns an error if the asset conversion math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn convert_to_assets(vault: &Vault, share_mint: &Mint, shares: u64) -> Result<u64> {
     math::convert_to_assets_floor(
         shares,
@@ -37,12 +46,20 @@ pub fn convert_to_assets(vault: &Vault, share_mint: &Mint, shares: u64) -> Resul
     )
 }
 
-// how many shares user gets for assets deposit
+/// Previews how many shares a deposit of `assets_in` would mint.
+///
+/// # Errors
+/// Returns an error if the deposit preview math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn preview_deposit(vault: &Vault, share_mint: &Mint, assets_in: u64) -> Result<u64> {
     convert_to_shares(vault, share_mint, assets_in)
 }
 
-// how many assets user has to deposit to get some amount of shares
+/// Previews how many assets are required to mint exactly `shares_out`.
+///
+/// # Errors
+/// Returns an error if the mint preview math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn preview_mint(vault: &Vault, share_mint: &Mint, shares_out: u64) -> Result<u64> {
     math::convert_to_assets_ceil(
         shares_out,
@@ -53,12 +70,20 @@ pub fn preview_mint(vault: &Vault, share_mint: &Mint, shares_out: u64) -> Result
     )
 }
 
-// how many assets user gets for shares burned
+/// Previews how many assets a redemption of `shares_in` would return.
+///
+/// # Errors
+/// Returns an error if the redeem preview math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn preview_redeem(vault: &Vault, share_mint: &Mint, shares_in: u64) -> Result<u64> {
     convert_to_assets(vault, share_mint, shares_in)
 }
 
-// how many shares user has to burn to get some amount of assets
+/// Previews how many shares must be burned to withdraw `assets_out`.
+///
+/// # Errors
+/// Returns an error if the withdraw preview math overflows, divides by zero, or
+/// otherwise rejects the current vault/share state.
 pub fn preview_withdraw(vault: &Vault, share_mint: &Mint, assets_out: u64) -> Result<u64> {
     math::convert_to_shares_ceil(
         assets_out,
@@ -69,7 +94,12 @@ pub fn preview_withdraw(vault: &Vault, share_mint: &Mint, assets_out: u64) -> Re
     )
 }
 
-// checks if the deposit is allowed
+/// Validates that a deposit amount satisfies vault minimums and cap limits.
+///
+/// # Errors
+/// Returns `DepositTooSmall` if the amount is below `vault.min_deposit`,
+/// `DepositCapExceeded` if it would push managed assets above the configured
+/// cap, or `Overflow` if the projection cannot be represented.
 pub fn assert_deposit_allowed(vault: &Vault, assets_in: u64) -> Result<()> {
     require!(
         assets_in >= vault.min_deposit,
@@ -88,12 +118,19 @@ pub fn assert_deposit_allowed(vault: &Vault, assets_in: u64) -> Result<()> {
     Ok(())
 }
 
-// checks if the withdrawals are allowed (redudndant now)
+/// Placeholder withdrawal gate for future pause or policy checks.
+///
+/// # Errors
+/// This currently always succeeds and returns no error.
 pub fn assert_withdrawals_allowed(vault: &Vault) -> Result<()> {
     Ok(())
 }
 
-// checks if the vault has enough liquidity
+/// Ensures the vault token account holds at least `required_assets`.
+///
+/// # Errors
+/// Returns `InsufficientVaultLiquidity` when the idle token balance is smaller
+/// than the requested amount.
 pub fn assert_vault_liquidity(
     vault_token_account: &TokenAccount,
     required_assets: u64,
@@ -105,7 +142,10 @@ pub fn assert_vault_liquidity(
     Ok(())
 }
 
-// increases the total managed assets by some amount
+/// Adds `delta` to `vault.total_managed_assets`.
+///
+/// # Errors
+/// Returns `Overflow` if the updated managed asset total would exceed `u128`.
 pub fn increase_total_managed_assets(vault: &mut Vault, delta: u64) -> Result<()> {
     vault.total_managed_assets = vault
         .total_managed_assets
@@ -114,7 +154,10 @@ pub fn increase_total_managed_assets(vault: &mut Vault, delta: u64) -> Result<()
     Ok(())
 }
 
-// decreases the total managed assets by some amount
+/// Subtracts `delta` from `vault.total_managed_assets`.
+///
+/// # Errors
+/// Returns `Overflow` if the subtraction would underflow.
 pub fn decrease_total_managed_assets(vault: &mut Vault, delta: u64) -> Result<()> {
     vault.total_managed_assets = vault
         .total_managed_assets

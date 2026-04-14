@@ -1,3 +1,5 @@
+//! Admin initialization handlers for market and vault setup.
+
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_interface::{Mint, TokenAccount};
@@ -15,12 +17,34 @@ use crate::{
 // INSTRUCTION HANDLERS
 // -------------------------
 
+/// Initializes market-wide admin state.
+///
+/// ## Accounts:
+/// - See [`InitMarket`]
+///
+/// ## Errors
+/// This handler currently performs no validation and returns no custom errors.
 pub fn init_market_handler(
     _ctx: Context<InitMarket>
 ) -> Result<()> {
     Ok(())
 }
 
+/// Initializes a new vault and its associated PDAs for a given asset mint.
+///
+/// ## Accounts:
+/// - See [`InitVault`]
+///
+/// ## Arguments
+/// - `min_deposit` - minimum accepted deposit amount for the vault
+/// - `deposit_cap` - upper bound on total managed assets
+/// - `virtual_assets` - virtual assets used in share conversion math
+/// - `virtual_shares` - virtual shares used in share conversion math
+///
+/// ## Errors
+/// - `InvalidDepositCap`
+/// - `InvalidAssetMint`
+/// - `InvalidTreasuryAccount`
 pub fn init_vault_handler(
     ctx: Context<InitVault>,
     min_deposit: u64,
@@ -76,9 +100,14 @@ pub fn init_vault_handler(
 // CONTEXT STRUCTS
 // -------------------------
 
+/// Accounts required by [`init_market_handler`].
 #[derive(Accounts)]
 pub struct InitMarket {}
 
+/// Accounts required by [`init_vault_handler`].
+///
+/// Creates the vault state PDA, share mint PDA, idle vault token account PDA,
+/// and treasury token account PDA for a single underlying asset mint.
 #[derive(Accounts)]
 pub struct InitVault<'info> {
     #[account(mut)]

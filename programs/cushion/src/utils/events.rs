@@ -38,6 +38,7 @@ pub struct DebtRepaidEvent {
 }
 
 #[event]
+/// Emitted when a new vault is initialized for an underlying asset mint.
 pub struct VaultInitializedEvent {
     pub vault: Pubkey,
     pub authority: Pubkey,
@@ -50,6 +51,8 @@ pub struct VaultInitializedEvent {
 }
 
 #[event]
+/// Emitted when a user deposits assets and receives freshly minted vault
+/// shares.
 pub struct VaultDepositEvent {
     pub user: Pubkey,
     pub vault: Pubkey,
@@ -59,6 +62,8 @@ pub struct VaultDepositEvent {
 }
 
 #[event]
+/// Emitted when a user mints an exact amount of shares and transfers the
+/// required underlying assets into the vault.
 pub struct VaultMintEvent {
     pub user: Pubkey,
     pub vault: Pubkey,
@@ -68,6 +73,8 @@ pub struct VaultMintEvent {
 }
 
 #[event]
+/// Emitted when a user redeems shares for underlying assets withdrawn from the
+/// vault.
 pub struct VaultRedeemEvent {
     pub user: Pubkey,
     pub vault: Pubkey,
@@ -77,6 +84,8 @@ pub struct VaultRedeemEvent {
 }
 
 #[event]
+/// Emitted when a user withdraws an exact amount of assets and burns the
+/// necessary vault shares.
 pub struct VaultWithdrawEvent {
     pub user: Pubkey,
     pub vault: Pubkey,

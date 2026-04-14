@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+/// On-chain state for a single Cushion vault that tracks mint relationships,
+/// accounting parameters, and aggregate managed assets.
 #[account]
 pub struct Vault {
     /// PDA bump used for signing.
@@ -40,6 +42,7 @@ pub struct Vault {
 }
 
 impl Vault {
+    /// Serialized size of [`Vault`] without the Anchor account discriminator.
     pub const LEN: usize = 1 + // bump
     32 + // authority
     32 + // asset_mint
