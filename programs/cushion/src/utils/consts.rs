@@ -15,3 +15,17 @@ pub const VAULT_SHARE_MINT_SEED: &[u8] = b"vault_share_mint_v1";
 pub const VAULT_TOKEN_ACCOUNT_SEED: &[u8] = b"vault_token_v1";
 /// PDA seed for the vault treasury token account reserved for fee flows.
 pub const VAULT_TREASURY_TOKEN_ACCOUNT_SEED: &[u8] = b"vault_treasury_v1";
+
+/// Seed prefix for the Cushion position PDA linked to an NFT mint.
+pub const POSITION_ACCOUNT_SEED: &[u8] = b"loan_position";
+
+/// Seed prefix for the Cushion position authority PDA linked to an NFT mint.
+///
+/// The byte string stays on the legacy value to preserve existing PDA derivations.
+pub const POSITION_AUTHORITY_SEED: &[u8] = b"loan_authority";
+
+/// Seed prefix for the global position registry PDA.
+pub const POSITION_REGISTRY_SEED: &[u8] = b"position_registry";
+
+/// Seed prefix for per-NFT position registry entry PDA.
+pub const POSITION_REGISTRY_ENTRY_SEED: &[u8] = b"position_registry_entry";

@@ -204,4 +204,14 @@ pub enum CushionError {
     MinAssetsOutNotMet,
     #[msg("Slippage: max shares burn exceeded")]
     MaxSharesBurnExceeded,
+    #[msg("Invalid Kamino program account")]
+    InvalidKaminoProgram,
+    #[msg("Invalid Kamino user metadata PDA")]
+    InvalidKaminoUserMetadata,
+    #[msg("Invalid Kamino obligation PDA")]
+    InvalidKaminoObligation,
+    #[msg("Invalid Kamino lending market authority PDA")]
+    InvalidKaminoLendingMarketAuthority,
+    #[msg("Invalid Kamino farm user state PDA")]
+    InvalidKaminoFarmUserState,
 }
