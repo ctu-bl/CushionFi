@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
+declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
 
 pub mod cpi;
 pub mod handlers;
@@ -28,7 +28,7 @@ pub mod cushion {
     pub fn init_position(
         ctx: Context<InitPosition>,
     ) -> Result<()> {
-        Ok(())
+        register_new_position(ctx)
     }
 
     pub fn insure_existing_position(
@@ -126,7 +126,7 @@ pub mod cushion {
     pub fn init_position_registry(
         ctx: Context<InitPositionRegistry>,
     ) -> Result<()> {
-        Ok(())
+        init_position_registry_aggregator(ctx)
     }
 
     pub fn init_vault(
@@ -142,7 +142,7 @@ pub mod cushion {
     pub fn init_collection(
         ctx: Context<InitCollection>,
     ) -> Result<()> {
-        Ok(())
+        handlers::collection::init_collection(ctx)
     }
 }
 
@@ -214,4 +214,8 @@ pub enum CushionError {
     InvalidKaminoLendingMarketAuthority,
     #[msg("Invalid Kamino farm user state PDA")]
     InvalidKaminoFarmUserState,
+    #[msg("Invalid NFT token account mint for Cushion position")]
+    InvalidPositionNftMint,
+    #[msg("NFT token account owner must match signer")]
+    InvalidPositionNftOwner,
 }

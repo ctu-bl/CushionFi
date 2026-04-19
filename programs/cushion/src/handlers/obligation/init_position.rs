@@ -12,9 +12,11 @@
 use anchor_lang::prelude::*;
 
 use anchor_spl::token::Token;
+use mpl_core::ID as MPL_CORE_ID;
 
 use super::{
     klend_init::{prepare_klend_for_position, KlendInitAndCheckAccounts},
+    nft
 };
 
 use crate::{
@@ -106,6 +108,16 @@ fn build_klend_init_accounts<'info>(
 
 /// Persists core position metadata into the `Obligation` wrapper account.
 fn initialize_position_state(ctx: &mut Context<InitPosition>) {
+    let position = &mut ctx.accounts.position;
+    position.nft_mint = ctx.accounts.nft_mint.key();
+    position.position_authority = ctx.accounts.position_authority.key();
+    position.owner = ctx.accounts.user.key();
+    position.borrower = ctx.accounts.user.key();
+    position.protocol_obligation = ctx.accounts.klend_obligation.key();
+    position.protocol_user_metadata = ctx.accounts.klend_user_metadata.key();
+    position.collateral_vault = Pubkey::default();
+    position.bump = ctx.bumps.position;
+    position.injected = false;
 }
 
 /// Mints exactly one position NFT to user and sets position_authority as update_authority.
@@ -113,9 +125,26 @@ fn initialize_position_state(ctx: &mut Context<InitPosition>) {
 /// Security:
 /// - position_authority as update_authority prevents unauthorized burns.
 fn mint_and_lock_position_nft(ctx: &Context<InitPosition>) -> Result<()> {
-    Ok(())
+        let nft_mint_key = ctx.accounts.nft_mint.key();
+    let nft_uri = format!(
+        "https://cushion.xyz/api/loan/{}",
+        nft_mint_key  // backend will parse token metadata to link on-chain position with off-chain data and UI - MIGHT BE ONE CONSTANT LINK IF NOT PARSING DATA IN THE URI
+    );
 
-    // TODO: MINT NFT with metaplex
+    nft::mint_position_nft_to_user(
+        ctx.accounts.mpl_core_program.to_account_info(),
+        ctx.accounts.nft_mint.to_account_info(),
+        ctx.accounts.collection.to_account_info(),
+        ctx.accounts.position_registry.to_account_info(),
+        ctx.accounts.user.to_account_info(),
+        ctx.accounts.user.to_account_info(),
+        ctx.accounts.system_program.to_account_info(),
+        format!("Cushion Position #{}", ctx.accounts.position_registry.total_positions),
+        nft_uri,
+        nft_mint_key,
+        ctx.accounts.position_registry.bump,
+    )
+    // revoke_position_nft_mint_authority removed — Metaplex handles this via update_authority
 }
 
 
@@ -211,6 +240,9 @@ pub struct InitPosition<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
+    #[account(address = MPL_CORE_ID)]
+    /// CHECK: checked by address constraint
+    pub mpl_core_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

@@ -24,6 +24,9 @@ custom-panic = []
 anchor-lang = "0.32.1"
 anchor-spl = "0.32.1"
 kamino-lend = "0.4.1"
+mpl-core = { version = "0.11.2", features = ["anchor"] }
+rmp = "=0.8.14"
+rmp-serde = "=1.2.0"
 
 
 
