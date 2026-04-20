@@ -1,0 +1,21 @@
+{
+    "name": "@ctu-bl/sdk",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "lint": "eslint .",
+        "test": "node --test",
+        "create:asset:local": "env APP_ENV=local node --env-file ../.env --experimental-strip-types scripts/createLocalAssetMint.ts",
+        "create:asset:localnet": "yarn create:asset:local",
+        "create:asset:devnet": "env APP_ENV=devnet node --env-file ../.env --experimental-strip-types scripts/createLocalAssetMint.ts",
+        "init:position-registry:devnet": "env APP_ENV=devnet node --env-file ../.env --experimental-strip-types scripts/initPositionRegistry.ts",
+        "init:position-registry:local": "env APP_ENV=local node --env-file ../.env --experimental-strip-types scripts/initPositionRegistry.ts",
+        "init:vault:devnet": "env APP_ENV=devnet node --env-file ../.env --experimental-strip-types scripts/initVaultLocal.ts",
+        "init:vault:local": "env APP_ENV=local node --env-file ../.env --experimental-strip-types scripts/initVaultLocal.ts",
+        "init:vault:localnet": "yarn init:vault:local"
+    }
+}

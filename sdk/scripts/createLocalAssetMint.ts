@@ -12,7 +12,7 @@ import {
   LOCAL_STATE_PATH,
   readEnvironmentState,
   writeEnvironmentState,
-} from "./_common";
+} from "./_common.ts";
 
 export async function main() {
   const runtimeConfig = getRuntimeConfig(process.env);
@@ -123,7 +123,7 @@ export async function main() {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
     console.error("Failed to create local asset mint:", error);
     process.exit(1);
