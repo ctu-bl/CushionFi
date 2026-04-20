@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cushion = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W"
+cushion = "4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd"
 
 [registry]
 url = "https://api.apr.dev"
