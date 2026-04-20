@@ -1,8 +1,8 @@
 mod borrow_klend;
-mod deposit_klend;
+pub mod deposit_klend;
 mod liquidate_klend;
 mod refresh_reserve_klend;
-mod refresh_obligation_klend;
+pub mod refresh_obligation_klend;
 mod repay_klend;
 mod withdraw_klend;
 

@@ -37,10 +37,11 @@ pub mod cushion {
         Ok(())
     }
 
-    pub fn increase_collateral(
-        ctx: Context<IncreaseCollateral>,
+    pub fn increase_collateral<'info>(
+        ctx: Context<'_, '_, '_, 'info, IncreaseCollateral<'info>>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        increase_collateral_handler(ctx, amount)
     }
 
     pub fn decrease_collateral(
@@ -218,4 +219,8 @@ pub enum CushionError {
     InvalidPositionNftMint,
     #[msg("NFT token account owner must match signer")]
     InvalidPositionNftOwner,
+    #[msg("Reserve is already used as a borrow on this obligation")]
+    ReserveAlreadyUsedOnOtherSide,
+    #[msg("A required Kamino reserve account is missing from remaining accounts")]
+    MissingKaminoRefreshReserve,
 }
