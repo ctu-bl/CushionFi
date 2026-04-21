@@ -1,0 +1,2124 @@
+{
+  "address": "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W",
+  "metadata": {
+    "name": "cushion",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "borrow_asset",
+      "discriminator": [
+        137,
+        132,
+        185,
+        253,
+        184,
+        171,
+        113,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "decrease_collateral",
+      "discriminator": [
+        82,
+        35,
+        149,
+        4,
+        134,
+        77,
+        244,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deposit",
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "asset_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_asset_account",
+          "writable": true
+        },
+        {
+          "name": "user_share_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "assets_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_shares_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "increase_collateral",
+      "discriminator": [
+        1,
+        137,
+        201,
+        224,
+        62,
+        144,
+        201,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "increase_debt",
+      "discriminator": [
+        33,
+        15,
+        146,
+        233,
+        128,
+        45,
+        27,
+        229
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_collection",
+      "discriminator": [
+        244,
+        242,
+        133,
+        0,
+        152,
+        187,
+        144,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "collection",
+          "docs": [
+            "NFT keypair for the collection — account doesn't exist yet"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "position_registry",
+          "docs": [
+            "Registry PDA acts as update_authority for the collection"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "mpl_core_program",
+          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_position",
+      "discriminator": [
+        197,
+        20,
+        10,
+        1,
+        97,
+        160,
+        177,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "nft_mint",
+          "docs": [
+            "NFT keypair — account doesn't exist yet, will be created in this instruction"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "collection",
+          "docs": [
+            "Cushion collection in which we are minting"
+          ],
+          "writable": true
+        },
+        {
+          "name": "position_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  97,
+                  110,
+                  95,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position_registry_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121,
+                  95,
+                  101,
+                  110,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nft_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "klend_user_metadata",
+          "writable": true
+        },
+        {
+          "name": "klend_obligation",
+          "writable": true
+        },
+        {
+          "name": "klend_reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "klend_program"
+        },
+        {
+          "name": "farms_program"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "mpl_core_program",
+          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_position_registry",
+      "discriminator": [
+        177,
+        221,
+        98,
+        50,
+        140,
+        12,
+        224,
+        245
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "position_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_vault",
+      "discriminator": [
+        77,
+        79,
+        85,
+        150,
+        33,
+        217,
+        52,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "asset_mint"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_deposit",
+          "type": "u64"
+        },
+        {
+          "name": "deposit_cap",
+          "type": "u64"
+        },
+        {
+          "name": "virtual_assets",
+          "type": "u64"
+        },
+        {
+          "name": "virtual_shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "inject_collateral",
+      "discriminator": [
+        243,
+        219,
+        245,
+        237,
+        79,
+        244,
+        66,
+        14
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "insure_existing_position",
+      "discriminator": [
+        160,
+        35,
+        6,
+        168,
+        109,
+        250,
+        184,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "liquidate",
+      "discriminator": [
+        223,
+        179,
+        226,
+        125,
+        48,
+        46,
+        39,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint",
+      "discriminator": [
+        51,
+        57,
+        225,
+        47,
+        182,
+        146,
+        137,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "asset_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_asset_account",
+          "writable": true
+        },
+        {
+          "name": "user_share_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_out",
+          "type": "u64"
+        },
+        {
+          "name": "max_assets_in",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "redeem",
+      "discriminator": [
+        184,
+        12,
+        86,
+        149,
+        70,
+        196,
+        97,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "asset_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_asset_account",
+          "writable": true
+        },
+        {
+          "name": "user_share_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_assets_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "repay",
+      "discriminator": [
+        234,
+        103,
+        67,
+        82,
+        208,
+        234,
+        219,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "asset_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101,
+                  95,
+                  118,
+                  49
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "asset_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "user_asset_account",
+          "writable": true
+        },
+        {
+          "name": "user_share_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "assets_out",
+          "type": "u64"
+        },
+        {
+          "name": "max_shares_burn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_injected_collateral",
+      "discriminator": [
+        125,
+        44,
+        99,
+        188,
+        85,
+        253,
+        93,
+        110
+      ],
+      "accounts": [
+        {
+          "name": "dummy",
+          "docs": [
+            "is read or written and the account is not trusted for authorization."
+          ]
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Obligation",
+      "discriminator": [
+        168,
+        206,
+        141,
+        106,
+        88,
+        76,
+        172,
+        167
+      ]
+    },
+    {
+      "name": "PositionRegistry",
+      "discriminator": [
+        82,
+        58,
+        183,
+        208,
+        57,
+        172,
+        38,
+        224
+      ]
+    },
+    {
+      "name": "PositionRegistryEntry",
+      "discriminator": [
+        6,
+        212,
+        83,
+        33,
+        86,
+        113,
+        13,
+        167
+      ]
+    },
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AccInterestUpdateEvent",
+      "discriminator": [
+        236,
+        105,
+        68,
+        132,
+        182,
+        8,
+        43,
+        118
+      ]
+    },
+    {
+      "name": "CollateralDecreasedEvent",
+      "discriminator": [
+        122,
+        42,
+        113,
+        188,
+        74,
+        169,
+        37,
+        127
+      ]
+    },
+    {
+      "name": "CollateralIncreasedEvent",
+      "discriminator": [
+        24,
+        154,
+        80,
+        31,
+        169,
+        150,
+        225,
+        45
+      ]
+    },
+    {
+      "name": "DebtIncreasedEvent",
+      "discriminator": [
+        245,
+        189,
+        213,
+        180,
+        247,
+        69,
+        85,
+        5
+      ]
+    },
+    {
+      "name": "DebtRepaidEvent",
+      "discriminator": [
+        57,
+        46,
+        91,
+        106,
+        180,
+        93,
+        128,
+        6
+      ]
+    },
+    {
+      "name": "InjectEvent",
+      "discriminator": [
+        190,
+        238,
+        175,
+        0,
+        84,
+        66,
+        207,
+        240
+      ]
+    },
+    {
+      "name": "LiquidateEvent",
+      "discriminator": [
+        158,
+        94,
+        144,
+        4,
+        147,
+        52,
+        5,
+        255
+      ]
+    },
+    {
+      "name": "LoanTakenEvent",
+      "discriminator": [
+        135,
+        214,
+        13,
+        210,
+        161,
+        80,
+        141,
+        245
+      ]
+    },
+    {
+      "name": "VaultDepositEvent",
+      "discriminator": [
+        187,
+        186,
+        196,
+        189,
+        175,
+        44,
+        10,
+        64
+      ]
+    },
+    {
+      "name": "VaultInitializedEvent",
+      "discriminator": [
+        203,
+        214,
+        91,
+        5,
+        185,
+        248,
+        192,
+        149
+      ]
+    },
+    {
+      "name": "VaultMintEvent",
+      "discriminator": [
+        234,
+        202,
+        201,
+        67,
+        158,
+        161,
+        114,
+        218
+      ]
+    },
+    {
+      "name": "VaultRedeemEvent",
+      "discriminator": [
+        217,
+        58,
+        216,
+        14,
+        209,
+        205,
+        108,
+        26
+      ]
+    },
+    {
+      "name": "VaultWithdrawEvent",
+      "discriminator": [
+        192,
+        143,
+        53,
+        201,
+        67,
+        20,
+        212,
+        195
+      ]
+    },
+    {
+      "name": "WithdrawInjectedEvent",
+      "discriminator": [
+        146,
+        209,
+        72,
+        170,
+        202,
+        103,
+        136,
+        185
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "Overflow",
+      "msg": "Overflow"
+    },
+    {
+      "code": 6002,
+      "name": "ZeroCollateralAmount",
+      "msg": "Collateral amount can't be zero when creating the position"
+    },
+    {
+      "code": 6003,
+      "name": "ZeroDebtAmount",
+      "msg": "Debt amount can't be zero"
+    },
+    {
+      "code": 6004,
+      "name": "ZeroRepayAmount",
+      "msg": "Amount for repaying can't be zero"
+    },
+    {
+      "code": 6005,
+      "name": "UnsafePosition",
+      "msg": "Position is too close to liquidation and cannot be insured"
+    },
+    {
+      "code": 6006,
+      "name": "ZeroDepositAmount",
+      "msg": "Deposit amount cannot be zero"
+    },
+    {
+      "code": 6007,
+      "name": "ZeroWithdrawAmount",
+      "msg": "Withdraw amount cannot be zero"
+    },
+    {
+      "code": 6008,
+      "name": "ZeroMintAmount",
+      "msg": "Mint amount cannot be zero"
+    },
+    {
+      "code": 6009,
+      "name": "ZeroRedeemAmount",
+      "msg": "Redeem amount cannot be zero"
+    },
+    {
+      "code": 6010,
+      "name": "VaultPaused",
+      "msg": "Vault is paused"
+    },
+    {
+      "code": 6011,
+      "name": "WithdrawalsPaused",
+      "msg": "Withdrawals are paused"
+    },
+    {
+      "code": 6012,
+      "name": "DepositTooSmall",
+      "msg": "Deposit amount is below vault minimum"
+    },
+    {
+      "code": 6013,
+      "name": "DepositCapExceeded",
+      "msg": "Vault deposit cap exceeded"
+    },
+    {
+      "code": 6014,
+      "name": "ZeroSharesOut",
+      "msg": "Share output rounded down to zero"
+    },
+    {
+      "code": 6015,
+      "name": "ZeroAssetsOut",
+      "msg": "Asset output rounded down to zero"
+    },
+    {
+      "code": 6016,
+      "name": "InsufficientVaultLiquidity",
+      "msg": "Vault does not have enough idle liquidity"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidAssetMint",
+      "msg": "Invalid asset mint account"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidShareMint",
+      "msg": "Invalid share mint account"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidVaultTokenAccount",
+      "msg": "Invalid vault token account"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidTreasuryAccount",
+      "msg": "Invalid treasury token account"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidDepositCap",
+      "msg": "Invalid deposit cap configuration"
+    },
+    {
+      "code": 6022,
+      "name": "DivisionByZero",
+      "msg": "Division by zero"
+    },
+    {
+      "code": 6023,
+      "name": "CastError",
+      "msg": "Cast error"
+    },
+    {
+      "code": 6024,
+      "name": "MinSharesOutNotMet",
+      "msg": "Slippage: min shares out not met"
+    },
+    {
+      "code": 6025,
+      "name": "MaxAssetsInExceeded",
+      "msg": "Slippage: max assets in exceeded"
+    },
+    {
+      "code": 6026,
+      "name": "MinAssetsOutNotMet",
+      "msg": "Slippage: min assets out not met"
+    },
+    {
+      "code": 6027,
+      "name": "MaxSharesBurnExceeded",
+      "msg": "Slippage: max shares burn exceeded"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidKaminoProgram",
+      "msg": "Invalid Kamino program account"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidKaminoUserMetadata",
+      "msg": "Invalid Kamino user metadata PDA"
+    },
+    {
+      "code": 6030,
+      "name": "InvalidKaminoObligation",
+      "msg": "Invalid Kamino obligation PDA"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidKaminoLendingMarketAuthority",
+      "msg": "Invalid Kamino lending market authority PDA"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidKaminoFarmUserState",
+      "msg": "Invalid Kamino farm user state PDA"
+    },
+    {
+      "code": 6033,
+      "name": "InvalidPositionNftMint",
+      "msg": "Invalid NFT token account mint for Cushion position"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidPositionNftOwner",
+      "msg": "NFT token account owner must match signer"
+    }
+  ],
+  "types": [
+    {
+      "name": "AccInterestUpdateEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_ai",
+            "type": "u64"
+          },
+          {
+            "name": "new_ai",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CollateralDecreasedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "col_decrease_value",
+            "type": "u64"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CollateralIncreasedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "col_increase_value",
+            "type": "u64"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DebtIncreasedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "debt_increase_value",
+            "type": "u64"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          },
+          {
+            "name": "hf",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DebtRepaidEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "repay_value",
+            "type": "u64"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          },
+          {
+            "name": "hf",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InjectEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          },
+          {
+            "name": "injected_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LiquidateEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          },
+          {
+            "name": "collateral_amount_liquidated",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LoanTakenEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "col_value",
+            "type": "u64"
+          },
+          {
+            "name": "debt_value",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Obligation",
+      "docs": [
+        "Wrapper account that references a Kamino obligation managed by a Cushion position.",
+        "",
+        "This account does NOT store lending state",
+        "It only references an existing Kamino obligation account",
+        "",
+        "Security invariants:",
+        "- `owner` MUST match the owner inside the underlying Kamino obligation"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nft_mint",
+            "docs": [
+              "NFT mint that deterministically identifies this Cushion position."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "position_authority",
+            "docs": [
+              "Cushion position authority PDA used for CPI signing."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of this wrapper is also the owner of the underlying Kamino obligation."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "docs": [
+              "Borrower associated with the Cushion position."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_obligation",
+            "docs": [
+              "Address of the underlying Kamino obligation account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "protocol_user_metadata",
+            "docs": [
+              "Kamino user metadata PDA linked to the position authority PDA."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "collateral_vault",
+            "docs": [
+              "Vault that injects additional collateral"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "inject_threshold_wad",
+            "docs": [
+              "Threshold for injecting additional collateral when position becomes risky"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump for PDA signing"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "injected",
+            "docs": [
+              "Flag whether it is injected additional collateral"
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionRegistry",
+      "docs": [
+        "Global position registry PDA.",
+        "",
+        "This account is only an on-chain aggregator/index root.",
+        "It is NOT an authority for position actions."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_positions",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionRegistryEntry",
+      "docs": [
+        "Per-position registry entry, keyed by NFT mint.",
+        "",
+        "This mirrors key references for indexing and discovery.",
+        "Source of truth for authority remains the NFT/ATA ownership checks",
+        "and the `position` PDA."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "nft_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "position_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "docs": [
+        "On-chain state for a single Cushion vault that tracks mint relationships,",
+        "accounting parameters, and aggregate managed assets."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump used for signing."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority allowed to manage vault parameters."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "asset_mint",
+            "docs": [
+              "Underlying SPL token mint held by the vault."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "share_mint",
+            "docs": [
+              "Mint for vault shares."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_token_account",
+            "docs": [
+              "Token account holding idle underlying assets."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury_token_account",
+            "docs": [
+              "Treasury token account (reserved for future fee logic)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "total_managed_assets",
+            "docs": [
+              "Source of truth for total assets economically managed by the vault."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "min_deposit",
+            "docs": [
+              "Minimum accepted deposit amount."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deposit_cap",
+            "docs": [
+              "Hard cap for total managed assets."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "virtual_assets",
+            "docs": [
+              "Virtual assets used in share conversion."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "virtual_shares",
+            "docs": [
+              "Virtual shares used in share conversion."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_update_ts",
+            "docs": [
+              "Last accounting update timestamp."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultDepositEvent",
+      "docs": [
+        "Emitted when a user deposits assets and receives freshly minted vault",
+        "shares."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "assets_in",
+            "type": "u64"
+          },
+          {
+            "name": "shares_out",
+            "type": "u64"
+          },
+          {
+            "name": "total_managed_assets",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInitializedEvent",
+      "docs": [
+        "Emitted when a new vault is initialized for an underlying asset mint."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "asset_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "share_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "min_deposit",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_cap",
+            "type": "u64"
+          },
+          {
+            "name": "virtual_assets",
+            "type": "u64"
+          },
+          {
+            "name": "virtual_shares",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultMintEvent",
+      "docs": [
+        "Emitted when a user mints an exact amount of shares and transfers the",
+        "required underlying assets into the vault."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "assets_in",
+            "type": "u64"
+          },
+          {
+            "name": "shares_out",
+            "type": "u64"
+          },
+          {
+            "name": "total_managed_assets",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultRedeemEvent",
+      "docs": [
+        "Emitted when a user redeems shares for underlying assets withdrawn from the",
+        "vault."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_in",
+            "type": "u64"
+          },
+          {
+            "name": "assets_out",
+            "type": "u64"
+          },
+          {
+            "name": "total_managed_assets",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultWithdrawEvent",
+      "docs": [
+        "Emitted when a user withdraws an exact amount of assets and burns the",
+        "necessary vault shares."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "assets_out",
+            "type": "u64"
+          },
+          {
+            "name": "shares_burned",
+            "type": "u64"
+          },
+          {
+            "name": "total_managed_assets",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WithdrawInjectedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "obligation",
+            "type": "pubkey"
+          },
+          {
+            "name": "withdrawn_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

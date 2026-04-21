@@ -16,6 +16,22 @@ export const RESERVE = new PublicKey(
   "d4A2prbA2whesmvHaL88BH6Ewn5N4bTSU2Ze8P6Bc4Q"
 );
 
+export const RESERVE_LIQUIDITY_SUPPLY = new PublicKey(
+  "GafNuUXj9rxGLn4y79dPu6MHSuPWeJR6UtTWuexpGh3U"
+);
+
+export const RESERVE_LIQUIDITY_MINT = new PublicKey(
+  "So11111111111111111111111111111111111111112"
+);
+
+export const RESERVE_COLLATERAL_MINT = new PublicKey(
+  "2UywZrUdyqs5vDchy7fKQJKau2RVyuzBev2XKGPDSiX1"
+);
+
+export const RESERVE_DESTINATION_COLLATERAL = new PublicKey(
+  "8NXMyRD91p3nof61BTkJvrfpGTASHygz1cUvc3HvwyGS"
+);
+
 export const RESERVE_FARM_STATE = new PublicKey(
   "955xWFhSDcDiUgUr4sBRtCpTLiMd4H5uZLAmgtP3R3sX"
 );

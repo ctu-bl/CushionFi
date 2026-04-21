@@ -3,12 +3,15 @@ import type { Idl } from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import {
   getRuntimeConfig,
   loadKeypair,
   readEnvironmentState,
-} from "./_common";
+} from "./_common.ts";
 
 const { AnchorProvider, BN, Program, Wallet, setProvider } = anchor;
 
@@ -143,7 +146,7 @@ export async function main() {
   console.log("init_vault tx signature:", txSig);
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
     console.error("Failed to init vault:", err);
     process.exit(1);
