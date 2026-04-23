@@ -1,14 +1,21 @@
 use anchor_lang::prelude::*;
 
+use crate::{state::obligation::Obligation, CushionError};
 
+pub fn inject_collateral_handler(ctx: Context<InjectCollateral>, _amount: u64) -> Result<()> {
+    require!(
+        !ctx.accounts.position.injected,
+        CushionError::AlreadyInjected
+    );
 
-// -------------------------
-// CONTEXT STRUCTS
-// -------------------------
+    ctx.accounts.position.injected = true;
+
+    Ok(())
+}
 
 #[derive(Accounts)]
-pub struct InjectCollateral<'info>{
-    /// CHECK: Placeholder account for an unfinished instruction context; no data
-    /// is read or written and the account is not trusted for authorization.
-    pub dummy: AccountInfo<'info>
+pub struct InjectCollateral<'info> {
+    #[account(mut)]
+    pub position: Account<'info, Obligation>,
+    pub authority: Signer<'info>,
 }
