@@ -91,7 +91,7 @@ fn refresh_obligation_for_current_slot<'info>(
     }
 }
 
-fn resolve_active_refresh_reserves<'info>(
+pub fn resolve_active_refresh_reserves<'info>(
     klend_obligation: &AccountInfo<'info>,
     current_reserve: &AccountInfo<'info>,
     remaining_accounts: &[AccountInfo<'info>],

@@ -1,4 +1,4 @@
-mod decrease_collateral;
+pub mod decrease_collateral;
 mod increase_collateral;
 
 pub use increase_collateral::*;

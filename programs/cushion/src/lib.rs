@@ -44,16 +44,18 @@ pub mod cushion {
         increase_collateral_handler(ctx, amount)
     }
 
-    pub fn decrease_collateral(
-        ctx: Context<DecreaseCollateral>,
+    pub fn decrease_collateral<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecreaseCollateral<'info>>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        decrease_collateral_handler(ctx, amount)
     }
 
-    pub fn borrow_asset(
-        ctx: Context<BorrowAsset>,
+    pub fn borrow_asset<'info>(
+        ctx: Context<'_, '_, '_, 'info, BorrowAsset<'info>>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        borrow_asset_handler(ctx, amount)
     }
 
     pub fn increase_debt(
@@ -106,8 +108,9 @@ pub mod cushion {
 
     pub fn inject_collateral(
         ctx: Context<InjectCollateral>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        inject_collateral_handler(ctx, amount)
     }
 
     pub fn withdraw_injected_collateral(
@@ -223,4 +226,16 @@ pub enum CushionError {
     ReserveAlreadyUsedOnOtherSide,
     #[msg("A required Kamino reserve account is missing from remaining accounts")]
     MissingKaminoRefreshReserve,
+    #[msg("Position has injected collateral and cannot be decreased")]
+    InjectedCollateral,
+    #[msg("Failed to compute market value from reserve data")]
+    MarketValueError,
+    #[msg("Failed to compute potential LTV")]
+    LtvComputationError,
+    #[msg("Collateral decrease would put position below safe LTV threshold")]
+    UnsafeDecreaseCollateral,
+    #[msg("Failed to deserialize account data")]
+    DeserializationError,
+    #[msg("Position already has injected collateral")]
+    AlreadyInjected,
 }

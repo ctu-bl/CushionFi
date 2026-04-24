@@ -4,6 +4,8 @@ pub const TOKEN_PRECISION: u64 = 1_000_000_000;
 pub const WAD: u128 = 1_000_000_000_000_000_000;
 
 pub const INSURING_HF_THRESHOLD: u128 = 1_350_000_000_000_000_000;
+pub const INSURING_LTV_THRESHOLD_MULTIPLIER: u128 = 850_000_000_000_000_000;
+pub const BORROW_LIQUIDATION_BUFFER_MULTIPLIER: u128 = 950_000_000_000_000_000;
 
 pub const KAMINO_PROGRAM_ID: Pubkey = pubkey!("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
 
@@ -29,3 +31,34 @@ pub const POSITION_REGISTRY_SEED: &[u8] = b"position_registry";
 
 /// Seed prefix for per-NFT position registry entry PDA.
 pub const POSITION_REGISTRY_ENTRY_SEED: &[u8] = b"position_registry_entry";
+
+pub fn ten_pow(x: usize) -> u64 {
+    const POWERS_OF_TEN: [u64; 20] = [
+        1,
+        10,
+        100,
+        1_000,
+        10_000,
+        100_000,
+        1_000_000,
+        10_000_000,
+        100_000_000,
+        1_000_000_000,
+        10_000_000_000,
+        100_000_000_000,
+        1_000_000_000_000,
+        10_000_000_000_000,
+        100_000_000_000_000,
+        1_000_000_000_000_000,
+        10_000_000_000_000_000,
+        100_000_000_000_000_000,
+        1_000_000_000_000_000_000,
+        10_000_000_000_000_000_000,
+    ];
+
+    if x > 19 {
+        panic!("The exponent must be between 0 and 19.");
+    }
+
+    POWERS_OF_TEN[x]
+}

@@ -39,3 +39,7 @@ export const RESERVE_FARM_STATE = new PublicKey(
 export const FARMS_PROGRAM = new PublicKey(
   "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr"
 );
+
+export const USDC_RESERVE = new PublicKey(
+  "D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59"
+);
