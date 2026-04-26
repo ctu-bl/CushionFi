@@ -37,8 +37,11 @@ pub struct Vault {
     /// Virtual shares used in share conversion.
     pub virtual_shares: u64,
 
-    /// Last accounting update timestamp.
-    pub last_update_ts: i64,
+    /// Price of the underlying asset.
+    pub market_price: u128,
+
+    // Last timestamp when the market price was updated.
+    pub market_price_last_updated: i64,
 }
 
 impl Vault {
@@ -54,5 +57,6 @@ impl Vault {
     8 + // deposit_cap
     8 + // virtual_assets
     8 + // virtual_shares
-    8; // last_update_ts
+    16 + // market_price
+    8; // market_price_last_updated
 }

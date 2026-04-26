@@ -43,3 +43,21 @@ export const FARMS_PROGRAM = new PublicKey(
 export const USDC_RESERVE = new PublicKey(
   "D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59"
 );
+
+
+// Legacy v1 pull-oracle account
+export const PYTH_SOL_USD_FEED = new PublicKey(
+  "H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG"
+);
+
+// V2 push-oracle feed ID for SOL/USD (same on all clusters)
+// Source: https://pyth.network/developers/price-feed-ids
+export const SOL_USD_FEED_ID: Buffer = Buffer.from(
+  "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+  "hex"
+);
+
+// PriceUpdateV2 account for SOL/USD
+export const PYTH_SOL_USD_PRICE_UPDATE = new PublicKey(
+  "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
+);

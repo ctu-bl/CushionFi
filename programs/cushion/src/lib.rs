@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
+declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
 
 pub mod cpi;
 pub mod handlers;
@@ -58,10 +58,11 @@ pub mod cushion {
         borrow_asset_handler(ctx, amount)
     }
 
-    pub fn increase_debt(
-        ctx: Context<IncreaseDebt>,
+    pub fn increase_debt<'info>(
+        ctx: Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        increase_debt_handler(ctx, amount)
     }
 
     pub fn repay(
@@ -148,6 +149,10 @@ pub mod cushion {
     ) -> Result<()> {
         handlers::collection::init_collection(ctx)
     }
+
+    pub fn update_market_price(ctx: Context<UpdateMarketPrice>, feed_id: [u8; 32]) -> Result<()> {
+        update_market_price_handler(ctx, feed_id)
+    }
 }
 
 #[error_code]
@@ -200,6 +205,10 @@ pub enum CushionError {
     DivisionByZero,
     #[msg("Cast error")]
     CastError,
+    #[msg("Pyth price is stale or unavailable")]
+    StalePythPrice,
+    #[msg("Pyth price is negative or zero")]
+    InvalidPythPrice,
     #[msg("Slippage: min shares out not met")]
     MinSharesOutNotMet,
     #[msg("Slippage: max assets in exceeded")]

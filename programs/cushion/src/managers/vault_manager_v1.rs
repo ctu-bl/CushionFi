@@ -186,7 +186,8 @@ mod tests {
             deposit_cap,
             virtual_assets: 0,
             virtual_shares: 0,
-            last_update_ts: 0,
+            market_price: 0,
+            market_price_last_updated: 0,
         }
     }
 
