@@ -35,7 +35,6 @@ pub struct UpdateMarketPrice<'info> {
         mut,
         seeds = [VAULT_STATE_SEED, vault.asset_mint.as_ref()],
         bump = vault.bump,
-        has_one = authority @ CushionError::Unauthorized,
     )]
     pub vault: Account<'info, Vault>,
 

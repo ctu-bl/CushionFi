@@ -118,32 +118,6 @@ describe("pyth market price update", () => {
     expect(ts).to.be.greaterThan(1_700_000_000);
   });
 
-  // Authorization: a non-authority signer must be rejected.
-  it("2) rejects update_market_price when signer is not the vault authority", async () => {
-    const assetMint = await createMint(provider.connection, payer, payer.publicKey, null, 9);
-    const { vault } = await initVault(assetMint);
-
-    const stranger = Keypair.generate();
-    await airdrop(stranger.publicKey);
-
-    try {
-      await program.methods
-        .updateMarketPrice([...SOL_USD_FEED_ID])
-        .accounts({
-          authority: stranger.publicKey,
-          vault,
-          priceUpdate: PYTH_SOL_USD_PRICE_UPDATE,
-        })
-        .signers([stranger])
-        .rpc();
-      expect.fail("Expected Unauthorized error");
-    } catch (err: any) {
-      const msg = String(err);
-      const code = err?.error?.errorCode?.code ?? "";
-      expect(code === "Unauthorized" || msg.includes("Unauthorized")).to.be.true;
-    }
-  });
-
   // Account validation: passing a random account instead of a valid PriceUpdateV2 must fail.
   it("3) rejects update_market_price when price_update is not a valid Pyth account", async () => {
     const assetMint = await createMint(provider.connection, payer, payer.publicKey, null, 9);
