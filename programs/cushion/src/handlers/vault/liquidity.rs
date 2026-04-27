@@ -79,7 +79,7 @@ pub fn deposit_handler(ctx: Context<Deposit>, assets_in: u64, min_shares_out: u6
 
     let vault = &mut ctx.accounts.vault;
     managers::increase_total_managed_assets(vault, assets_in)?;
-    vault.last_update_ts = Clock::get()?.unix_timestamp;
+    vault.market_price_last_updated = Clock::get()?.unix_timestamp;
 
     emit!(VaultDepositEvent {
         user: ctx.accounts.user.key(),
@@ -156,7 +156,7 @@ pub fn mint_handler(ctx: Context<MintShares>, shares_out: u64, max_assets_in: u6
 
     let vault = &mut ctx.accounts.vault;
     managers::increase_total_managed_assets(vault, assets_in)?;
-    vault.last_update_ts = Clock::get()?.unix_timestamp;
+    vault.market_price_last_updated = Clock::get()?.unix_timestamp;
 
     emit!(VaultMintEvent {
         user: ctx.accounts.user.key(),
@@ -232,7 +232,7 @@ pub fn redeem_handler(ctx: Context<Redeem>, shares_in: u64, min_assets_out: u64)
 
     let vault = &mut ctx.accounts.vault;
     managers::decrease_total_managed_assets(vault, assets_out)?;
-    vault.last_update_ts = Clock::get()?.unix_timestamp;
+    vault.market_price_last_updated = Clock::get()?.unix_timestamp;
 
     emit!(VaultRedeemEvent {
         user: ctx.accounts.user.key(),
@@ -314,7 +314,7 @@ pub fn withdraw_handler(
 
     let vault = &mut ctx.accounts.vault;
     managers::decrease_total_managed_assets(vault, assets_out)?;
-    vault.last_update_ts = Clock::get()?.unix_timestamp;
+    vault.market_price_last_updated = Clock::get()?.unix_timestamp;
 
     emit!(VaultWithdrawEvent {
         user: ctx.accounts.user.key(),

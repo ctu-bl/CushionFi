@@ -1,0 +1,413 @@
+use anchor_lang::{
+    prelude::*,
+    solana_program::{
+        instruction::{AccountMeta, Instruction},
+        program::invoke_signed,
+    },
+    InstructionData,
+};
+use anchor_spl::token;
+use kamino_lend::cpi::{
+    self,
+    accounts::{
+        InitObligationFarmsForReserve, RefreshObligation,
+        RefreshObligationFarmsForReserve, RefreshObligationFarmsForReserveBaseAccounts,
+        RefreshReserve,
+    },
+};
+use kamino_lend::instruction::BorrowObligationLiquidityV2;
+use kamino_lend::state::{Obligation as KlendObligation, Reserve};
+use std::mem::size_of;
+
+use crate::{
+    handlers::obligation::{
+        debt::increase_debt::IncreaseDebt,
+        klend_obligation::{
+            klend_obligation_active_borrow_reserves, klend_obligation_active_deposit_reserves,
+            klend_obligation_has_active_reserve,
+        },
+        position_auth::with_position_authority_signer,
+    },
+    math::{
+        apply_ltv_buffer, compute_potential_ltv, get_liquidation_ltv_threshold,
+        get_market_value_from_reserve, to_increase,
+    },
+    utils::{BORROW_LIQUIDATION_BUFFER_MULTIPLIER, POSITION_AUTHORITY_SEED},
+    CushionError,
+};
+
+// ─── INCREASE DEBT FLOW ──────────────────────────────────────────────────────
+
+/// Refreshes reserve + obligation, asserts LTV safety, then borrows and transfers to user.
+pub fn process_debt_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+    amount: u64,
+) -> Result<()> {
+    refresh_reserve_for_increase(ctx)?;
+    refresh_obligation_for_increase(ctx)?;
+    assess_safe_debt_increase(ctx, amount)?;
+    ensure_obligation_farm_user_state_for_increase(ctx)?;
+    refresh_obligation_farm_state_for_increase(ctx)?;
+    borrow_liquidity_into_position(ctx, amount)?;
+    transfer_borrowed_liquidity_to_user(ctx, amount)
+}
+
+fn refresh_reserve_for_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+) -> Result<()> {
+    let placeholder = ctx.accounts.klend_program.to_account_info();
+    let cpi_accounts = RefreshReserve {
+        reserve: ctx.accounts.borrow_reserve.to_account_info(),
+        lending_market: ctx.accounts.lending_market.to_account_info(),
+        pyth_oracle: ctx
+            .accounts
+            .pyth_oracle
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or_else(|| placeholder.clone()),
+        switchboard_price_oracle: ctx
+            .accounts
+            .switchboard_price_oracle
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or_else(|| placeholder.clone()),
+        switchboard_twap_oracle: ctx
+            .accounts
+            .switchboard_twap_oracle
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or_else(|| placeholder.clone()),
+        scope_prices: ctx
+            .accounts
+            .scope_prices
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or(placeholder),
+    };
+    cpi::refresh_reserve(CpiContext::new(
+        ctx.accounts.klend_program.to_account_info(),
+        cpi_accounts,
+    ))
+}
+
+fn refresh_obligation_for_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+) -> Result<()> {
+    let cpi_ctx = CpiContext::new(
+        ctx.accounts.klend_program.to_account_info(),
+        RefreshObligation {
+            lending_market: ctx.accounts.lending_market.to_account_info(),
+            obligation: ctx.accounts.klend_obligation.to_account_info(),
+        },
+    );
+
+    if klend_obligation_has_active_reserve(&ctx.accounts.klend_obligation)? {
+        let remaining = resolve_increase_refresh_reserves(ctx)?;
+        cpi::refresh_obligation(cpi_ctx.with_remaining_accounts(remaining))
+    } else {
+        cpi::refresh_obligation(cpi_ctx)
+    }
+}
+
+fn resolve_increase_refresh_reserves<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+) -> Result<Vec<AccountInfo<'info>>> {
+    let obligation = &ctx.accounts.klend_obligation;
+    let current_reserve = &ctx.accounts.borrow_reserve;
+
+    let mut required = klend_obligation_active_deposit_reserves(obligation)?;
+    required.extend(klend_obligation_active_borrow_reserves(obligation)?);
+
+    let mut resolved = Vec::with_capacity(required.len());
+    for reserve in required {
+        if reserve == current_reserve.key() {
+            resolved.push(current_reserve.to_account_info());
+        } else {
+            let matching = ctx
+                .remaining_accounts
+                .iter()
+                .find(|a| a.key() == reserve)
+                .cloned()
+                .ok_or_else(|| error!(CushionError::MissingKaminoRefreshReserve))?;
+            resolved.push(matching);
+        }
+    }
+    Ok(resolved)
+}
+
+fn assess_safe_debt_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let reserve = &ctx.accounts.borrow_reserve;
+    let obligation = &ctx.accounts.klend_obligation;
+
+    let (price, decimals) = get_reserve_price_and_decimals(reserve)?;
+    let debt_change = get_market_value_from_reserve(amount, price, decimals)
+        .ok_or(CushionError::MarketValueError)?;
+
+    let (deposited_value, debt_value, unhealthy_borrow_value) =
+        read_obligation_risk_values(obligation)?;
+
+    let potential_ltv = compute_potential_ltv(
+        to_increase(0),
+        to_increase(debt_change),
+        deposited_value,
+        debt_value,
+    )
+    .ok_or(CushionError::LtvComputationError)?;
+
+    let liquidation_ltv = get_liquidation_ltv_threshold(unhealthy_borrow_value, deposited_value)
+        .ok_or(CushionError::LtvComputationError)?;
+
+    let max_safe_ltv = apply_ltv_buffer(liquidation_ltv, BORROW_LIQUIDATION_BUFFER_MULTIPLIER)
+        .ok_or(CushionError::LtvComputationError)?;
+
+    require!(potential_ltv <= max_safe_ltv, CushionError::UnsafePosition);
+    Ok(())
+}
+
+fn get_reserve_price_and_decimals(reserve: &AccountInfo) -> Result<(u128, u64)> {
+    let data = reserve.data.borrow();
+    let discriminator_size = 8;
+    let struct_size = size_of::<Reserve>();
+    require!(
+        data.len() >= discriminator_size + struct_size,
+        CushionError::DeserializationError
+    );
+    let r: &Reserve =
+        bytemuck::from_bytes(&data[discriminator_size..discriminator_size + struct_size]);
+    Ok((r.liquidity.market_price_sf, r.liquidity.mint_decimals))
+}
+
+fn read_obligation_risk_values(obligation: &AccountInfo) -> Result<(u128, u128, u128)> {
+    let data = obligation.data.borrow();
+    let discriminator_size = 8;
+    let struct_size = size_of::<KlendObligation>();
+    require!(
+        data.len() >= discriminator_size + struct_size,
+        CushionError::DeserializationError
+    );
+    let obl: &KlendObligation =
+        bytemuck::from_bytes(&data[discriminator_size..discriminator_size + struct_size]);
+    Ok((
+        obl.deposited_value_sf,
+        obl.borrow_factor_adjusted_debt_value_sf,
+        obl.unhealthy_borrow_value_sf,
+    ))
+}
+
+fn ensure_obligation_farm_user_state_for_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+) -> Result<()> {
+    let (Some(obligation_farm_user_state), Some(reserve_farm_state)) = (
+        ctx.accounts.obligation_farm_user_state.as_ref(),
+        ctx.accounts.reserve_farm_state.as_ref(),
+    ) else {
+        return Ok(());
+    };
+
+    if !obligation_farm_user_state.data_is_empty() {
+        return Ok(());
+    }
+
+    let cpi_accounts = InitObligationFarmsForReserve {
+        payer: ctx.accounts.user.to_account_info(),
+        owner: ctx.accounts.position_authority.to_account_info(),
+        obligation: ctx.accounts.klend_obligation.to_account_info(),
+        lending_market_authority: ctx.accounts.lending_market_authority.to_account_info(),
+        reserve: ctx.accounts.borrow_reserve.to_account_info(),
+        reserve_farm_state: reserve_farm_state.to_account_info(),
+        obligation_farm: obligation_farm_user_state.to_account_info(),
+        lending_market: ctx.accounts.lending_market.to_account_info(),
+        farms_program: ctx.accounts.farms_program.to_account_info(),
+        rent: ctx.accounts.rent.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+    };
+
+    with_position_authority_signer(
+        ctx.bumps.position_authority,
+        ctx.accounts.position.nft_mint,
+        |signer| {
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.klend_program.to_account_info(),
+                cpi_accounts,
+                signer,
+            );
+            cpi::init_obligation_farms_for_reserve(cpi_ctx, 1)
+        },
+    )
+}
+
+fn refresh_obligation_farm_state_for_increase<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+) -> Result<()> {
+    let (Some(obligation_farm_user_state), Some(reserve_farm_state)) = (
+        ctx.accounts.obligation_farm_user_state.as_ref(),
+        ctx.accounts.reserve_farm_state.as_ref(),
+    ) else {
+        return Ok(());
+    };
+
+    let cpi_accounts = RefreshObligationFarmsForReserve {
+        crank: ctx.accounts.user.to_account_info(),
+        RefreshObligationFarmsForReservebase_accounts:
+            RefreshObligationFarmsForReserveBaseAccounts {
+                obligation: ctx.accounts.klend_obligation.to_account_info(),
+                lending_market_authority: ctx.accounts.lending_market_authority.to_account_info(),
+                reserve: ctx.accounts.borrow_reserve.to_account_info(),
+                reserve_farm_state: reserve_farm_state.to_account_info(),
+                obligation_farm_user_state: obligation_farm_user_state.to_account_info(),
+                lending_market: ctx.accounts.lending_market.to_account_info(),
+            },
+        farms_program: ctx.accounts.farms_program.to_account_info(),
+        rent: ctx.accounts.rent.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+    };
+
+    cpi::refresh_obligation_farms_for_reserve(
+        CpiContext::new(ctx.accounts.klend_program.to_account_info(), cpi_accounts),
+        1,
+    )
+}
+
+fn borrow_liquidity_into_position<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let active_reserves = resolve_increase_refresh_reserves(ctx)?;
+    let nft_mint = ctx.accounts.position.nft_mint;
+    let bump = find_position_authority_bump(nft_mint);
+
+    with_position_authority_signer(bump, nft_mint, |signer| {
+        let data = BorrowObligationLiquidityV2 {
+            _liquidity_amount: amount,
+        }
+        .data();
+
+        let mut metas = vec![
+            AccountMeta::new_readonly(ctx.accounts.position_authority.key(), true),
+            AccountMeta::new(ctx.accounts.klend_obligation.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.lending_market.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.lending_market_authority.key(), false),
+            AccountMeta::new(ctx.accounts.borrow_reserve.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.borrow_reserve_liquidity_mint.key(), false),
+            AccountMeta::new(ctx.accounts.reserve_source_liquidity.key(), false),
+            AccountMeta::new(ctx.accounts.borrow_reserve_liquidity_fee_receiver.key(), false),
+            AccountMeta::new(ctx.accounts.position_borrow_account.key(), false),
+        ];
+
+        let mut infos: Vec<AccountInfo<'info>> = vec![
+            ctx.accounts.position_authority.to_account_info(),
+            ctx.accounts.klend_obligation.to_account_info(),
+            ctx.accounts.lending_market.to_account_info(),
+            ctx.accounts.lending_market_authority.to_account_info(),
+            ctx.accounts.borrow_reserve.to_account_info(),
+            ctx.accounts.borrow_reserve_liquidity_mint.to_account_info(),
+            ctx.accounts.reserve_source_liquidity.to_account_info(),
+            ctx.accounts.borrow_reserve_liquidity_fee_receiver.to_account_info(),
+            ctx.accounts.position_borrow_account.to_account_info(),
+        ];
+
+        let klend = ctx.accounts.klend_program.to_account_info();
+        push_optional(
+            &mut metas,
+            &mut infos,
+            ctx.accounts.referrer_token_state.as_ref().map(|a| a.to_account_info()),
+            &klend,
+            true,
+        );
+
+        metas.push(AccountMeta::new_readonly(ctx.accounts.token_program.key(), false));
+        metas.push(AccountMeta::new_readonly(ctx.accounts.instruction_sysvar_account.key(), false));
+        infos.push(ctx.accounts.token_program.to_account_info());
+        infos.push(ctx.accounts.instruction_sysvar_account.to_account_info());
+
+        push_optional(
+            &mut metas,
+            &mut infos,
+            ctx.accounts.obligation_farm_user_state.as_ref().map(|a| a.to_account_info()),
+            &klend,
+            true,
+        );
+        push_optional(
+            &mut metas,
+            &mut infos,
+            ctx.accounts.reserve_farm_state.as_ref().map(|a| a.to_account_info()),
+            &klend,
+            true,
+        );
+
+        metas.push(AccountMeta::new_readonly(ctx.accounts.farms_program.key(), false));
+        infos.push(ctx.accounts.farms_program.to_account_info());
+
+        for reserve_account in &active_reserves {
+            metas.push(AccountMeta::new(reserve_account.key(), false));
+            infos.push(reserve_account.clone());
+        }
+
+        let instruction = Instruction {
+            program_id: ctx.accounts.klend_program.key(),
+            accounts: metas,
+            data,
+        };
+
+        invoke_signed(&instruction, &infos, signer).map_err(Into::into)
+    })
+}
+
+fn transfer_borrowed_liquidity_to_user<'info>(
+    ctx: &Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let nft_mint = ctx.accounts.position.nft_mint;
+    let bump = find_position_authority_bump(nft_mint);
+
+    with_position_authority_signer(bump, nft_mint, |signer| {
+        token::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token::TransferChecked {
+                    from: ctx.accounts.position_borrow_account.to_account_info(),
+                    mint: ctx.accounts.borrow_reserve_liquidity_mint.to_account_info(),
+                    to: ctx.accounts.user_destination_liquidity.to_account_info(),
+                    authority: ctx.accounts.position_authority.to_account_info(),
+                },
+                signer,
+            ),
+            amount,
+            ctx.accounts.borrow_reserve_liquidity_mint.decimals,
+        )
+    })
+}
+
+fn push_optional<'info>(
+    metas: &mut Vec<AccountMeta>,
+    infos: &mut Vec<AccountInfo<'info>>,
+    optional: Option<AccountInfo<'info>>,
+    fallback: &AccountInfo<'info>,
+    is_writable: bool,
+) {
+    match optional {
+        Some(account) => {
+            metas.push(if is_writable {
+                AccountMeta::new(account.key(), false)
+            } else {
+                AccountMeta::new_readonly(account.key(), false)
+            });
+            infos.push(account);
+        }
+        None => {
+            metas.push(AccountMeta::new_readonly(fallback.key(), false));
+            infos.push(fallback.clone());
+        }
+    }
+}
+
+fn find_position_authority_bump(nft_mint: Pubkey) -> u8 {
+    Pubkey::find_program_address(
+        &[POSITION_AUTHORITY_SEED, nft_mint.as_ref()],
+        &crate::ID,
+    )
+    .1
+}

@@ -1,5 +1,5 @@
-mod increase_debt;
-mod repay;
+pub mod increase_debt;
+pub mod repay;
 pub mod borrow_asset;
 
 pub use increase_debt::*;

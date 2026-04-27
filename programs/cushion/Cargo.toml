@@ -26,6 +26,8 @@ anchor-spl = "0.32.1"
 bytemuck = "1.25.0"
 kamino-lend = "0.4.1"
 mpl-core = { version = "0.11.2", features = ["anchor"] }
+pyth-sdk-solana = "0.10"
+pyth-solana-receiver-sdk = "0.3"
 rmp = "=0.8.14"
 rmp-serde = "=1.2.0"
 

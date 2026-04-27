@@ -32,6 +32,8 @@ pub const POSITION_REGISTRY_SEED: &[u8] = b"position_registry";
 /// Seed prefix for per-NFT position registry entry PDA.
 pub const POSITION_REGISTRY_ENTRY_SEED: &[u8] = b"position_registry_entry";
 
+pub const MAX_PRICE_AGE_SECONDS: u64 = 30000000; // ~347 days - set high for local testing to avoid rejecting devnet/localnet prices as stale. In production, set to a sensible value (e.g. 60/30 seconds).
+
 pub fn ten_pow(x: usize) -> u64 {
     const POWERS_OF_TEN: [u64; 20] = [
         1,

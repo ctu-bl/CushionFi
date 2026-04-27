@@ -80,7 +80,8 @@ pub fn init_vault_handler(
     vault.deposit_cap = deposit_cap;
     vault.virtual_assets = virtual_assets;
     vault.virtual_shares = virtual_shares;
-    vault.last_update_ts = now;
+    vault.market_price = 0;
+    vault.market_price_last_updated = now;
 
     emit!(VaultInitializedEvent {
         vault: vault.key(),
