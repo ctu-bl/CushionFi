@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: cushion-keeper-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cushion_keeper
+    ports:
+      - "5432:5432"
+    volumes:
+      - keeper_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cushion_keeper"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keeper:
+    build:
+      context: ..
+      dockerfile: keeper/Dockerfile
+    container_name: cushion-keeper
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      KEEPER_MODE: localnet_static
+      KEEPER_RPC_URL: http://host.docker.internal:8899
+      KEEPER_DATABASE_URL: postgres://postgres:postgres@postgres:5432/cushion_keeper
+      KEEPER_KEYPAIR_PATH: /app/keeper/id.json
+      CUSHION_PROGRAM_ID: H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W
+      KLEND_PROGRAM_ID: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
+      KEEPER_RESERVE_ADDRESSES: d4A2prbA2whesmvHaL88BH6Ewn5N4bTSU2Ze8P6Bc4Q
+      KEEPER_POLL_INTERVAL_MS: 8000
+      KEEPER_INJECT_AMOUNT: 1000000
+      KEEPER_WITHDRAW_LTV_BPS: 8500
+      KEEPER_COMPUTE_CONCURRENCY: 2
+      KEEPER_EXECUTOR_CONCURRENCY: 1
+    volumes:
+      - ${HOME}/.config/solana/id.json:/app/keeper/id.json:ro
+
+volumes:
+  keeper_pg_data:

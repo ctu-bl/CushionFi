@@ -24,6 +24,8 @@
     "init:vault:local": "env APP_ENV=local node --env-file .env --experimental-strip-types sdk/scripts/initVaultLocal.ts",
     "init:vault:localnet": "yarn init:vault:local",
     "init:vault:devnet": "env APP_ENV=devnet node --env-file .env --experimental-strip-types sdk/scripts/initVaultLocal.ts",
+    "position:borrow-usdc:local": "env APP_ENV=local node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
+    "position:borrow-usdc:devnet": "env APP_ENV=devnet node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
     "bootstrap:vault:local": "bash scripts/bootstrap-local-vault.sh",
     "bootstrap:vault:localnet": "yarn bootstrap:vault:local",
     "test:unit": "cargo test",
@@ -32,6 +34,9 @@
     "test:localnet": "yarn test:local",
     "test:devnet": "env APP_ENV=devnet bash scripts/run-tests.sh",
     "setup": "bash scripts/setup-local-dev.sh",
+    "keeper:start": "node --env-file keeper/.env --experimental-strip-types keeper/src/main.ts",
+    "keeper:docker:up": "docker compose -f keeper/docker-compose.yml up --build -d",
+    "keeper:docker:down": "docker compose -f keeper/docker-compose.yml down",
     "sync:idl": "bash scripts/idl-sync.sh",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
@@ -40,6 +45,7 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@kamino-finance/klend-sdk": "^7.3.19",
     "@kamino-finance/scope-sdk": "^10.1.0",
+    "pg": "^8.16.3",
     "@solana/spl-token": "^0.4.14"
   },
   "devDependencies": {
