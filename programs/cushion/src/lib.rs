@@ -107,11 +107,10 @@ pub mod cushion {
         withdraw_handler(ctx, assets_out, max_shares_burn)
     }
 
-    pub fn inject_collateral(
-        ctx: Context<InjectCollateral>,
-        amount: u64,
+    pub fn inject_collateral<'info>(
+        ctx: Context<'_, '_, '_, 'info, InjectCollateral<'info>>,
     ) -> Result<()> {
-        inject_collateral_handler(ctx, amount)
+        inject_collateral_handler(ctx)
     }
 
     pub fn withdraw_injected_collateral(
@@ -247,4 +246,14 @@ pub enum CushionError {
     DeserializationError,
     #[msg("Position already has injected collateral")]
     AlreadyInjected,
+    #[msg("Position is not unsafe, injection failed")]
+    NotUnsafePosition,
+    #[msg("Amount to inject calculation failed")]
+    InjectCalculationError,
+    #[msg("Calculation of current LTV failed")]
+    LtvCalculationError,
+    #[msg("Price of the asset in vault is zero")]
+    ZeroPrice,
+    #[msg("Computation of insuring LTV threshold failed")]
+    InsuringThresholdError,
 }
