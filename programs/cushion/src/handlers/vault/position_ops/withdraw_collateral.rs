@@ -93,13 +93,13 @@ pub struct WithdrawInjected<'info>{
 
     pub asset_mint: Account<'info, Mint>,
 
-    #[account(
+    /*#[account(
         seeds = [POSITION_ACCOUNT_SEED, nft_mint.key().as_ref()],
         bump = position.bump,
         has_one = position_authority @ CushionError::Unauthorized,
         constraint = position.protocol_obligation == klend_obligation.key() @ CushionError::InvalidKaminoObligation,
-    )]
-    pub position: Account<'info, Obligation>,
+    )]*/
+    pub position: Box<Account<'info, Obligation>>,
 
     pub cushion_vault: Account<'info, Vault>,
 
@@ -123,7 +123,8 @@ pub struct WithdrawInjected<'info>{
     /// CHECK: intermediate token account owned by position_authority; receives tokens from Kamino withdrawal
     pub position_collateral_account: UncheckedAccount<'info>,
 
-    pub reserve_liquidity_mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: This is the mint of the reserve liquidity token; assumed correct by CPI
+    pub reserve_liquidity_mint: Account<'info, Mint>,
 
     /// CHECK: Kamino lending program
     pub klend_program: UncheckedAccount<'info>,

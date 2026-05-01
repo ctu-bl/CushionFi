@@ -38,9 +38,15 @@ pub fn calculate_accumulated_interest<'info>(
         .checked_mul(ir_plus_one)?
         .checked_div(WAD)?;
     // TODO: Power with annualized is missing
-    let exponent = annualized(time_difference);
+    let exponent = annualized(time_difference)?;
     vault.interest_last_updated = current_timestamp;
     let annualized_interest = new_accumulated_interest.checked_pow(exponent)?;
     vault.accumulated_interest = annualized_interest;
     Some(annualized_interest)
+}
+
+fn annualized(time: i64) -> Option<u32> {
+    let days = time.checked_div(60)?.checked_div(60)?.checked_div(24)?;
+    let years = days.checked_div(365)?;
+    u32::try_from(years).ok()
 }

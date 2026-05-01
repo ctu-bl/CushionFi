@@ -40,8 +40,17 @@ pub struct Vault {
     /// Price of the underlying asset.
     pub market_price: u128,
 
-    // Last timestamp when the market price was updated.
+    /// Last timestamp when the market price was updated.
     pub market_price_last_updated: i64,
+
+    /// Last timestamp when the accumulated interest was updated.
+    pub interest_last_updated: i64,
+
+    /// Accumulated interest of the vault.
+    pub accumulated_interest: u128,
+    
+    /// Interest rate of the vault.
+    pub interest_rate: u128,
 }
 
 impl Vault {
@@ -58,5 +67,8 @@ impl Vault {
     8 + // virtual_assets
     8 + // virtual_shares
     16 + // market_price
-    8; // market_price_last_updated
+    8 + // market_price_last_updated
+    8 + // interest_last_updated
+    16 + // accumulated_interest
+    16; // interest_rate
 }
