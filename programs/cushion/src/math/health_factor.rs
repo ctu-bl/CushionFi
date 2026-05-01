@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, ten_pow};
+use crate::utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow};
 
 pub fn compute_potential_ltv(
     collateral_delta: Delta,
@@ -49,6 +49,15 @@ pub fn get_insuring_ltv_threshold(
     maximum_ltv
         .checked_mul(INSURING_LTV_THRESHOLD_MULTIPLIER)?
         .checked_div(WAD)
+}
+
+pub fn get_withdrawing_ltv_threshold(
+    debt_sum: u128,
+    max_allowed_borrow: u128,
+    deposit_sum: u128,
+) -> Option<u128> {
+    let critical_ltv = get_insuring_ltv_threshold(debt_sum, max_allowed_borrow, deposit_sum)?;
+    critical_ltv.checked_mul(WITHDRAWING_LTV_THRESHOLD_MULTIPLIER)?.checked_div(WAD)
 }
 
 pub fn get_liquidation_ltv_threshold(unhealthy_borrow_value: u128, deposit_sum: u128) -> Option<u128> {
@@ -262,6 +271,7 @@ mod tests {
         assert!(result.is_some());
         let max_ltv = (debt + max_borrow) * WAD / deposit;
         let expected = max_ltv * INSURING_LTV_THRESHOLD_MULTIPLIER / WAD;
+        msg!("res: {}", expected);
         assert_eq!(result, Some(expected));
     }
 
