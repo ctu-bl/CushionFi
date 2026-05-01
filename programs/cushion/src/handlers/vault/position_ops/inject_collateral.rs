@@ -36,8 +36,8 @@ pub fn inject_collateral_handler<'info>(
     let refresh_acc = RefreshAccounts {
         klend_program: ctx.accounts.klend_program.to_account_info(),
         klend_obligation: ctx.accounts.klend_obligation.to_account_info(),
-        klend_reserve: ctx.accounts.lending_market.to_account_info(),
-        lending_market: ctx.accounts.klend_reserve.to_account_info(),
+        lending_market: ctx.accounts.lending_market.to_account_info(),
+        klend_reserve: ctx.accounts.klend_reserve.to_account_info(),
         pyth_oracle: ctx.accounts.pyth_oracle.as_ref()
             .map(|a| a.to_account_info()),
         switchboard_price_oracle: ctx.accounts.switchboard_price_oracle.as_ref()
@@ -162,6 +162,7 @@ pub struct InjectCollateral<'info>{
 
     /// Kamino CPI needed accounts
     /// CHECK: Valid Kamino lending market PDA; verified via CPI
+    #[account(mut)]
     pub lending_market: AccountInfo<'info>,
 
     /// CHECK: Optional oracle account required by Kamino reserve config.
