@@ -31,8 +31,8 @@ pub struct Obligation {
     /// Vault that injects additional collateral
     pub collateral_vault: Pubkey,
 
-    /// Threshold for injecting additional collateral when position becomes risky
-    pub inject_threshold_wad: u128,
+    /// amount of tokens injected into the obligation
+    pub injected_amount: u64,
 
     /// Bump for PDA signing
     pub bump: u8,
@@ -62,7 +62,7 @@ impl Obligation {
         32 + // protocol_obligation
         32 + // protocol_user_metadata
         32 + // collateral_vault
-        16 + // inject_threshold_wad
+        8 + // injected_amount
         1 + // bump
         1; // injected
 }

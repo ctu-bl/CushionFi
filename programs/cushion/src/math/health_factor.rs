@@ -20,6 +20,17 @@ pub fn compute_potential_ltv(
     numerator.checked_div(new_collateral)
 }
 
+pub fn compute_current_ltv(
+    debt: u128,
+    collateral: u128
+) -> Option<u128> {
+    if collateral == 0 {
+        return Some(0);
+    }
+    let numerator = debt.checked_mul(WAD)?;
+    numerator.checked_div(collateral)
+}
+
 pub fn get_market_value_from_reserve(amount: u64, price: u128, decimals: u64) -> Option<u128> {
     let mint_factor = ten_pow(usize::try_from(decimals).ok()?);
 
