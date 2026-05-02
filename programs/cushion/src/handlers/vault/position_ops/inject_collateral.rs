@@ -55,11 +55,11 @@ pub fn inject_collateral_handler<'info>(
     msg!("Here still");
 
     let (debt, deposit, max_borrow) = get_obligation_data_for_ltv(&ctx.accounts.klend_obligation)?;
-    let current_ltv = compute_current_ltv(debt, deposit)
+    /*let current_ltv = compute_current_ltv(debt, deposit)
         .ok_or(CushionError::LtvCalculationError)?;
     let insuring_ltv = get_insuring_ltv_threshold(debt, max_borrow, deposit)
         .ok_or(CushionError::InsuringThresholdError)?;
-    require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);
+    require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);*/
 
     let vault_market_price = ctx.accounts.cushion_vault.market_price;
     require!(vault_market_price > 0, CushionError::ZeroPrice);

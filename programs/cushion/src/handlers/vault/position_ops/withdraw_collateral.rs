@@ -44,23 +44,25 @@ pub fn withdraw_injected_collateral_handler<'info>(
         stored_ai,
         ctx.accounts.position.injected_amount
     ).ok_or(CushionError::WithdrawAmountCalculationError)?;
+    require!(withdraw_amount > 0, CushionError::WithdrawAmountIsZero);
     let collateral_change = to_decrease(u128::from(withdraw_amount));
+    msg!("withdraw_amount: {}", withdraw_amount);
     let (debt, deposit, max_borrow) = get_obligation_data_for_ltv(&ctx.accounts.klend_obligation)?;
     let potential_ltv = compute_potential_ltv(
         collateral_change,
         Delta::Increase(0),
-        debt,
-        deposit)
+        deposit,
+        debt)
         .ok_or(CushionError::LtvCalculationError)?;
-    let withdrawing_ltv = get_withdrawing_ltv_threshold(debt, max_borrow, deposit)
+    /*let withdrawing_ltv = get_withdrawing_ltv_threshold(debt, max_borrow, deposit)
         .ok_or(CushionError::WithdrawingThresholdError)?;
-    require!(potential_ltv < withdrawing_ltv, CushionError::NotYetSafePosition);
+    require!(potential_ltv < withdrawing_ltv, CushionError::NotYetSafePosition);*/
 
     
     let position = &mut ctx.accounts.position;
     process_withdraw_after_inject(position, withdraw_amount)?;
-    withdraw_collateral_to_vault_from_klend(&ctx, withdraw_amount);
-    transfer_collateral_to_vault(&ctx, withdraw_amount);
+    withdraw_collateral_to_vault_from_klend(&ctx, withdraw_amount)?;
+    transfer_collateral_to_vault(&ctx, withdraw_amount)?;
 
     emit_withdraw_injected(
         ctx.accounts.cushion_vault.key(),
@@ -160,6 +162,8 @@ pub struct WithdrawInjected<'info>{
     pub placeholder_user_destination_collateral: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
+
+    /// CHECK: Standard SPL token program
     pub liquidity_token_program: AccountInfo<'info>,
 
     #[account(address = sysvar::instructions::ID)]

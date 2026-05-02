@@ -47,10 +47,10 @@ pub struct Vault {
     pub interest_last_updated: i64,
 
     /// Accumulated interest of the vault.
-    pub accumulated_interest: u128,
+    pub accumulated_interest: u64,
     
     /// Interest rate of the vault.
-    pub interest_rate: u128,
+    pub interest_rate: u64,
 }
 
 impl Vault {
@@ -69,6 +69,6 @@ impl Vault {
     16 + // market_price
     8 + // market_price_last_updated
     8 + // interest_last_updated
-    16 + // accumulated_interest
-    16; // interest_rate
+    8 + // accumulated_interest
+    8; // interest_rate
 }
