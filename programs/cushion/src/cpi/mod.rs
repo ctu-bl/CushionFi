@@ -3,7 +3,7 @@ pub mod deposit_klend;
 mod liquidate_klend;
 mod refresh_reserve_klend;
 pub mod refresh_obligation_klend;
-mod repay_klend;
+pub mod repay_klend;
 pub mod withdraw_klend;
 pub mod increase_debt_klend;
 

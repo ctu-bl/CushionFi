@@ -38,7 +38,7 @@ pub fn repay_handler<'info>(
 
     emit!(DebtRepaidEvent {
         user: ctx.accounts.user.key(),
-        repay_amount: amount,
+        repay_value: amount,
         obligation: ctx.accounts.klend_obligation.key(),
     });
 
@@ -102,6 +102,14 @@ pub struct RepayDebt<'info> {
     )]
     /// User ATA holding the debt tokens to repay.
     pub user_source_liquidity: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = repay_reserve_liquidity_mint,
+        token::authority = position_authority,
+    )]
+    /// Position's ATA (owned by position_authority) used as staging for the Kamino repay CPI.
+    pub position_repay_account: Box<Account<'info, TokenAccount>>,
 
     // ── Oracle accounts (optional, required by refresh_reserve) ────────────
 

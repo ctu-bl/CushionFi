@@ -1,11 +1,17 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{
+        instruction::{AccountMeta, Instruction},
+        program::invoke_signed,
+    },
+};
+use anchor_spl::token;
 use kamino_lend::cpi::{
     self,
     accounts::{
         InitObligationFarmsForReserve, RefreshObligation,
         RefreshObligationFarmsForReserve, RefreshObligationFarmsForReserveBaseAccounts,
-        RefreshReserve, RepayObligationLiquidityV2,
-        RepayObligationLiquidityV2FarmsAccounts, RepayObligationLiquidityV2RepayAccounts,
+        RefreshReserve,
     },
 };
 
@@ -33,6 +39,9 @@ pub fn process_repay<'info>(
     refresh_obligation_for_repay(ctx)?;
     ensure_obligation_farm_user_state_for_repay(ctx)?;
     refresh_obligation_farm_state_for_repay(ctx)?;
+    // Move tokens from user → position_repay_account so Kamino can pull from an account
+    // owned by position_authority.
+    transfer_repay_liquidity_from_user(ctx, amount)?;
     repay_obligation_liquidity(ctx, amount)
 }
 
@@ -201,60 +210,114 @@ fn repay_obligation_liquidity<'info>(
     let bump = find_position_authority_bump(nft_mint);
 
     with_position_authority_signer(bump, nft_mint, |signer| {
-        cpi::repay_obligation_liquidity_v2(
-            CpiContext::new_with_signer(
-                ctx.accounts.klend_program.to_account_info(),
-                RepayObligationLiquidityV2 {
-                    repay_accounts: RepayObligationLiquidityV2RepayAccounts {
-                        // position_authority owns the Kamino obligation
-                        owner: ctx.accounts.position_authority.to_account_info(),
-                        obligation: ctx.accounts.klend_obligation.to_account_info(),
-                        lending_market: ctx.accounts.lending_market.to_account_info(),
-                        repay_reserve: ctx.accounts.repay_reserve.to_account_info(),
-                        reserve_liquidity_mint: ctx
-                            .accounts
-                            .repay_reserve_liquidity_mint
-                            .to_account_info(),
-                        reserve_destination_liquidity: ctx
-                            .accounts
-                            .reserve_destination_liquidity
-                            .to_account_info(),
-                        // tokens come from the NFT owner's ATA
-                        user_source_liquidity: ctx
-                            .accounts
-                            .user_source_liquidity
-                            .to_account_info(),
-                        token_program: ctx.accounts.token_program.to_account_info(),
-                        instruction_sysvar_account: ctx
-                            .accounts
-                            .instruction_sysvar_account
-                            .to_account_info(),
-                    },
-                    farms_accounts: RepayObligationLiquidityV2FarmsAccounts {
-                        obligation_farm_user_state: ctx
-                            .accounts
-                            .obligation_farm_user_state
-                            .as_ref()
-                            .map(|a| a.to_account_info())
-                            .unwrap_or_else(|| ctx.accounts.klend_program.to_account_info()),
-                        reserve_farm_state: ctx
-                            .accounts
-                            .reserve_farm_state
-                            .as_ref()
-                            .map(|a| a.to_account_info())
-                            .unwrap_or_else(|| ctx.accounts.klend_program.to_account_info()),
-                    },
-                    lending_market_authority: ctx
-                        .accounts
-                        .lending_market_authority
-                        .to_account_info(),
-                    farms_program: ctx.accounts.farms_program.to_account_info(),
-                },
-                signer,
-            ),
-            amount,
-        )
+        // repay_obligation_liquidity_v2 discriminator
+        let mut data = Vec::with_capacity(16);
+        data.extend_from_slice(&[116u8, 174, 213, 76, 180, 53, 210, 144]);
+        data.extend_from_slice(&amount.to_le_bytes());
+
+        let klend = ctx.accounts.klend_program.to_account_info();
+
+        // repay_accounts
+        let mut metas = vec![
+            AccountMeta::new_readonly(ctx.accounts.position_authority.key(), true),
+            AccountMeta::new(ctx.accounts.klend_obligation.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.lending_market.key(), false),
+            AccountMeta::new(ctx.accounts.repay_reserve.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.repay_reserve_liquidity_mint.key(), false),
+            AccountMeta::new(ctx.accounts.reserve_destination_liquidity.key(), false),
+            // position_repay_account is owned by position_authority, which signs this CPI.
+            AccountMeta::new(ctx.accounts.position_repay_account.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.instruction_sysvar_account.key(), false),
+        ];
+        let mut infos: Vec<AccountInfo<'info>> = vec![
+            ctx.accounts.position_authority.to_account_info(),
+            ctx.accounts.klend_obligation.to_account_info(),
+            ctx.accounts.lending_market.to_account_info(),
+            ctx.accounts.repay_reserve.to_account_info(),
+            ctx.accounts.repay_reserve_liquidity_mint.to_account_info(),
+            ctx.accounts.reserve_destination_liquidity.to_account_info(),
+            ctx.accounts.position_repay_account.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.instruction_sysvar_account.to_account_info(),
+        ];
+
+        // farms_accounts (optional, writable — pass readonly placeholder when absent)
+        push_optional(
+            &mut metas,
+            &mut infos,
+            ctx.accounts.obligation_farm_user_state.as_ref().map(|a| a.to_account_info()),
+            &klend,
+            true,
+        );
+        push_optional(
+            &mut metas,
+            &mut infos,
+            ctx.accounts.reserve_farm_state.as_ref().map(|a| a.to_account_info()),
+            &klend,
+            true,
+        );
+
+        metas.push(AccountMeta::new_readonly(ctx.accounts.lending_market_authority.key(), false));
+        metas.push(AccountMeta::new_readonly(ctx.accounts.farms_program.key(), false));
+        infos.push(ctx.accounts.lending_market_authority.to_account_info());
+        infos.push(ctx.accounts.farms_program.to_account_info());
+
+        let instruction = Instruction {
+            program_id: ctx.accounts.klend_program.key(),
+            accounts: metas,
+            data,
+        };
+
+        invoke_signed(&instruction, &infos, signer).map_err(Into::into)
     })
+}
+
+fn transfer_repay_liquidity_from_user<'info>(
+    ctx: &Context<'_, '_, '_, 'info, RepayDebt<'info>>,
+    amount: u64,
+) -> Result<()> {
+    // Cap at the user's actual balance to handle u64::MAX "repay-all" amounts.
+    let transfer_amount = amount.min(ctx.accounts.user_source_liquidity.amount);
+    if transfer_amount == 0 {
+        return Ok(());
+    }
+    token::transfer_checked(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            token::TransferChecked {
+                from: ctx.accounts.user_source_liquidity.to_account_info(),
+                mint: ctx.accounts.repay_reserve_liquidity_mint.to_account_info(),
+                to: ctx.accounts.position_repay_account.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            },
+        ),
+        transfer_amount,
+        ctx.accounts.repay_reserve_liquidity_mint.decimals,
+    )
+}
+
+fn push_optional<'info>(
+    metas: &mut Vec<AccountMeta>,
+    infos: &mut Vec<AccountInfo<'info>>,
+    optional: Option<AccountInfo<'info>>,
+    fallback: &AccountInfo<'info>,
+    is_writable: bool,
+) {
+    match optional {
+        Some(account) => {
+            metas.push(if is_writable {
+                AccountMeta::new(account.key(), false)
+            } else {
+                AccountMeta::new_readonly(account.key(), false)
+            });
+            infos.push(account);
+        }
+        None => {
+            metas.push(AccountMeta::new_readonly(fallback.key(), false));
+            infos.push(fallback.clone());
+        }
+    }
 }
 
 fn find_position_authority_bump(nft_mint: Pubkey) -> u8 {
