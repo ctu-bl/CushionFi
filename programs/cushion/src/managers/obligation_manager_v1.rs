@@ -12,7 +12,6 @@ pub fn process_inject(position: &mut Box<Account<Obligation>>, amount_to_inject:
 
 pub fn process_withdraw_after_inject(
     position: &mut Box<Account<Obligation>>,
-    amount_to_withdraw: u64,
 ) -> Result<()> {
     position.injected = false;
     position.injected_amount = 0;

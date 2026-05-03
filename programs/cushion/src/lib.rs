@@ -271,4 +271,6 @@ pub enum CushionError {
     InterestCalculationError,
     #[msg("Withdraw amount cannot be zero")]
     WithdrawAmountIsZero,
+    #[msg("Calculation of withdraw value failed")]
+    WithdrawValueError,
 }

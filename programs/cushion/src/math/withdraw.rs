@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::utils::TOKEN_PRECISION;
+use crate::utils::{TOKEN_PRECISION, WAD};
 
 /// # Instruction: calculate_amount_to_withdraw
 ///
@@ -17,14 +17,17 @@ pub fn calculate_amount_to_withdraw(
     stored_ai: u64,
     injected_amount: u64,
 ) -> Option<u64> {
+    msg!("current_ai: {}", current_ai);
+    msg!("stored ai: {}", stored_ai);
+    msg!("injected: {}", injected_amount);
     let ai_division = current_ai
         .checked_mul(TOKEN_PRECISION)?
         .checked_div(stored_ai)?;
-    let amount = ai_division
-        .checked_mul(injected_amount)?
-        .checked_div(TOKEN_PRECISION)?;
+    let amount:u128 = (ai_division as u128)
+        .checked_mul(injected_amount as u128)?
+        .checked_div(TOKEN_PRECISION as u128)?;
     // Maybe require!(amount >= injected_amount) to prevent token loss?
-    Some(amount)
+    amount.try_into().ok()
 }
 
 #[cfg(test)]

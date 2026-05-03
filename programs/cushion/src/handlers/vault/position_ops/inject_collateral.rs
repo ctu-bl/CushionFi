@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::{ 
     CushionError, cpi::{
         RefreshAccounts, deposit_klend::deposit_collateral_into_klend_from_vault, refresh_klend_state_for_current_slot
-    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv }
+    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
 };
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -55,22 +55,25 @@ pub fn inject_collateral_handler<'info>(
     msg!("Here still");
 
     let (debt, deposit, max_borrow) = get_obligation_data_for_ltv(&ctx.accounts.klend_obligation)?;
-    /*let current_ltv = compute_current_ltv(debt, deposit)
+    let current_ltv = compute_current_ltv(debt, deposit)
         .ok_or(CushionError::LtvCalculationError)?;
     let insuring_ltv = get_insuring_ltv_threshold(debt, max_borrow, deposit)
         .ok_or(CushionError::InsuringThresholdError)?;
-    require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);*/
-
+    msg!("current_ltv: {}", current_ltv);
+    msg!("insuring ltv: {}", insuring_ltv);
+    require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);
+    //require!(current_ltv == 0, CushionError::DivisionByZero);
     let vault_market_price = ctx.accounts.cushion_vault.market_price;
     require!(vault_market_price > 0, CushionError::ZeroPrice);
-
+    let (price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.klend_reserve)?;
     let amount_to_inject = calculate_amount_to_inject(
         deposit,
         debt,
-        vault_market_price
+        vault_market_price,
+        price,
+        decimals
     ).ok_or(CushionError::InjectCalculationError)?;
     require!((amount_to_inject as u128) < (ctx.accounts.cushion_vault.total_managed_assets), CushionError::InsufficientVaultLiquidity);
-    
     let position = &mut ctx.accounts.position;
     process_inject(position, amount_to_inject)?;
     deposit_collateral_into_klend_from_vault(&ctx, amount_to_inject)?;

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow};
+use crate::{handlers::debt, utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow}};
 
 pub fn compute_potential_ltv(
     collateral_delta: Delta,
@@ -39,12 +39,24 @@ pub fn get_market_value_from_reserve(amount: u64, price: u128, decimals: u64) ->
         .checked_div(mint_factor as u128)
 }
 
+pub fn get_amount_from_market_value_from_reserve(market_value: u128, price: u128, decimals: u64) -> Option<u128> {
+    let mint_factor = ten_pow(usize::try_from(decimals).ok()?);
+
+    (market_value as u128)
+        .checked_mul(mint_factor as u128)?
+        .checked_div(price)
+}
+
 pub fn get_insuring_ltv_threshold(
     debt_sum: u128,
     max_allowed_borrow: u128,
     deposit_sum: u128,
 ) -> Option<u128> {
-    let numerator = debt_sum.checked_add(max_allowed_borrow)?.checked_mul(WAD)?;
+    msg!("start");
+    msg!("debt_sum: {}", debt_sum);
+    msg!("max: {}", max_allowed_borrow);
+    msg!("deposit_sum: {}", deposit_sum);
+    let numerator = max_allowed_borrow.checked_mul(WAD)?;
     msg!("numerator: {}", numerator);
     let maximum_ltv = numerator.checked_div(deposit_sum)?;
     msg!("max_ltv: {}", maximum_ltv);
@@ -54,13 +66,12 @@ pub fn get_insuring_ltv_threshold(
 }
 
 pub fn get_withdrawing_ltv_threshold(
-    debt_sum: u128,
     max_allowed_borrow: u128,
     deposit_sum: u128,
 ) -> Option<u128> {
-    let critical_ltv = get_insuring_ltv_threshold(debt_sum, max_allowed_borrow, deposit_sum)?;
-    msg!("critical_ltv: {}", critical_ltv);
-    critical_ltv.checked_mul(WITHDRAWING_LTV_THRESHOLD_MULTIPLIER)?.checked_div(WAD)
+    let current_ltv = compute_current_ltv(max_allowed_borrow, deposit_sum)?;
+    msg!("critical_ltv: {}", current_ltv);
+    current_ltv.checked_mul(WITHDRAWING_LTV_THRESHOLD_MULTIPLIER)?.checked_div(WAD)
 }
 
 pub fn get_liquidation_ltv_threshold(unhealthy_borrow_value: u128, deposit_sum: u128) -> Option<u128> {
@@ -266,13 +277,13 @@ mod tests {
     #[test]
     fn get_insuring_ltv_threshold_basic_values_ok() {
         let debt = 100u128;
-        let max_borrow = 50u128;
+        let max_borrow = 120u128;
         let deposit = 200u128;
 
         let result = get_insuring_ltv_threshold(debt, max_borrow, deposit);
 
         assert!(result.is_some());
-        let max_ltv = (debt + max_borrow) * WAD / deposit;
+        let max_ltv = max_borrow * WAD / deposit;
         let expected = max_ltv * INSURING_LTV_THRESHOLD_MULTIPLIER / WAD;
         msg!("res: {}", expected);
         assert_eq!(result, Some(expected));
@@ -284,229 +295,132 @@ mod tests {
         assert_eq!(result, None);
     }
 
-    #[test]
-    fn get_insuring_ltv_threshold_overflow_on_addition() {
-        let result = get_insuring_ltv_threshold(u128::MAX, 1, 100);
-        assert_eq!(result, None);
-    }
-
     // =========================================================================
     // Tests for get_withdrawing_ltv_threshold
     // =========================================================================
 
     #[test]
     fn test_get_withdrawing_ltv_threshold_basic() {
-        let debt = 100u128;
         let max_borrow = 50u128;
         let deposit = 200u128;
 
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
-        // It should call get_insuring_ltv_threshold first, then multiply by WITHDRAWING_LTV_THRESHOLD_MULTIPLIER
-        let insuring = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        let expected = insuring * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
+        // Should calculate: (max_borrow * WAD / deposit) * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD
+        let ltv = (max_borrow as u128 * WAD) / (deposit as u128);
+        let expected = (ltv * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER) / WAD;
         assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn test_get_withdrawing_ltv_threshold_zero_deposit() {
-        let result = get_withdrawing_ltv_threshold(100, 50, 0);
-        assert_eq!(result, None); // Division by zero from get_insuring_ltv_threshold
+        let result = get_withdrawing_ltv_threshold(100, 0);
+        assert_eq!(result, Some(0)); // Division by zero in compute_current_ltv returns Some(0)
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_zero_debt_and_max_borrow() {
-        let result = get_withdrawing_ltv_threshold(0, 0, 100);
+    fn test_get_withdrawing_ltv_threshold_zero_max_borrow() {
+        let result = get_withdrawing_ltv_threshold(0, 100);
         
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), 0); // 0 debt and borrow should result in 0 threshold
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_overflow_on_debt_max_borrow_addition() {
-        let result = get_withdrawing_ltv_threshold(u128::MAX, 1, 100);
-        assert_eq!(result, None); // Overflow on debt_sum + max_allowed_borrow
+        assert_eq!(result.unwrap(), 0); // 0 max_borrow should result in 0 threshold
     }
 
     #[test]
     fn test_get_withdrawing_ltv_threshold_overflow_on_multiplication_with_wad() {
         // Large values that will overflow when multiplied by WAD
-        let debt = u128::MAX / WAD + 1;
-        let max_borrow = 0u128;
+        let max_borrow = u128::MAX / WAD + 1;
         let deposit = 1u128;
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
-        assert_eq!(result, None); // Overflow on (debt_sum + max_allowed_borrow).checked_mul(WAD)
+        assert_eq!(result, None); // Overflow on max_borrow.checked_mul(WAD)
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_overflow_on_final_multiplication() {
-        // Values that pass initial checks but overflow on final multiplication with WITHDRAWING_LTV_THRESHOLD_MULTIPLIER
-        let critical_ltv = u128::MAX / 2;
-        let debt = critical_ltv / WITHDRAWING_LTV_THRESHOLD_MULTIPLIER;
-        let max_borrow = 0u128;
-        let deposit = 1u128;
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-        
-        // This is tricky - might overflow at the final multiplication step
-        if let Some(val) = result {
-            assert!(val > 0);
-        } else {
-            assert_eq!(result, None);
-        }
-    }
+    fn test_get_withdrawing_ltv_threshold_half_ltv() {
+        // max_borrow is half of deposit, so LTV = 50%
+        let max_borrow = 50u128;
+        let deposit = 100u128;
 
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_very_high_utilization() {
-        // High utilization scenario: debt + max_borrow close to deposit
-        let debt = 950_000_000_000_000_000u128;
-        let max_borrow = 40_000_000_000_000_000u128;
-        let deposit = 1_000_000_000_000_000_000u128;
-        let one = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        let expected = one * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
-        let threshold = result.unwrap();
-        assert!(threshold > 0);
-        // Withdrawing threshold should be less than 100% LTV
-        assert!(threshold < WAD);
-        assert_eq!(result, Some(expected));
+        // LTV = 50% * WAD, then multiply by WITHDRAWING_LTV_THRESHOLD_MULTIPLIER (0.85 * WAD)
+        let ltv = (max_borrow as u128 * WAD) / (deposit as u128);
+        assert_eq!(ltv, WAD / 2);
+        let expected = (ltv * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER) / WAD;
+        assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_very_low_utilization() {
-        // Low utilization: small debt relative to deposit
-        let debt = 10_000_000_000_000_000u128;
-        let max_borrow = 5_000_000_000_000_000u128;
-        let deposit = 1_000_000_000_000_000_000u128;
-        
-        let one = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        let expected = one * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-        
-        assert!(result.is_some());
-        let threshold = result.unwrap();
-        assert!(threshold > 0);
-        assert_eq!(result, Some(expected));
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_equal_debt_and_borrow() {
-        let debt = 500_000_000_000_000_000u128;
-        let max_borrow = 500_000_000_000_000_000u128;
-        let deposit = 2_000_000_000_000_000_000u128;
-
-        let one = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        let expected = one * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-        
-        assert!(result.is_some());
-        assert!(result.unwrap() > 0);
-        assert_eq!(result, Some(expected));
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_zero_max_borrow() {
-        let debt = 500_000_000_000_000_000u128;
-        let max_borrow = 0u128;
-        let deposit = 1_000_000_000_000_000_000u128;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-        
-        assert!(result.is_some());
-        // Should be based only on debt
-        let expected = get_insuring_ltv_threshold(debt, 0, deposit)
-            .and_then(|ltv| ltv.checked_mul(WITHDRAWING_LTV_THRESHOLD_MULTIPLIER).and_then(|v| v.checked_div(WAD)));
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_large_max_borrow() {
-        let debt = 100_000_000_000_000_000u128;
+    fn test_get_withdrawing_ltv_threshold_high_utilization() {
+        // High utilization scenario: max_borrow close to deposit (90%)
         let max_borrow = 900_000_000_000_000_000u128;
         let deposit = 1_000_000_000_000_000_000u128;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
         let threshold = result.unwrap();
-        // With 90% of deposit as max_borrow, threshold should be significant
-        assert!(threshold > WAD / 10); // At least 10%
+        // LTV should be 90% * 0.85 = 76.5%
+        assert!(threshold > 0);
+        assert!(threshold < WAD);
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_boundary_deposit_equals_sum() {
-        let debt = 500_000_000_000_000_000u128;
-        let max_borrow = 500_000_000_000_000_000u128;
-        let deposit = debt + max_borrow; // Deposit exactly equals sum
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-        
-        assert!(result.is_some());
-        // LTV should be around 100% or exactly 100% after multiplying by threshold multiplier
-        let threshold = result.unwrap();
-        // Withdrawing threshold multiplier is 85% by default, so final should be 85%
-        assert!(threshold <= WAD);
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_small_deposit_large_debt() {
-        let debt = 9_000_000_000_000_000_000u128;
-        let max_borrow = 1_000_000_000_000_000_000u128;
+    fn test_get_withdrawing_ltv_threshold_low_utilization() {
+        // Low utilization: max_borrow is 10% of deposit
+        let max_borrow = 100_000_000_000_000_000u128;
         let deposit = 1_000_000_000_000_000_000u128;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
         let threshold = result.unwrap();
-        // This is very high leverage, threshold should be close to or above 100%
-        assert!(threshold >= WAD); // Could be >= 100% after multiplier
+        // LTV should be 10% * 0.85 = 8.5%
+        assert!(threshold > 0);
+        assert!(threshold < WAD / 10);
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_multiplier_effect() {
-        let debt = 100u128;
-        let max_borrow = 50u128;
-        let deposit = 200u128;
+    fn test_get_withdrawing_ltv_threshold_max_borrow_equals_deposit() {
+        // max_borrow equals deposit, LTV = 100%
+        let max_borrow = 500_000_000_000_000_000u128;
+        let deposit = 500_000_000_000_000_000u128;
 
-        let insuring = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        let withdrawing = get_withdrawing_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        
-        // Withdrawing should be less than insuring due to the multiplier (0.85)
-        assert!(withdrawing < insuring);
-        assert_eq!(withdrawing, insuring * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD);
-    }
-
-    #[test]
-    fn test_get_withdrawing_ltv_threshold_realistic_wad_calculations() {
-        // Realistic scenario with WAD scaling
-        let debt = 1_000_000_000_000_000_000u128; // 1 unit in 1e18
-        let max_borrow = 500_000_000_000_000_000u128; // 0.5 unit in 1e18
-        let deposit = 2_000_000_000_000_000_000u128; // 2 units in 1e18
-
-        let one = get_insuring_ltv_threshold(debt, max_borrow, deposit).unwrap();
-        msg!("insuring {}", one);
-        let expected = one * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
-
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
         let threshold = result.unwrap();
-        msg!("result: {}", threshold);
-        assert_eq!(result, Some(expected));
+        // LTV = 100% * 0.85 = 85%
+        let ltv = (max_borrow as u128 * WAD) / (deposit as u128);
+        assert_eq!(ltv, WAD);
+        let expected = (ltv * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER) / WAD;
+        assert_eq!(threshold, expected);
+    }
+
+    #[test]
+    fn test_get_withdrawing_ltv_threshold_very_large_deposit() {
+        // Very large deposit, small max_borrow
+        let max_borrow = 1_000_000_000_000_000u128;
+        let deposit = 1_000_000_000_000_000_000_000u128;
+
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
+        
+        assert!(result.is_some());
+        let threshold = result.unwrap();
+        // Should be a small positive number
+        assert!(threshold > 0);
+        assert!(threshold < WAD / 1000);
     }
 
     #[test]
     fn test_get_withdrawing_ltv_threshold_minimum_positive_values() {
-        let debt = 1u128;
         let max_borrow = 1u128;
         let deposit = 1000u128;
 
-        let result = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
         
         assert!(result.is_some());
         let threshold = result.unwrap();
@@ -514,25 +428,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_withdrawing_ltv_threshold_consistency_with_insuring() {
-        // Test multiple scenarios for consistency
-        let test_cases = vec![
-            (100u128, 50u128, 200u128),
-            (1000u128, 500u128, 2000u128),
-            (1_000_000_000_000_000_000u128, 500_000_000_000_000_000u128, 2_000_000_000_000_000_000u128),
-        ];
+    fn test_get_withdrawing_ltv_threshold_multiplier_reduces_threshold() {
+        // Verify that the withdrawing threshold is always less than or equal to the base LTV
+        let max_borrow = 600_000_000_000_000_000u128;
+        let deposit = 1_000_000_000_000_000_000u128;
 
-        for (debt, max_borrow, deposit) in test_cases {
-            let insuring = get_insuring_ltv_threshold(debt, max_borrow, deposit);
-            let withdrawing = get_withdrawing_ltv_threshold(debt, max_borrow, deposit);
-            
-            if let (Some(i), Some(w)) = (insuring, withdrawing) {
-                // Withdrawing should always be less than or equal to insuring
-                assert!(w <= i, "Failed for debt={}, max_borrow={}, deposit={}", debt, max_borrow, deposit);
-                // Withdrawing should equal insuring * MULTIPLIER / WAD
-                let expected = i * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER / WAD;
-                assert_eq!(w, expected, "Failed for debt={}, max_borrow={}, deposit={}", debt, max_borrow, deposit);
-            }
-        }
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
+        
+        assert!(result.is_some());
+        let withdrawing_threshold = result.unwrap();
+        // Calculate base LTV
+        let base_ltv = (max_borrow as u128 * WAD) / (deposit as u128);
+        // Withdrawing threshold should be less than base LTV because multiplier is 0.85
+        assert!(withdrawing_threshold < base_ltv);
+        let expected = (base_ltv * WITHDRAWING_LTV_THRESHOLD_MULTIPLIER) / WAD;
+        assert_eq!(withdrawing_threshold, expected);
+    }
+
+    #[test]
+    fn test_get_withdrawing_ltv_threshold_precision_with_wad() {
+        // Test precision: (100% * 0.85) should equal 85%
+        let max_borrow = WAD;
+        let deposit = WAD;
+
+        let result = get_withdrawing_ltv_threshold(max_borrow, deposit);
+        
+        assert!(result.is_some());
+        // Should be exactly 85% of WAD
+        assert_eq!(result.unwrap(), WITHDRAWING_LTV_THRESHOLD_MULTIPLIER);
     }
 }

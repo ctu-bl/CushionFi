@@ -39,6 +39,10 @@ pub fn calculate_accumulated_interest<'info>(
         .checked_div(TOKEN_PRECISION)?;
     let exponent = annualized(time_difference)?;
     vault.interest_last_updated = current_timestamp;
+    if exponent == 0 {
+        vault.accumulated_interest = new_accumulated_interest;
+        return Some(new_accumulated_interest);
+    }
     let annualized_interest = new_accumulated_interest.checked_pow(exponent)?;
     vault.accumulated_interest = annualized_interest;
     Some(annualized_interest)

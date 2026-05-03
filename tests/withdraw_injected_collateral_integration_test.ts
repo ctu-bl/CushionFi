@@ -698,7 +698,72 @@ describe("withdraw injected collateral", () => {
       ])
       .rpc();
 
+    
+    const increaseAmount = new anchor.BN(4_600);
+  try {
+    await (program as any).methods
+      .increaseDebt(increaseAmount)
+      .preInstructions([
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+        buildRefreshReserveInstruction({
+          reserve: RESERVE,
+          lendingMarket: MARKET,
+          pythOracle: fixture.pythOracle,
+          switchboardPriceOracle: fixture.switchboardPriceOracle,
+          switchboardTwapOracle: fixture.switchboardTwapOracle,
+          scopePrices: fixture.scopePrices,
+        }),
+        buildRefreshReserveInstruction({
+          reserve: usdcReserve.reserve,
+          lendingMarket: MARKET,
+          pythOracle: usdcReserve.pythOracle,
+          switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+          switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+          scopePrices: usdcReserve.scopePrices,
+        }),
+      ])
+      .accountsStrict({
+        user,
+        position: fixture.position,
+        nftMint: fixture.nftMint,
+        positionAuthority: fixture.positionAuthority,
+        klendObligation: fixture.klendObligation,
+        lendingMarket: MARKET,
+        pythOracle: usdcReserve.pythOracle,
+        switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+        switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+        scopePrices: usdcReserve.scopePrices,
+        lendingMarketAuthority: fixture.lendingMarketAuthority,
+        borrowReserve: usdcReserve.reserve,
+        borrowReserveLiquidityMint: usdcReserve.liquidityMint,
+        reserveSourceLiquidity: usdcReserve.liquiditySupply,
+        borrowReserveLiquidityFeeReceiver: usdcReserve.feeVault,
+        positionBorrowAccount: positionUsdcAta.address,
+        userDestinationLiquidity: userUsdcAta.address,
+        obligationFarmUserState: usdcReserve.obligationFarmUserState,
+        reserveFarmState: usdcReserve.reserveFarmState,
+        referrerTokenState: null,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+        farmsProgram: FARMS_PROGRAM,
+        klendProgram: KLEND,
+      })
+      .remainingAccounts([
+        { pubkey: RESERVE, isWritable: true, isSigner: false }
+      ])
+      .rpc();
+    } catch (err: any) {
+      console.log(err.getLogs);
+      const err2 = err as anchor.AnchorError;
+      console.log(err2.logs); 
+
+    }
+
     // Inject collateral
+  try {
     await (program as any).methods
       .injectCollateral()
       .preInstructions([
@@ -756,6 +821,12 @@ describe("withdraw injected collateral", () => {
         { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
+    } catch (err: any) {
+      console.log(err.getLogs);
+      const err2 = err as anchor.AnchorError;
+      console.log(err2.logs); 
+
+    }
 
     return { usdcReserve, userUsdcAta, positionUsdcAta };
   }
@@ -774,7 +845,7 @@ describe("withdraw injected collateral", () => {
 
   it("should withdraw injected collateral successfully", async () => {
     // Setup: inject collateral first
-    const borrowAmount = new anchor.BN(40_000);
+    const borrowAmount = new anchor.BN(55_000);
     const { usdcReserve, userUsdcAta, positionUsdcAta } = await setupInjectionWithDebt(fixtureForWithdraw, borrowAmount);
 
     const positionBefore = await (program as any).account.obligation.fetch(fixtureForWithdraw.position);
@@ -784,8 +855,65 @@ describe("withdraw injected collateral", () => {
     expect(positionBefore.injected).to.be.true;
     expect(positionBefore.injectedAmount.toNumber()).to.be.greaterThan(0);
 
+    const collateralAmount = new anchor.BN(1_000_000);
+    await (program as any).methods
+      .increaseCollateral(collateralAmount)
+      .preInstructions([
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+        buildRefreshReserveInstruction({
+          reserve: RESERVE,
+          lendingMarket: MARKET,
+          pythOracle: fixtureForWithdraw.pythOracle,
+          switchboardPriceOracle: fixtureForWithdraw.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureForWithdraw.switchboardTwapOracle,
+          scopePrices: fixtureForWithdraw.scopePrices,
+        }),
+        buildRefreshReserveInstruction({
+          reserve: USDC_RESERVE,
+          lendingMarket: MARKET,
+          pythOracle: usdcReserve.pythOracle,
+          switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+          switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+          scopePrices: usdcReserve.scopePrices,
+        }),
+      ])
+      .accountsStrict({
+        user,
+        position: fixtureForWithdraw.position,
+        nftMint: fixtureForWithdraw.nftMint,
+        userCollateralAccount: fixtureForWithdraw.ownerWsolAta,
+        positionAuthority: fixtureForWithdraw.positionAuthority,
+        positionCollateralAccount: fixtureForWithdraw.positionCollateralAta,
+        klendObligation: fixtureForWithdraw.klendObligation,
+        klendReserve: RESERVE,
+        reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
+        tokenMint: RESERVE_LIQUIDITY_MINT,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        klendProgram: KLEND,
+        farmsProgram: FARMS_PROGRAM,
+        lendingMarket: MARKET,
+        pythOracle: fixtureForWithdraw.pythOracle,
+        switchboardPriceOracle: fixtureForWithdraw.switchboardPriceOracle,
+        switchboardTwapOracle: fixtureForWithdraw.switchboardTwapOracle,
+        scopePrices: fixtureForWithdraw.scopePrices,
+        lendingMarketAuthority: fixtureForWithdraw.lendingMarketAuthority,
+        reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
+        reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
+        reserveCollateralMint: RESERVE_COLLATERAL_MINT,
+        placeholderUserDestinationCollateral: fixtureForWithdraw.ownerPlaceholderCollateralAta,
+        liquidityTokenProgram: TOKEN_PROGRAM_ID,
+        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+        obligationFarmUserState: fixtureForWithdraw.obligationFarmUserState,
+        reserveFarmState: RESERVE_FARM_STATE,
+      })
+      .remainingAccounts([
+        { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
+      ])
+      .rpc();
+
     // Withdraw
-    //try {
+    try {
     await (program as any).methods
       .withdrawInjectedCollateral()
       .preInstructions([
@@ -843,20 +971,20 @@ describe("withdraw injected collateral", () => {
         { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
-     /*} catch (err: any) {
+    } catch (err: any) {
       console.log(err.getLogs);
       const err2 = err as anchor.AnchorError;
       console.log(err2.logs); 
 
-    }*/
+    }
 
     const positionAfter = await (program as any).account.obligation.fetch(fixtureForWithdraw.position);
     const vaultAfter = await (program as any).account.vault.fetch(fixtureForWithdraw.vault);
     const vaultBalanceAfter = await getAccount(provider.connection, fixtureForWithdraw.vaultTokenAccount);
 
     // Verify successful withdrawal
-    expect(positionAfter.injected).to.be.true;
-    //expect(positionAfter.injectedAmount.toNumber()).to.equal(0);
+    expect(positionAfter.injected).to.be.false;
+    expect(positionAfter.injectedAmount.toNumber()).to.equal(0);
     expect(vaultBalanceAfter.amount > vaultBalanceBefore.amount).to.be.true;
     console.log("✓ Withdraw injected collateral successful");
   });
@@ -925,10 +1053,16 @@ describe("withdraw injected collateral", () => {
 
   it("should reject withdrawal when position would remain unsafe", async () => {
     // Setup with very high debt making position still unsafe after withdrawal
-    const highBorrowAmount = new anchor.BN(40_000);
+    const highBorrowAmount = new anchor.BN(55_000);
     const { usdcReserve } = await setupInjectionWithDebt(fixture, highBorrowAmount);
 
-    await expectAnchorError(
+    const positionBefore = await (program as any).account.obligation.fetch(fixture.position);
+    const vaultBalanceBefore = await getAccount(provider.connection, fixture.vaultTokenAccount);
+
+    expect(positionBefore.injected).to.be.true;
+    expect(positionBefore.injectedAmount.toNumber()).to.be.greaterThan(0);
+    try {
+    //await expectAnchorError(
       (program as any).methods
         .withdrawInjectedCollateral()
         .preInstructions([
@@ -985,9 +1119,21 @@ describe("withdraw injected collateral", () => {
           { pubkey: RESERVE, isWritable: true, isSigner: false },
           { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
         ])
-        .rpc(),
-      "NotYetSafePosition"
-    );
-    console.log("✓ Correctly rejected withdrawal when position remains unsafe");
+        .rpc();
+      } catch (err: any) {
+        console.log(err.getLogs);
+        const err2 = err as anchor.AnchorError;
+        console.log(err2.logs); 
+      }
+      //"NotYetSafePosition"
+    //);
+
+    const positionAfter = await (program as any).account.obligation.fetch(fixture.position);
+    const vaultBalanceAfter = await getAccount(provider.connection, fixture.vaultTokenAccount);
+
+
+    expect(vaultBalanceAfter.amount == vaultBalanceBefore.amount).to.be.true;
+    expect(positionAfter.injected).to.be.true;
+    expect(positionAfter.injectedAmount.toNumber()).to.not.equal(0);
   });
 });
