@@ -25,7 +25,11 @@ async function main() {
     config.authority,
     config.cushionProgramId
   );
-  const klendClient = new KlendChainClient(config.connection);
+  const klendClient = new KlendChainClient(
+    config.connection,
+    config.authority,
+    config.klendProgramId
+  );
 
   const priceWatcher = new PriceWatcher(
     config.mode,

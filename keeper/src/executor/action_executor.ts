@@ -58,11 +58,42 @@ export class ActionExecutor {
     }
 
     if (job.kind === "withdraw") {
+      let snapshotDetails: Record<string, string | null> = {
+        depositedValueSf: null,
+        debtValueSf: null,
+        unhealthyBorrowValueSf: null,
+        ltvWad: null,
+        maxSafeLtvWad: null,
+      };
+      try {
+        const slot = await this.connectionSlot();
+        const risk = await this.klendClient.fetchPositionRiskSnapshot(
+          position.position,
+          position.protocolObligation,
+          slot
+        );
+        await this.repository.saveRiskSnapshot(risk);
+        snapshotDetails = {
+          depositedValueSf: risk.depositedValueSf.toString(),
+          debtValueSf: risk.debtValueSf.toString(),
+          unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
+          ltvWad: risk.ltvWad?.toString() ?? null,
+          maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+        };
+      } catch (error) {
+        logWarn("executor.withdraw_risk_snapshot_failed", {
+          executor: this.name,
+          position: job.position,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       // Current on-chain implementation of withdraw_injected_collateral is a placeholder.
       logWarn("executor.withdraw_not_supported", {
         executor: this.name,
         position: job.position,
         reason: job.reason,
+        ...snapshotDetails,
       });
       return;
     }
