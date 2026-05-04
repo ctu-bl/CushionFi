@@ -154,7 +154,7 @@ pub fn swap_wsol_to_usdc<'info>(
         AccountMeta::new(ctx.accounts.whirlpool.key(), false),                  // whirlpool (mut)
         AccountMeta::new(ctx.accounts.vault_token_account.key(), false),        // token_owner_account_a (WSOL, mut)
         AccountMeta::new(ctx.accounts.whirlpool_token_vault_a.key(), false),    // token_vault_a (Orca WSOL, mut)
-        AccountMeta::new(ctx.accounts.vault_usdc_account.key(), false),         // token_owner_account_b (USDC, mut)
+        AccountMeta::new(ctx.accounts.vault_debt_token_account.key(), false),         // token_owner_account_b (USDC, mut)
         AccountMeta::new(ctx.accounts.whirlpool_token_vault_b.key(), false),    // token_vault_b (Orca USDC, mut)
         AccountMeta::new(ctx.accounts.tick_array_0.key(), false),               // tick_array_0 (mut)
         AccountMeta::new(ctx.accounts.tick_array_1.key(), false),               // tick_array_1 (mut)
@@ -184,7 +184,7 @@ pub fn swap_wsol_to_usdc<'info>(
             ctx.accounts.whirlpool.to_account_info(),
             ctx.accounts.vault_token_account.to_account_info(),
             ctx.accounts.whirlpool_token_vault_a.to_account_info(),
-            ctx.accounts.vault_usdc_account.to_account_info(),
+            ctx.accounts.vault_debt_token_account.to_account_info(),
             ctx.accounts.whirlpool_token_vault_b.to_account_info(),
             ctx.accounts.tick_array_0.to_account_info(),
             ctx.accounts.tick_array_1.to_account_info(),

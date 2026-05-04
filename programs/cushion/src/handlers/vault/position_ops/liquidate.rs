@@ -2,15 +2,11 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::{
-    CushionError,
-    cpi::{
-        RefreshAccounts, orca_swap::swap_wsol_to_usdc, refresh_klend_state_for_current_slot
-    },
-    math::{compute_current_ltv, get_liquidation_ltv_threshold},
-    state::{Obligation, Vault},
-    utils::{
-        LiquidateEvent, POSITION_AUTHORITY_SEED, ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL, get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value
-    },
+    CushionError, cpi::{
+        RefreshAccounts, orca_swap::swap_wsol_to_usdc, refresh_klend_state_for_current_slot, repay_and_withdraw_from_klend
+    }, managers::process_withdraw_after_inject_or_liquidate, math::{calculate_amount_to_withdraw_after_repay, compute_current_ltv, get_amount_from_market_value_from_reserve, get_liquidation_ltv_threshold}, state::{Obligation, Vault}, utils::{
+        LiquidateEvent, ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, WSOL_USDC_POOL, get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value, get_reserve_price_and_decimals
+    }
 };
 
 // -------------------------
@@ -33,8 +29,6 @@ use crate::{
 /// - `min_usdc_out`  — minimum USDC out; reverts if Orca returns less (slippage guard)
 pub fn liquidate_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
-    wsol_amount: u64,
-    min_usdc_out: u64,
 ) -> Result<()> {
     // Step 0: Only positions with vault-injected collateral can be liquidated via this path
     require!(ctx.accounts.position.injected == true, CushionError::NotInjected);
@@ -68,6 +62,8 @@ pub fn liquidate_handler<'info>(
 
     require!(current_ltv >= liquidation_ltv, CushionError::NotLiquidable);
 
+    // TODO: Je to tvoje, Petře :DDD
+    let wsol_amount = 0;
     // Step 3: Vault must hold enough WSOL to cover the requested swap
     require!(wsol_amount > 0, CushionError::ZeroLiquidationAmount);
     require!(
@@ -75,12 +71,24 @@ pub fn liquidate_handler<'info>(
         CushionError::InsufficientVaultLiquidity,
     );
 
+    let (debt_token_price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.reserve_destination_liquidity)?;
+    let min_usdc_out = get_amount_from_market_value_from_reserve(debt, debt_token_price, decimals)
+        .ok_or(CushionError::AmountFromMarketValueError)?;
+
     // Step 4: Swap WSOL → USDC via Orca Whirlpool (raw CPI, no Orca crate)
     swap_wsol_to_usdc(&ctx, wsol_amount, min_usdc_out)?;
 
-    // TODO Step 5: Repay USDC debt on Kamino
-    // TODO Step 6: Withdraw WSOL collateral from Kamino back to vault
+    let position = &mut ctx.accounts.position;
+    process_withdraw_after_inject_or_liquidate(position)?;
+    
+    let vault_token_price = ctx.accounts.cushion_vault.market_price;
+    let withdraw_amount = calculate_amount_to_withdraw_after_repay(debt, deposit, vault_token_price)
+        .ok_or(CushionError::WithdrawAmountCalculationError)?;
 
+    
+    repay_and_withdraw_from_klend(&ctx, u64::MAX, withdraw_amount)?;
+
+    emit_position_liquidated(&ctx, withdraw_amount);
     Ok(())
 }
 
@@ -143,13 +151,13 @@ pub struct Liquidate<'info> {
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
 
-    /// Vault's USDC token account — receives USDC after the swap.
+    /// Vault's debt token account — receives debt tokens after the swap.
     /// Must be initialised (owned by cushion_vault) before calling this instruction.
     #[account(
         mut,
-        constraint = vault_usdc_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount,
+        constraint = vault_debt_token_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount,
     )]
-    pub vault_usdc_account: Account<'info, TokenAccount>,
+    pub vault_debt_token_account: Account<'info, TokenAccount>,
 
     // -------------------------
     // Kamino accounts (refresh + LTV check)
@@ -169,6 +177,49 @@ pub struct Liquidate<'info> {
     /// CHECK: Verified via Kamino CPI
     #[account(mut)]
     pub lending_market: AccountInfo<'info>,
+
+    /// Mint of debt token
+    /// CHECK: Verified via Kamino CPI
+    pub debt_mint: AccountInfo<'info>,
+
+    /// Reserve liquidity vault that receives repaid tokens.
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub reserve_destination_liquidity: AccountInfo<'info>,
+
+    /// KLend reserve source collateral token account
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub reserve_source_collateral: AccountInfo<'info>,
+
+    /// Kamino reserve liquidity supply token account
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub reserve_liquidity_supply: AccountInfo<'info>,
+
+    /// Mint of the reserve collateral token in KLend.
+    /// CHECK: Verified via Kamino CPI
+    pub reserve_collateral_mint: AccountInfo<'info>,
+
+    /// Placeholder collateral destination required by Kamino v2
+    /// CHECK: Verified via Kamino CPI
+    pub placeholder_user_destination_collateral: AccountInfo<'info>,
+
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub col_obligation_farm_user_state: AccountInfo<'info>,
+
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub col_reserve_farm_state: AccountInfo<'info>,
+
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub debt_obligation_farm_user_state: AccountInfo<'info>,
+
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub debt_reserve_farm_state: AccountInfo<'info>,
 
     /// Kamino program
     /// CHECK: Valid Kamino program

@@ -122,10 +122,8 @@ pub mod cushion {
 
     pub fn liquidate<'info>(
         ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
-        wsol_amount: u64,
-        min_usdc_out: u64,
     ) -> Result<()> {
-        liquidate_handler(ctx, wsol_amount, min_usdc_out)
+        liquidate_handler(ctx)
     }
 
     // -------------------------
@@ -291,4 +289,6 @@ pub enum CushionError {
     LiquidationLtvCalculationError,
     #[msg("Position has not reached the liquidation LTV threshold")]
     NotLiquidable,
+    #[msg("Calculation of amount from market value failed")]
+    AmountFromMarketValueError,
 }

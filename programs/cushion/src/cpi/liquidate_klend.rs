@@ -59,12 +59,12 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
         owner: ctx.accounts.position_authority.to_account_info(),
         obligation: ctx.accounts.klend_obligation.to_account_info(),
         lending_market: ctx.accounts.lending_market.to_account_info(),
-        repay_reserve: ctx.accounts.withdraw_reserve.to_account_info(), // Will be overridden by remaining_accounts
-        reserve_liquidity_mint: ctx.accounts.asset_mint.to_account_info(), // Placeholder - actual USDC mint from remaining_accounts
-        reserve_destination_liquidity: ctx.accounts.vault_token_account.to_account_info(), // USDC vault receives payment
-        user_source_liquidity: ctx.accounts.vault_usdc_account.to_account_info(), // Source of USDC tokens
+        repay_reserve: ctx.accounts.withdraw_reserve.to_account_info(),
+        reserve_liquidity_mint: ctx.accounts.debt_mint.to_account_info(),
+        reserve_destination_liquidity: ctx.accounts.reserve_destination_liquidity.to_account_info(),
+        user_source_liquidity: ctx.accounts.vault_debt_token_account.to_account_info(),
         token_program: ctx.accounts.token_program.to_account_info(),
-        instruction_sysvar_account: ctx.accounts.instruction_sysvar_account.to_account_info(), // Placeholder - actual sysvar from remaining_accounts
+        instruction_sysvar_account: ctx.accounts.instruction_sysvar_account.to_account_info(),
     };
 
     // ─── Withdraw Accounts (for collateral withdrawal) ─────────────────
@@ -72,29 +72,29 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
         owner: ctx.accounts.position_authority.to_account_info(),
         obligation: ctx.accounts.klend_obligation.to_account_info(),
         lending_market: ctx.accounts.lending_market.to_account_info(),
-        lending_market_authority: ctx.accounts.token_program.to_account_info(), // Placeholder - from remaining_accounts
-        withdraw_reserve: ctx.accounts.withdraw_reserve.to_account_info(), // WSOL reserve
-        reserve_liquidity_mint: ctx.accounts.asset_mint.to_account_info(), // WSOL mint
-        reserve_source_collateral: ctx.accounts.token_program.to_account_info(), // Placeholder - cWSol vault from remaining_accounts
-        reserve_collateral_mint: ctx.accounts.token_program.to_account_info(), // Placeholder - cWSol mint from remaining_accounts
-        reserve_liquidity_supply: ctx.accounts.vault_token_account.to_account_info(), // WSOL liquidity vault
-        user_destination_liquidity: ctx.accounts.vault_token_account.to_account_info(), // Destination for withdrawn WSOL
-        placeholder_user_destination_collateral: ctx.accounts.token_program.to_account_info(), // Placeholder
+        lending_market_authority: ctx.accounts.token_program.to_account_info(),
+        withdraw_reserve: ctx.accounts.withdraw_reserve.to_account_info(),
+        reserve_liquidity_mint: ctx.accounts.asset_mint.to_account_info(),
+        reserve_source_collateral: ctx.accounts.reserve_source_collateral.to_account_info(),
+        reserve_collateral_mint: ctx.accounts.reserve_collateral_mint.to_account_info(),
+        reserve_liquidity_supply: ctx.accounts.reserve_liquidity_supply.to_account_info(),
+        user_destination_liquidity: ctx.accounts.vault_token_account.to_account_info(),
+        placeholder_user_destination_collateral: ctx.accounts.placeholder_user_destination_collateral.to_account_info(),
         collateral_token_program: ctx.accounts.token_program.to_account_info(),
         liquidity_token_program: ctx.accounts.token_program.to_account_info(),
-        instruction_sysvar_account: ctx.accounts.instruction_sysvar_account.to_account_info(), // Placeholder - actual sysvar from remaining_accounts
+        instruction_sysvar_account: ctx.accounts.instruction_sysvar_account.to_account_info(),
     };
 
     // ─── Collateral Farms Accounts (optional) ──────────────────────────────
     let collateral_farms_accounts = RepayAndWithdrawAndRedeemCollateralFarmsAccounts {
-        obligation_farm_user_state: ctx.accounts.token_program.to_account_info(),
-        reserve_farm_state: ctx.accounts.token_program.to_account_info(),
+        obligation_farm_user_state: ctx.accounts.col_obligation_farm_user_state.to_account_info(),
+        reserve_farm_state: ctx.accounts.col_reserve_farm_state.to_account_info(),
     };
 
     // ─── Debt Farms Accounts (optional) ────────────────────────────────────
     let debt_farms_accounts = RepayAndWithdrawAndRedeemDebtFarmsAccounts {
-        obligation_farm_user_state: ctx.accounts.token_program.to_account_info(),
-        reserve_farm_state: ctx.accounts.token_program.to_account_info(),
+        obligation_farm_user_state: ctx.accounts.debt_obligation_farm_user_state.to_account_info(),
+        reserve_farm_state: ctx.accounts.debt_reserve_farm_state.to_account_info(),
     };
 
     // ─── Build the complete struct ──────────────────────────────────────────

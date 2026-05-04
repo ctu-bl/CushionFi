@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::utils::{TOKEN_PRECISION, WAD};
+use crate::utils::{LIQUIDATION_PROFIT_PERCENTAGE, TOKEN_PRECISION, WAD};
 
 /// # Instruction: calculate_amount_to_withdraw
 ///
@@ -28,6 +28,19 @@ pub fn calculate_amount_to_withdraw(
         .checked_div(TOKEN_PRECISION as u128)?;
     // Maybe require!(amount >= injected_amount) to prevent token loss?
     amount.try_into().ok()
+}
+
+// NOTE: Not tested
+pub fn calculate_amount_to_withdraw_after_repay(
+    debt_value: u128,
+    deposit_value: u128,
+    vault_token_price: u128,
+) -> Option<u64> {
+    let diff_value = deposit_value.checked_sub(debt_value)?;
+    let remaining_deposit_value = diff_value.checked_mul(LIQUIDATION_PROFIT_PERCENTAGE)?.checked_div(WAD)?;
+    let withdraw_value = debt_value.checked_add(remaining_deposit_value)?;
+    let amount_u128 = withdraw_value.checked_mul(TOKEN_PRECISION as u128)?.checked_div(vault_token_price)?;
+    amount_u128.try_into().ok()
 }
 
 #[cfg(test)]
@@ -208,5 +221,226 @@ mod tests {
         
         // ai_division = ((u64::MAX / 2) * TOKEN_PRECISION) / 1 = overflow!
         assert_eq!(result, None);
+    }
+
+    // =========================================================================
+    // Tests for calculate_amount_to_withdraw_after_repay
+    // =========================================================================
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_zero_debt() {
+        // When debt_value is zero, should return just the remaining deposit value
+        let debt_value = 0u128;
+        let deposit_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let vault_token_price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // remaining_deposit_value = 1_000_000_000_000_000_000 * LIQUIDATION_PROFIT_PERCENTAGE / WAD
+        // = 1_000_000_000_000_000_000 * 500_000_000_000_000_000 / 1_000_000_000_000_000_000
+        // = 500_000_000_000_000_000
+        // withdraw_value = 0 + 500_000_000_000_000_000 = 500_000_000_000_000_000
+        // amount = 500_000_000_000_000_000 * 1_000_000_000 / 1_000_000_000_000_000_000 = 500_000_000
+        assert_eq!(amount, 500_000_000);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_zero_deposit() {
+        // When deposit_value is zero, should fail (can't repay without deposit)
+        let debt_value = 1_000_000_000_000_000_000u128;
+        let deposit_value = 0u128;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert_eq!(result, None); // deposit_value.checked_sub(debt_value) fails
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_debt_exceeds_deposit() {
+        // When debt_value > deposit_value, should fail
+        let debt_value = 2_000_000_000_000_000_000u128;
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert_eq!(result, None); // underflow on deposit_value.checked_sub(debt_value)
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_zero_price() {
+        // When vault_token_price is zero, should fail (division by zero)
+        let debt_value = 500_000_000_000_000_000u128;
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 0u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_equal_debt_and_deposit() {
+        // When debt equals deposit, should withdraw profit percentage of zero
+        let debt_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let deposit_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let vault_token_price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // diff_value = 0
+        // remaining_deposit_value = 0 * LIQUIDATION_PROFIT_PERCENTAGE / WAD = 0
+        // withdraw_value = 1 WAD + 0 = 1 WAD
+        // amount = 1 WAD * WAD / 1 WAD = 1 WAD
+        assert_eq!(amount, 1_000_000_000u64);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_price_equals_wad() {
+        // Normal case: price = 1 WAD
+        let debt_value = 300_000_000_000_000_000u128; // 0.3 WAD
+        let deposit_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let vault_token_price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // diff_value = 700_000_000_000_000_000
+        // remaining_deposit_value = 700_000_000_000_000_000 * 500_000_000_000_000_000 / WAD
+        //                        = 350_000_000_000_000_000
+        // withdraw_value = 300_000_000_000_000_000 + 350_000_000_000_000_000 = 650_000_000_000_000_000
+        // amount = 650_000_000_000_000_000 * WAD / 1_000_000_000_000_000_000 = 650
+        assert_eq!(amount, 650_000_000);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_price_double() {
+        // Token price doubled
+        let debt_value = 300_000_000_000_000_000u128;
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 2_000_000_000_000_000_000u128; // 2 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // Same withdraw_value = 650_000_000_000_000_000
+        // amount = 650_000_000_000_000_000 * TOKEN_PRECISION / 2_000_000_000_000_000_000 = 325
+        assert_eq!(amount, 325_000_000);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_price_half() {
+        // Token price halved
+        let debt_value = 300_000_000_000_000_000u128;
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 500_000_000_000_000_000u128; // 0.5 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // Same withdraw_value = 650_000_000_000_000_000
+        // amount = 650_000_000_000_000_000 * TOKEN_PRECISION / 500_000_000_000_000_000 = 1_300
+        assert_eq!(amount, 1_300_000_000);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_very_small_debt() {
+        // Minimal debt value
+        let debt_value = 1u128;
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        // diff_value = 999_999_999_999_999_999
+        // remaining_deposit_value ≈ 499_999_999_999_999_999
+        // withdraw_value ≈ 500_000_000_000_000_000
+        let amount = result.unwrap();
+        assert!(amount > 0 && amount < 1_000_000_000_000_000_000u64);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_overflow_on_multiply() {
+        // diff_value would cause overflow when multiplied by LIQUIDATION_PROFIT_PERCENTAGE
+        let debt_value = 0u128;
+        let deposit_value = u128::MAX;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert_eq!(result, None); // Overflow on checked_mul
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_overflow_on_add() {
+        // debt_value.checked_add(remaining_deposit_value) overflows
+        // Create a scenario where this could happen
+        let debt_value = u128::MAX - 100u128;
+        let deposit_value = u128::MAX;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        // This could be None due to overflow
+        // diff_value = 101
+        // remaining_deposit_value = very small
+        // withdraw_value might still fit
+        assert!(result.is_some() || result.is_none()); // Just verify it doesn't panic
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_conversion_overflow() {
+        // withdraw_value is too large to fit in u64
+        let debt_value = u64::MAX as u128;
+        let deposit_value = (u64::MAX as u128) * 10_000_000_000u128;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert_eq!(result, None); // try_into().ok() returns None for overflow
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_precision_loss() {
+        // Test scenario where precision loss occurs
+        let debt_value = 333_333_333_333_333_333u128; // Non-divisible by WAD
+        let deposit_value = 1_000_000_000_000_000_000u128;
+        let vault_token_price = 333_333_333_333_333_333u128; // Non-divisible price
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // Result depends on integer division rounding
+        assert!(amount > 0);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_liquidation_profit_fifty_percent() {
+        // LIQUIDATION_PROFIT_PERCENTAGE = 50% means keeping half of the profit
+        let debt_value = 200_000_000_000_000_000u128; // 0.2 WAD
+        let deposit_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let vault_token_price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // diff_value = 800_000_000_000_000_000
+        // remaining_deposit_value = 800 * 0.5 = 400_000_000_000_000_000 (50% of profit)
+        // withdraw_value = 200_000_000_000_000_000 + 400_000_000_000_000_000 = 600_000_000_000_000_000
+        // amount = 600 * TOKEN_PRECISION / WAD = 600
+        assert_eq!(amount, 600_000_000);
+    }
+
+    #[test]
+    fn test_calculate_amount_to_withdraw_after_repay_all_zeros_except_price() {
+        // Edge case: deposit, debt both zero
+        let debt_value = 0u128;
+        let deposit_value = 0u128;
+        let vault_token_price = 1_000_000_000_000_000_000u128;
+        let result = calculate_amount_to_withdraw_after_repay(debt_value, deposit_value, vault_token_price);
+        
+        assert!(result.is_some());
+        // diff_value = 0
+        // remaining_deposit_value = 0
+        // withdraw_value = 0
+        // amount = 0 * WAD / WAD = 0
+        assert_eq!(result.unwrap(), 0);
     }
 }

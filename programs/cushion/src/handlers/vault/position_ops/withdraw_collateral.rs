@@ -4,7 +4,7 @@ use crate::{
         RefreshAccounts, 
         refresh_klend_state_for_current_slot, transfer_collateral_to_vault,
         withdraw_collateral_to_vault_from_klend
-    }, managers::process_withdraw_after_inject, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, Vault },
+    }, managers::process_withdraw_after_inject_or_liquidate, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, Vault },
     utils:: {
         POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, POSITION_ACCOUNT_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
         get_reserve_price_and_decimals
@@ -72,7 +72,7 @@ pub fn withdraw_injected_collateral_handler<'info>(
     require!(potential_ltv < withdrawing_ltv, CushionError::NotYetSafePosition);
     
     let position = &mut ctx.accounts.position;
-    process_withdraw_after_inject(position)?;
+    process_withdraw_after_inject_or_liquidate(position)?;
     withdraw_collateral_to_vault_from_klend(&ctx, withdraw_amount)?;
     transfer_collateral_to_vault(&ctx, withdraw_amount)?;
     emit_withdraw_injected(
