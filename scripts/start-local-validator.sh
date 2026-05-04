@@ -113,4 +113,3 @@ exec solana-test-validator "${VALIDATOR_ARGS[@]}" "${ACCOUNT_OVERRIDES[@]}" \
   --clone 65cUCgkA4THMitgKTyatqDnKHPSytxkt5GGJ1VMVNarC \
   --clone 8Rs3qKaVGBndwNdeDqHcayatonVzdBrdYoq27CKyjuE7 \
   --clone FhCuVGm1UYYevgc6xtMU8s96Au4zQzeS1VFqtKHB1xZe \
-  --clone FoKYKtRpD25TKzBMndysKpgPqbj8AdLXjfpYHXn9PGTX

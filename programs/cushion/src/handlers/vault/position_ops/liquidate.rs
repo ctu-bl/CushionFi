@@ -23,10 +23,7 @@ use crate::{
 ///   3. Verify vault holds enough WSOL
 ///   4. Swap WSOL → USDC via Orca Whirlpool (raw CPI)
 ///   (Steps 5 & 6 — Kamino USDC repay + WSOL withdraw — added in next PR)
-///
-/// ## Arguments
-/// - `wsol_amount`   — exact WSOL (in lamports) to swap
-/// - `min_usdc_out`  — minimum USDC out; reverts if Orca returns less (slippage guard)
+/// 
 pub fn liquidate_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
 ) -> Result<()> {
@@ -62,8 +59,15 @@ pub fn liquidate_handler<'info>(
 
     require!(current_ltv >= liquidation_ltv, CushionError::NotLiquidable);
 
-    // TODO: Je to tvoje, Petře :DDD
-    let wsol_amount = 0;
+    let (wsol_price, wsol_decimals) = get_reserve_price_and_decimals(&ctx.accounts.withdraw_reserve)?;
+    let wsol_amount_exact = get_amount_from_market_value_from_reserve(debt, wsol_price, wsol_decimals)
+        .ok_or(CushionError::AmountFromMarketValueError)?;
+    // +1% slippage buffer — oracle price != pool execution price, swap has fee + price impact
+    let wsol_amount = wsol_amount_exact
+        .checked_mul(101)
+        .and_then(|v| v.checked_div(100))
+        .ok_or(CushionError::WsolAmountCalculationError)?;
+
     // Step 3: Vault must hold enough WSOL to cover the requested swap
     require!(wsol_amount > 0, CushionError::ZeroLiquidationAmount);
     require!(

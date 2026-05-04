@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
+declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
 
 pub mod cpi;
 pub mod handlers;
@@ -291,4 +291,6 @@ pub enum CushionError {
     NotLiquidable,
     #[msg("Calculation of amount from market value failed")]
     AmountFromMarketValueError,
+    #[msg("Calculation of WSOL amount failed")]
+    WsolAmountCalculationError,
 }
