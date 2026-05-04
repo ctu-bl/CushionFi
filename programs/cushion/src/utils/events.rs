@@ -34,7 +34,6 @@ pub struct DebtRepaidEvent {
     pub user: Pubkey,
     pub repay_value: u64,
     pub obligation: Pubkey,
-    pub hf: u64,
 }
 
 #[event]

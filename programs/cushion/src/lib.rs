@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
+declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
 
 pub mod cpi;
 pub mod handlers;
@@ -65,10 +65,11 @@ pub mod cushion {
         increase_debt_handler(ctx, amount)
     }
 
-    pub fn repay(
-        ctx: Context<Repay>,
+    pub fn repay_debt<'info>(
+        ctx: Context<'_, '_, '_, 'info, RepayDebt<'info>>,
+        amount: u64,
     ) -> Result<()> {
-        Ok(())
+        handlers::obligation::debt::repay::repay_handler(ctx, amount)
     }
 
     // -------------------------
@@ -190,6 +191,8 @@ pub enum CushionError {
     ZeroAssetsOut,
     #[msg("Vault does not have enough idle liquidity")]
     InsufficientVaultLiquidity,
+    #[msg("Insufficient liquidity in user's source account")]
+    InsufficientRepayLiquidity,
     #[msg("Invalid asset mint account")]
     InvalidAssetMint,
     #[msg("Invalid share mint account")]
