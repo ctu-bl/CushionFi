@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{handlers::debt, utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow}};
+use crate::{handlers::debt, utils::{LIQUIDATION_LTV_THRESHOLD_MULTIPLIER, INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow}};
 
 pub fn compute_potential_ltv(
     collateral_delta: Delta,
@@ -75,7 +75,8 @@ pub fn get_withdrawing_ltv_threshold(
 }
 
 pub fn get_liquidation_ltv_threshold(unhealthy_borrow_value: u128, deposit_sum: u128) -> Option<u128> {
-    unhealthy_borrow_value.checked_mul(WAD)?.checked_div(deposit_sum)
+    unhealthy_borrow_value.checked_mul(WAD)?.checked_div(deposit_sum)?
+        .checked_mul(LIQUIDATION_LTV_THRESHOLD_MULTIPLIER)?.checked_div(WAD)
 }
 
 pub fn apply_ltv_buffer(threshold: u128, multiplier: u128) -> Option<u128> {

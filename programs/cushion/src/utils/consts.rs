@@ -8,8 +8,10 @@ pub const INSURING_LTV_THRESHOLD_MULTIPLIER: u128 = 850_000_000_000_000_000;
 pub const WITHDRAWING_LTV_THRESHOLD: u128 = 550_000_000_000_000_000;
 pub const WITHDRAWING_LTV_THRESHOLD_MULTIPLIER: u128 = 743_333_333_333_333_333;
 pub const BORROW_LIQUIDATION_BUFFER_MULTIPLIER: u128 = 950_000_000_000_000_000;
+pub const LIQUIDATION_LTV_THRESHOLD_MULTIPLIER: u128 = 930_000_000_000_000_000;
 
 pub const KAMINO_PROGRAM_ID: Pubkey = pubkey!("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
+
 
 /// PDA seed for the main vault state account derived per asset mint.
 pub const VAULT_STATE_SEED: &[u8] = b"vault_state_v1";
