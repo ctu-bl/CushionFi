@@ -104,7 +104,7 @@ pub struct WithdrawInjected<'info>{
     /// CHECK: NFT ownership verified by assert_position_nft_holder
     pub nft_mint: UncheckedAccount<'info>,
 
-    pub asset_mint: Account<'info, Mint>,
+    pub asset_mint: Box<Account<'info, Mint>>,
 
     #[account(
         mut,
@@ -123,7 +123,7 @@ pub struct WithdrawInjected<'info>{
         has_one = asset_mint @ CushionError::InvalidAssetMint,
         has_one = vault_token_account @ CushionError::InvalidVaultTokenAccount
     )]
-    pub cushion_vault: Account<'info, Vault>,
+    pub cushion_vault: Box<Account<'info, Vault>>,
 
     #[account(
         mut,
@@ -139,14 +139,14 @@ pub struct WithdrawInjected<'info>{
         constraint = vault_token_account.mint == asset_mint.key() @ CushionError::InvalidAssetMint,
         constraint = vault_token_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     /// CHECK: intermediate token account owned by position_authority; receives tokens from Kamino withdrawal
     pub position_collateral_account: UncheckedAccount<'info>,
 
     /// CHECK: This is the mint of the reserve liquidity token; assumed correct by CPI
-    pub reserve_liquidity_mint: Account<'info, Mint>,
+    pub reserve_liquidity_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: Kamino lending program
     pub klend_program: UncheckedAccount<'info>,

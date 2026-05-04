@@ -102,7 +102,7 @@ pub struct InjectCollateral<'info>{
     /// CHECK: Metaplex Core NFT asset, owner verified in assert_position_nft_holder
     pub nft_mint: UncheckedAccount<'info>,
 
-    pub asset_mint: Account<'info, Mint>,
+    pub asset_mint: Box<Account<'info, Mint>>,
 
     /// Cushion vault providing the liquidity to the obligation
     #[account(
@@ -112,7 +112,7 @@ pub struct InjectCollateral<'info>{
         has_one = asset_mint @ CushionError::InvalidAssetMint,
         has_one = vault_token_account @ CushionError::InvalidVaultTokenAccount
     )]
-    pub cushion_vault: Account<'info, Vault>,
+    pub cushion_vault: Box<Account<'info, Vault>>,
 
     #[account(
         mut,
@@ -128,7 +128,7 @@ pub struct InjectCollateral<'info>{
         constraint = vault_token_account.mint == asset_mint.key() @ CushionError::InvalidAssetMint,
         constraint = vault_token_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Program PDA token account (position authority ATA) that temporarily holds tokens
     #[account(
@@ -136,7 +136,7 @@ pub struct InjectCollateral<'info>{
         token::mint = reserve_liquidity_mint,
         token::authority = position_authority,
     )]
-    pub position_collateral_account: Account<'info, TokenAccount>,
+    pub position_collateral_account: Box<Account<'info, TokenAccount>>,
 
     /// Kamino obligation (CHECKED via owner)
     /// CHECK: Verified to be owned by Kamino program
@@ -185,7 +185,7 @@ pub struct InjectCollateral<'info>{
     pub lending_market_authority: AccountInfo<'info>,
 
     /// CHECK: This is the mint of the reserve liquidity token; assumed correct by CPI
-    pub reserve_liquidity_mint: Account<'info, Mint>,
+    pub reserve_liquidity_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: Verified by CPI
     #[account(mut)]
