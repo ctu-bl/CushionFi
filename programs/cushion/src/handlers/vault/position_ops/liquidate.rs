@@ -4,19 +4,12 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::{
     CushionError,
     cpi::{
-        orca_swap::swap_wsol_to_usdc,
-        RefreshAccounts,
-        refresh_klend_state_for_current_slot,
+        RefreshAccounts, orca_swap::swap_wsol_to_usdc, refresh_klend_state_for_current_slot
     },
     math::{compute_current_ltv, get_liquidation_ltv_threshold},
     state::{Obligation, Vault},
     utils::{
-        get_obligation_data_for_ltv,
-        get_obligation_unhealthy_borrow_value,
-        VAULT_STATE_SEED,
-        ORCA_WHIRLPOOL_PROGRAM_ID,
-        WSOL_USDC_POOL,
-        ORCA_WSOL_USDC_ORACLE,
+        LiquidateEvent, ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL, get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value
     },
 };
 
@@ -89,6 +82,14 @@ pub fn liquidate_handler<'info>(
     // TODO Step 6: Withdraw WSOL collateral from Kamino back to vault
 
     Ok(())
+}
+
+fn emit_position_liquidated<'info>(ctx: &Context<Liquidate<'info>>, withdraw_amount: u64) {
+    emit!(LiquidateEvent {
+        vault: ctx.accounts.cushion_vault.key(),
+        obligation: ctx.accounts.position.key(),
+        collateral_amount_liquidated: withdraw_amount,
+    });
 }
 
 // -------------------------
