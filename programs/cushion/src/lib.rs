@@ -120,8 +120,12 @@ pub mod cushion {
         withdraw_injected_collateral_handler(ctx)
     }
 
-    pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
-        Ok(())
+    pub fn liquidate<'info>(
+        ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
+        wsol_amount: u64,
+        min_usdc_out: u64,
+    ) -> Result<()> {
+        liquidate_handler(ctx, wsol_amount, min_usdc_out)
     }
 
     // -------------------------
@@ -273,4 +277,18 @@ pub enum CushionError {
     WithdrawAmountIsZero,
     #[msg("Calculation of withdraw value failed")]
     WithdrawValueError,
+    #[msg("Liquidation amount cannot be zero")]
+    ZeroLiquidationAmount,
+    #[msg("Invalid Orca Whirlpool program account")]
+    InvalidOrcaProgram,
+    #[msg("Invalid Orca Whirlpool pool address")]
+    InvalidWhirlpoolPool,
+    #[msg("Invalid Orca tick array address")]
+    InvalidTickArray,
+    #[msg("Invalid Orca oracle account")]
+    InvalidOracleAccount,
+    #[msg("Failed to compute liquidation LTV threshold")]
+    LiquidationLtvCalculationError,
+    #[msg("Position has not reached the liquidation LTV threshold")]
+    NotLiquidable,
 }

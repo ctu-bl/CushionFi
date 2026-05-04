@@ -6,6 +6,7 @@ pub mod refresh_obligation_klend;
 pub mod repay_klend;
 pub mod withdraw_klend;
 pub mod increase_debt_klend;
+pub mod orca_swap;
 
 pub use borrow_klend::*;
 pub use deposit_klend::*;

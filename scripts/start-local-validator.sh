@@ -105,5 +105,12 @@ exec solana-test-validator "${VALIDATOR_ARGS[@]}" "${ACCOUNT_OVERRIDES[@]}" \
   --clone 8NXMyRD91p3nof61BTkJvrfpGTASHygz1cUvc3HvwyGS \
   --clone 955xWFhSDcDiUgUr4sBRtCpTLiMd4H5uZLAmgtP3R3sX \
   --clone-upgradeable-program CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d \
-  --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE 
-
+  --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE \
+  --clone-upgradeable-program whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc \
+  --clone Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE \
+  --clone EUuUbDcafPrmVTD5M6qoJAoyyNbihBhugADAxRMn5he9 \
+  --clone 2WLWEuKDgkDUccTpbwYp1GToYktiSB1cXvreHUwiSUVP \
+  --clone 65cUCgkA4THMitgKTyatqDnKHPSytxkt5GGJ1VMVNarC \
+  --clone 8Rs3qKaVGBndwNdeDqHcayatonVzdBrdYoq27CKyjuE7 \
+  --clone FhCuVGm1UYYevgc6xtMU8s96Au4zQzeS1VFqtKHB1xZe \
+  --clone FoKYKtRpD25TKzBMndysKpgPqbj8AdLXjfpYHXn9PGTX

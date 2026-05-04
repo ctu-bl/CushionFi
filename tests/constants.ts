@@ -62,3 +62,31 @@ export const PYTH_SOL_USD_PRICE_UPDATE = new PublicKey(
   "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
 );
 
+// -------------------------
+// Orca Whirlpools
+// -------------------------
+
+// Orca Whirlpool program ID
+export const WHIRLPOOL = new PublicKey(
+  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"
+);
+
+// Whirlpool SOL-USDC Market
+export const WSOL_USDC_MARKET = new PublicKey(
+  "Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE"
+);
+
+// Whirlpool SOL-USDC Pool 1
+export const WSOL_USDC_POOL_1 = new PublicKey(
+  "EUuUbDcafPrmVTD5M6qoJAoyyNbihBhugADAxRMn5he9"
+);
+
+// Whirlpool SOL-USDC Pool 2
+export const  WSOL_USDC_POOL_2 = new PublicKey(
+  "2WLWEuKDgkDUccTpbwYp1GToYktiSB1cXvreHUwiSUVP"
+);
+
+// Whirlpool SOL-USDC Oracle
+export const WHIRLPOOL_WSOL_USDC_ORACLE = new PublicKey(
+  "FoKYKtRpD25TKzBMndysKpgPqbj8AdLXjfpYHXn9PGTX"
+);

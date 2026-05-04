@@ -36,6 +36,18 @@ pub const POSITION_REGISTRY_ENTRY_SEED: &[u8] = b"position_registry_entry";
 
 pub const MAX_PRICE_AGE_SECONDS: u64 = 30000000; // ~347 days - set high for local testing to avoid rejecting devnet/localnet prices as stale. In production, set to a sensible value (e.g. 60/30 seconds).
 
+// -------------------------
+// Orca Whirlpools constants (WSOL/USDC pool, devnet)
+// -------------------------
+
+pub const ORCA_WHIRLPOOL_PROGRAM_ID: Pubkey = pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc");
+
+/// WSOL/USDC Orca Whirlpool pool address
+pub const WSOL_USDC_POOL: Pubkey = pubkey!("Czfq3xZZDmsdGdUyrNLtRhGc47cXcZtLG4crryfu44zE");
+
+/// Oracle PDA for the WSOL/USDC pool
+pub const ORCA_WSOL_USDC_ORACLE: Pubkey = pubkey!("FoKYKtRpD25TKzBMndysKpgPqbj8AdLXjfpYHXn9PGTX");
+
 pub fn ten_pow(x: usize) -> u64 {
     const POWERS_OF_TEN: [u64; 20] = [
         1,
