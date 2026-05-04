@@ -9,7 +9,7 @@ use crate::{
     math::{compute_current_ltv, get_liquidation_ltv_threshold},
     state::{Obligation, Vault},
     utils::{
-        LiquidateEvent, ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL, get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value
+        LiquidateEvent, POSITION_AUTHORITY_SEED, ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL, get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value
     },
 };
 
@@ -113,6 +113,14 @@ pub struct Liquidate<'info> {
     /// NFT mint identifying the position
     /// CHECK: Ownership verified implicitly through position.nft_mint
     pub nft_mint: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        seeds = [POSITION_AUTHORITY_SEED, nft_mint.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: PDA authority used for Kamino CPI signing
+    pub position_authority: UncheckedAccount<'info>,
 
     // -------------------------
     // Cushion vault
@@ -220,6 +228,9 @@ pub struct Liquidate<'info> {
     )]
     pub oracle: AccountInfo<'info>,
 
+    /// CHECK: Always SysvarInstructions1111111111111111111111111
+    pub instruction_sysvar_account: AccountInfo<'info>,
+
     // -------------------------
     // Programs
     // -------------------------
@@ -233,4 +244,7 @@ pub struct Liquidate<'info> {
         constraint = orca_whirlpool_program.key() == ORCA_WHIRLPOOL_PROGRAM_ID @ CushionError::InvalidOrcaProgram,
     )]
     pub orca_whirlpool_program: AccountInfo<'info>,
+
+    /// CHECK: Valid farms program
+    pub farms_program: AccountInfo<'info>,
 }
