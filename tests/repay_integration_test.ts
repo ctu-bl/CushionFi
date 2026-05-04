@@ -3,10 +3,12 @@ import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { Reserve as KlendReserveAccount } from "@kamino-finance/klend-sdk";
 import {
+  createAccount,
   getAccount,
   getOrCreateAssociatedTokenAccount,
   TOKEN_PROGRAM_ID,
   createSyncNativeInstruction,
+  transfer,
 } from "@solana/spl-token";
 import {
   ComputeBudgetProgram,
@@ -565,7 +567,75 @@ describe("repay debt", () => {
 
   // ── Tests ──────────────────────────────────────────────────────────────────
 
-  it("1) repays debt and reduces obligation borrow balance", async () => {
+  it("1) rejects repay when user has insufficient liquidity", async () => {
+    // Create a temporary token account owned by user with only 100_000 USDC so
+    // we can assert InsufficientRepayLiquidity without touching other tests' state.
+    const tempAccountKeypair = Keypair.generate();
+    await createAccount(
+      provider.connection,
+      provider.wallet.payer!,
+      fixture.debtReserve.liquidityMint,
+      user,
+      tempAccountKeypair,
+    );
+    await transfer(
+      provider.connection,
+      provider.wallet.payer!,
+      fixture.ownerUsdcAta,
+      tempAccountKeypair.publicKey,
+      provider.wallet.payer!,
+      100_000,
+    );
+
+    const repayAmount = new anchor.BN(200_000);
+
+    await expectAnchorError(
+      (program as any).methods
+        .repayDebt(repayAmount)
+        .preInstructions([
+          ...computeIxs,
+          buildRefreshReserveInstruction({
+            reserve: RESERVE,
+            lendingMarket: MARKET,
+            pythOracle: fixture.solPythOracle,
+            switchboardPriceOracle: fixture.solSwitchboardPriceOracle,
+            switchboardTwapOracle: fixture.solSwitchboardTwapOracle,
+            scopePrices: fixture.solScopePrices,
+          }),
+        ])
+        .accountsStrict({
+          user,
+          position: fixture.position,
+          nftMint: fixture.nftMint,
+          positionAuthority: fixture.positionAuthority,
+          klendObligation: fixture.klendObligation,
+          lendingMarket: MARKET,
+          lendingMarketAuthority: fixture.lendingMarketAuthority,
+          repayReserve: fixture.debtReserve.reserve,
+          repayReserveLiquidityMint: fixture.debtReserve.liquidityMint,
+          reserveDestinationLiquidity: fixture.debtReserve.liquiditySupply,
+          userSourceLiquidity: tempAccountKeypair.publicKey,
+          positionRepayAccount: fixture.positionUsdcAta,
+          pythOracle: fixture.debtReserve.pythOracle,
+          switchboardPriceOracle: fixture.debtReserve.switchboardPriceOracle,
+          switchboardTwapOracle: fixture.debtReserve.switchboardTwapOracle,
+          scopePrices: fixture.debtReserve.scopePrices,
+          obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
+          reserveFarmState: fixture.debtReserve.reserveFarmState,
+          farmsProgram: FARMS_PROGRAM,
+          klendProgram: KLEND,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .remainingAccounts([{ pubkey: RESERVE, isWritable: true, isSigner: false }])
+        .rpc(),
+      "InsufficientRepayLiquidity"
+    );
+  });
+
+  it("2) repays debt and reduces obligation borrow balance", async () => {
     const repayAmount = new anchor.BN(200_000);
 
     const balanceBefore = (await getAccount(provider.connection, fixture.ownerUsdcAta)).amount;
@@ -617,7 +687,7 @@ describe("repay debt", () => {
     expect(spent >= BigInt(repayAmount.toString())).to.be.true;
   });
 
-  it("2) full repay with u64::MAX clears the debt", async () => {
+  it("3) full repay with u64::MAX clears the debt", async () => {
     const U64_MAX = new anchor.BN("18446744073709551615");
 
     const balanceBefore = (await getAccount(provider.connection, fixture.ownerUsdcAta)).amount;
@@ -668,7 +738,7 @@ describe("repay debt", () => {
     expect(balanceAfter < balanceBefore).to.be.true;
   });
 
-  it("3) rejects non-owner signer", async () => {
+  it("4) rejects non-owner signer", async () => {
     const repayAmount = new anchor.BN(100_000);
 
     await expectAnchorError(

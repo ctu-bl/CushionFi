@@ -277,10 +277,18 @@ fn transfer_repay_liquidity_from_user<'info>(
     ctx: &Context<'_, '_, '_, 'info, RepayDebt<'info>>,
     amount: u64,
 ) -> Result<()> {
-    // Cap at the user's actual balance to handle u64::MAX "repay-all" amounts.
-    let transfer_amount = amount.min(ctx.accounts.user_source_liquidity.amount);
+    // u64::MAX is a "repay-all" sentinel — cap at the actual balance.
+    // For any specific amount, reject if the user is short.
+    let user_balance = ctx.accounts.user_source_liquidity.amount;
+    let transfer_amount = if amount == u64::MAX {
+        user_balance
+    } else if amount > user_balance {
+        return Err(error!(CushionError::InsufficientRepayLiquidity));
+    } else {
+        amount
+    };
     if transfer_amount == 0 {
-        return Ok(());
+        return Err(error!(CushionError::InsufficientRepayLiquidity));
     }
     token::transfer_checked(
         CpiContext::new(

@@ -105,6 +105,5 @@ exec solana-test-validator "${VALIDATOR_ARGS[@]}" "${ACCOUNT_OVERRIDES[@]}" \
   --clone 8NXMyRD91p3nof61BTkJvrfpGTASHygz1cUvc3HvwyGS \
   --clone 955xWFhSDcDiUgUr4sBRtCpTLiMd4H5uZLAmgtP3R3sX \
   --clone-upgradeable-program CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d \
-  --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE \
-  --clone 3JNof8s453bwG5UqiXBLJc77NRQXezYYEBbk3fqnoKph
+  --clone 7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE 
 

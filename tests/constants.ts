@@ -62,6 +62,3 @@ export const PYTH_SOL_USD_PRICE_UPDATE = new PublicKey(
   "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
 );
 
-export const RESERVE_LIQUIDITY_FEE_RECEIVER = new PublicKey(
-  "3JNof8s453bwG5UqiXBLJc77NRQXezYYEBbk3fqnoKph"
-);

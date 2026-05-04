@@ -191,6 +191,8 @@ pub enum CushionError {
     ZeroAssetsOut,
     #[msg("Vault does not have enough idle liquidity")]
     InsufficientVaultLiquidity,
+    #[msg("Insufficient liquidity in user's source account")]
+    InsufficientRepayLiquidity,
     #[msg("Invalid asset mint account")]
     InvalidAssetMint,
     #[msg("Invalid share mint account")]
