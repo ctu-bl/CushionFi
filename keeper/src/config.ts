@@ -11,10 +11,10 @@ export type KeeperConfig = {
   databaseUrl: string;
   cushionProgramId: PublicKey;
   klendProgramId: PublicKey;
+  farmsProgramId: PublicKey;
   authority: Keypair;
   reserveAddresses: PublicKey[];
   pollIntervalMs: number;
-  injectAmount: bigint;
   withdrawLtvBps: number;
   computeConcurrency: number;
   executorConcurrency: number;
@@ -22,16 +22,9 @@ export type KeeperConfig = {
 };
 
 const DEFAULT_KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
+const DEFAULT_FARMS_PROGRAM = "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr";
 const DEFAULT_CUSHION_PROGRAM = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W";
 const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/cushion_keeper";
-
-function parseU64(name: string, fallback: string): bigint {
-  const value = process.env[name]?.trim() || fallback;
-  if (!/^\d+$/.test(value)) {
-    throw new Error(`${name} must be an unsigned integer, got '${value}'`);
-  }
-  return BigInt(value);
-}
 
 function parseNumber(name: string, fallback: number): number {
   const raw = process.env[name]?.trim();
@@ -78,6 +71,9 @@ export function loadConfigFromEnv(): KeeperConfig {
   const klendProgramId = new PublicKey(
     process.env.KLEND_PROGRAM_ID?.trim() || DEFAULT_KLEND_PROGRAM
   );
+  const farmsProgramId = new PublicKey(
+    process.env.KEEPER_FARMS_PROGRAM_ID?.trim() || DEFAULT_FARMS_PROGRAM
+  );
 
   const keypairPath =
     process.env.KEEPER_KEYPAIR_PATH?.trim() || path.join(os.homedir(), ".config", "solana", "id.json");
@@ -85,7 +81,6 @@ export function loadConfigFromEnv(): KeeperConfig {
   const reserveAddresses = parsePublicKeys(process.env.KEEPER_RESERVE_ADDRESSES);
 
   const pollIntervalMs = parseNumber("KEEPER_POLL_INTERVAL_MS", 8_000);
-  const injectAmount = parseU64("KEEPER_INJECT_AMOUNT", "1000000");
   const withdrawLtvBps = parseNumber("KEEPER_WITHDRAW_LTV_BPS", 8500);
 
   const computeConcurrency = Math.max(1, parseNumber("KEEPER_COMPUTE_CONCURRENCY", 2));
@@ -100,10 +95,10 @@ export function loadConfigFromEnv(): KeeperConfig {
     databaseUrl,
     cushionProgramId,
     klendProgramId,
+    farmsProgramId,
     authority,
     reserveAddresses,
     pollIntervalMs,
-    injectAmount,
     withdrawLtvBps,
     computeConcurrency,
     executorConcurrency,

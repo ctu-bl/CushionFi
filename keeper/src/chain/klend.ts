@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import type { PositionRiskSnapshot, ReservePriceSnapshot } from "../types.ts";
 
 const WAD = 1_000_000_000_000_000_000n;
+const INSURING_LTV_THRESHOLD_MULTIPLIER_WAD = 850_000_000_000_000_000n;
 const REFRESH_RESERVE_IX = crypto
   .createHash("sha256")
   .update("global:refresh_reserve")
@@ -50,6 +51,36 @@ function toOptionalOracle(value: unknown): string | null {
   return key;
 }
 
+function toPublicKey(value: unknown): PublicKey {
+  return new PublicKey(String(value));
+}
+
+function toOptionalPublicKey(value: unknown): PublicKey | null {
+  const key = new PublicKey(String(value));
+  return key.equals(PublicKey.default) ? null : key;
+}
+
+export type KlendReserveContext = {
+  reserve: PublicKey;
+  lendingMarket: PublicKey;
+  reserveLiquidityMint: PublicKey;
+  reserveLiquiditySupply: PublicKey;
+  reserveLiquidityTokenProgram: PublicKey;
+  reserveCollateralMint: PublicKey;
+  reserveDestinationDepositCollateral: PublicKey;
+  reserveFarmCollateralState: PublicKey | null;
+  pythOracle: PublicKey | null;
+  switchboardPriceOracle: PublicKey | null;
+  switchboardTwapOracle: PublicKey | null;
+  scopePrices: PublicKey | null;
+};
+
+export type KlendObligationContext = {
+  lendingMarket: PublicKey;
+  activeReserves: PublicKey[];
+  activeDepositReserves: PublicKey[];
+};
+
 export class KlendChainClient {
   private readonly connection: Connection;
   private readonly payer: Keypair;
@@ -59,6 +90,10 @@ export class KlendChainClient {
     this.connection = connection;
     this.payer = payer;
     this.klendProgramId = klendProgramId;
+  }
+
+  get programId(): PublicKey {
+    return this.klendProgramId;
   }
 
   async fetchReservePrice(reserve: PublicKey, slot: number): Promise<ReservePriceSnapshot> {
@@ -96,6 +131,65 @@ export class KlendChainClient {
     };
   }
 
+  async fetchReserveContext(reserve: PublicKey): Promise<KlendReserveContext> {
+    const account = await this.connection.getAccountInfo(reserve, "confirmed");
+    if (!account) {
+      throw new Error(`Missing reserve account ${reserve.toBase58()}`);
+    }
+
+    const decoded = Reserve.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    const liquidity = pickFirst<Record<string, unknown>>(decoded, ["liquidity"]);
+    const collateral = pickFirst<Record<string, unknown>>(decoded, ["collateral"]);
+    const config = pickFirst<Record<string, unknown>>(decoded, ["config"]);
+    const tokenInfo = pickFirst<Record<string, unknown>>(config, ["tokenInfo", "token_info"]);
+
+    const pythConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["pythConfiguration", "pyth_configuration"]);
+    const switchboardConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
+      "switchboardConfiguration",
+      "switchboard_configuration",
+    ]);
+    const scopeConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["scopeConfiguration", "scope_configuration"]);
+
+    return {
+      reserve,
+      lendingMarket: toPublicKey(pickFirst(decoded, ["lendingMarket", "lending_market"])),
+      reserveLiquidityMint: toPublicKey(pickFirst(liquidity, ["mintPubkey", "mint_pubkey"])),
+      reserveLiquiditySupply: toPublicKey(pickFirst(liquidity, ["supplyVault", "supply_vault"])),
+      reserveLiquidityTokenProgram: toPublicKey(
+        pickFirst(liquidity, ["tokenProgram", "token_program"])
+      ),
+      reserveCollateralMint: toPublicKey(pickFirst(collateral, ["mintPubkey", "mint_pubkey"])),
+      reserveDestinationDepositCollateral: toPublicKey(
+        pickFirst(collateral, ["supplyVault", "supply_vault"])
+      ),
+      reserveFarmCollateralState: toOptionalPublicKey(
+        pickFirst(decoded, ["farmCollateral", "farm_collateral"])
+      ),
+      pythOracle: toOptionalPublicKey(pickFirst(pythConfig, ["price"])),
+      switchboardPriceOracle: toOptionalPublicKey(
+        pickFirst(switchboardConfig, ["priceAggregator", "price_aggregator"])
+      ),
+      switchboardTwapOracle: toOptionalPublicKey(
+        pickFirst(switchboardConfig, ["twapAggregator", "twap_aggregator"])
+      ),
+      scopePrices: toOptionalPublicKey(pickFirst(scopeConfig, ["priceFeed", "price_feed"])),
+    };
+  }
+
+  async fetchObligationContext(protocolObligation: string): Promise<KlendObligationContext> {
+    const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
+    if (!account) {
+      throw new Error(`Missing protocol obligation ${protocolObligation}`);
+    }
+
+    const decoded = Obligation.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    return {
+      lendingMarket: toPublicKey(pickFirst(decoded, ["lendingMarket", "lending_market"])),
+      activeReserves: await this.extractActiveReserves(decoded),
+      activeDepositReserves: this.extractActiveDepositReserves(decoded),
+    };
+  }
+
   async fetchPositionRiskSnapshot(position: string, protocolObligation: string, slot: number): Promise<PositionRiskSnapshot> {
     const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
     if (!account) {
@@ -113,9 +207,15 @@ export class KlendChainClient {
     const unhealthyBorrowValueSf = asBigInt(
       pickFirst(decoded, ["unhealthyBorrowValueSf", "unhealthy_borrow_value_sf"])
     );
-
+    const allowedBorrowValueSf = asBigInt(
+      pickFirst(decoded, ["allowedBorrowValueSf", "allowed_borrow_value_sf"])
+    );
     const ltvWad = depositedValueSf === 0n ? null : (debtValueSf * WAD) / depositedValueSf;
-    const maxSafeLtvWad = depositedValueSf === 0n ? null : (unhealthyBorrowValueSf * WAD * 95n) / (depositedValueSf * 100n);
+    const maxSafeLtvWad =
+      depositedValueSf === 0n
+        ? null
+        : ((allowedBorrowValueSf * WAD) / depositedValueSf * INSURING_LTV_THRESHOLD_MULTIPLIER_WAD) /
+          WAD;
 
     return {
       position,
@@ -222,6 +322,26 @@ export class KlendChainClient {
       addIfValid(pickFirstOptional(record, ["borrowReserve", "borrow_reserve"]));
     }
 
+    return Array.from(set).map((value) => new PublicKey(value));
+  }
+
+  private extractActiveDepositReserves(decodedObligation: Record<string, unknown>): PublicKey[] {
+    const set = new Set<string>();
+    const deposits = pickFirstOptional<unknown[]>(decodedObligation, ["deposits"]) ?? [];
+    for (const entry of deposits) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const maybeReserve = pickFirstOptional(record, ["depositReserve", "deposit_reserve"]);
+      if (!maybeReserve) continue;
+      try {
+        const key = new PublicKey(String(maybeReserve));
+        if (!key.equals(PublicKey.default)) {
+          set.add(key.toBase58());
+        }
+      } catch {
+        // ignore non-pubkeys
+      }
+    }
     return Array.from(set).map((value) => new PublicKey(value));
   }
 }

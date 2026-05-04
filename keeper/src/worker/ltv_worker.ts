@@ -1,5 +1,3 @@
-import { PublicKey } from "@solana/web3.js";
-
 import { KlendChainClient } from "../chain/klend.ts";
 import { logInfo, logWarn } from "../logger.ts";
 import { DedupQueue } from "../queue/dedup_queue.ts";
@@ -14,7 +12,6 @@ export class LtvWorker {
   private readonly executeQueue: DedupQueue<ExecuteJob>;
   private readonly withdrawLtvBps: number;
   private readonly connectionSlot: () => Promise<number>;
-  private readonly injectAmount: bigint;
   private running = true;
 
   constructor(
@@ -24,8 +21,7 @@ export class LtvWorker {
     computeQueue: DedupQueue<ComputeJob>,
     executeQueue: DedupQueue<ExecuteJob>,
     withdrawLtvBps: number,
-    connectionSlot: () => Promise<number>,
-    injectAmount: bigint
+    connectionSlot: () => Promise<number>
   ) {
     this.name = name;
     this.klendClient = klendClient;
@@ -34,7 +30,6 @@ export class LtvWorker {
     this.executeQueue = executeQueue;
     this.withdrawLtvBps = withdrawLtvBps;
     this.connectionSlot = connectionSlot;
-    this.injectAmount = injectAmount;
   }
 
   stop() {
@@ -76,7 +71,7 @@ export class LtvWorker {
     }
 
     const slot = await this.connectionSlot();
-    const risk = await this.klendClient.fetchPositionRiskSnapshot(
+    const risk = await this.klendClient.getRefreshedPositionRiskSnapshot(
       positionRecord.position,
       positionRecord.protocolObligation,
       slot
@@ -106,15 +101,23 @@ export class LtvWorker {
       return;
     }
 
-    const injectThreshold = positionRecord.injectThresholdWad;
+    const injectThreshold = risk.maxSafeLtvWad;
+    if (injectThreshold === null) {
+      logWarn("ltv_worker.position_missing_safe_ltv", {
+        worker: this.name,
+        position,
+        reason,
+      });
+      return;
+    }
+
     const withdrawThreshold = (injectThreshold * BigInt(this.withdrawLtvBps)) / 10_000n;
 
-    if (!positionRecord.injected && ltv >= injectThreshold) {
+    if (!positionRecord.injected && ltv > injectThreshold) {
       const dedupeKey = `action:inject:${position}`;
       this.executeQueue.enqueue(dedupeKey, {
         kind: "inject",
         position,
-        amount: this.injectAmount,
         reason: `ltv=${ltv.toString()} threshold=${injectThreshold.toString()} source=${reason}`,
         dedupeKey,
       });
@@ -126,7 +129,6 @@ export class LtvWorker {
       this.executeQueue.enqueue(dedupeKey, {
         kind: "withdraw",
         position,
-        amount: 0n,
         reason: `ltv=${ltv.toString()} threshold=${withdrawThreshold.toString()} source=${reason}`,
         dedupeKey,
       });

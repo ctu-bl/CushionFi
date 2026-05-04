@@ -58,8 +58,7 @@ async function main() {
         computeQueue,
         executeQueue,
         config.withdrawLtvBps,
-        connectionSlot,
-        config.injectAmount
+        connectionSlot
       )
     );
   }
@@ -74,6 +73,7 @@ async function main() {
         repository,
         executeQueue,
         config.authority.publicKey,
+        config.farmsProgramId,
         connectionSlot
       )
     );
@@ -98,6 +98,7 @@ async function main() {
     mode: config.mode,
     rpcUrl: config.rpcUrl,
     cushionProgramId: config.cushionProgramId.toBase58(),
+    farmsProgramId: config.farmsProgramId.toBase58(),
     authority: config.authority.publicKey.toBase58(),
     reserves: config.reserveAddresses.map((reserve) => reserve.toBase58()),
     computeConcurrency: config.computeConcurrency,

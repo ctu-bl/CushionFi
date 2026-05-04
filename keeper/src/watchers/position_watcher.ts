@@ -90,7 +90,8 @@ export class PositionWatcher {
 
       if (
         prior.injected !== position.injected ||
-        prior.injectThresholdWad !== position.injectThresholdWad ||
+        prior.injectedAmount !== position.injectedAmount ||
+        prior.collateralVault !== position.collateralVault ||
         prior.protocolObligation !== position.protocolObligation
       ) {
         this.queue.enqueue(`position_changed:${position.position}`, {

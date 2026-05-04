@@ -48,7 +48,7 @@ pub fn get_amount_from_market_value_from_reserve(market_value: u128, price: u128
 }
 
 pub fn get_insuring_ltv_threshold(
-    debt_sum: u128,
+    _debt_sum: u128,
     max_allowed_borrow: u128,
     deposit_sum: u128,
 ) -> Option<u128> {
@@ -456,5 +456,11 @@ mod tests {
         assert!(result.is_some());
         // Should be exactly 85% of WAD
         assert_eq!(result.unwrap(), WITHDRAWING_LTV_THRESHOLD_MULTIPLIER);
+    }
+
+    #[test]
+    fn get_insuring_ltv_threshold_overflow_on_multiply() {
+        let result = get_insuring_ltv_threshold(0, u128::MAX, 100);
+        assert_eq!(result, None);
     }
 }

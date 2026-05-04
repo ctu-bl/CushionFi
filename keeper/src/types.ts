@@ -22,7 +22,6 @@ export type ComputeJob =
 export type ExecuteJob = {
   kind: "inject" | "withdraw";
   position: string;
-  amount: bigint;
   reason: string;
   dedupeKey: string;
 };
@@ -36,7 +35,7 @@ export type CushionPosition = {
   protocolObligation: string;
   protocolUserMetadata: string;
   collateralVault: string;
-  injectThresholdWad: bigint;
+  injectedAmount: bigint;
   injected: boolean;
   bump: number;
   updatedAtSlot: number;

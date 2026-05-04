@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS keeper_positions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE keeper_positions
+  ADD COLUMN IF NOT EXISTS injected_amount NUMERIC(39, 0) NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS keeper_position_risk (
   position TEXT PRIMARY KEY REFERENCES keeper_positions(position) ON DELETE CASCADE,
   protocol_obligation TEXT NOT NULL,
@@ -43,7 +46,7 @@ type PositionRow = {
   protocol_obligation: string;
   protocol_user_metadata: string;
   collateral_vault: string;
-  inject_threshold_wad: string;
+  injected_amount: string;
   injected: boolean;
   bump: number;
   updated_at_slot: string;
@@ -117,12 +120,13 @@ export class PostgresKeeperRepository implements KeeperRepository {
             protocol_user_metadata,
             collateral_vault,
             inject_threshold_wad,
+            injected_amount,
             injected,
             bump,
             updated_at_slot,
             updated_at
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW()
           )
           ON CONFLICT (position)
           DO UPDATE SET
@@ -133,6 +137,7 @@ export class PostgresKeeperRepository implements KeeperRepository {
             protocol_obligation = EXCLUDED.protocol_obligation,
             protocol_user_metadata = EXCLUDED.protocol_user_metadata,
             collateral_vault = EXCLUDED.collateral_vault,
+            injected_amount = EXCLUDED.injected_amount,
             inject_threshold_wad = EXCLUDED.inject_threshold_wad,
             injected = EXCLUDED.injected,
             bump = EXCLUDED.bump,
@@ -148,7 +153,8 @@ export class PostgresKeeperRepository implements KeeperRepository {
           position.protocolObligation,
           position.protocolUserMetadata,
           position.collateralVault,
-          position.injectThresholdWad.toString(),
+          "0",
+          position.injectedAmount.toString(),
           position.injected,
           position.bump,
           position.updatedAtSlot,
@@ -234,7 +240,7 @@ function mapPositionRow(row: PositionRow): CushionPosition {
     protocolObligation: row.protocol_obligation,
     protocolUserMetadata: row.protocol_user_metadata,
     collateralVault: row.collateral_vault,
-    injectThresholdWad: BigInt(row.inject_threshold_wad),
+    injectedAmount: BigInt(row.injected_amount),
     injected: row.injected,
     bump: row.bump,
     updatedAtSlot: Number(row.updated_at_slot),
