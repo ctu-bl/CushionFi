@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
+declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
 
 pub mod cpi;
 pub mod handlers;
@@ -114,10 +114,10 @@ pub mod cushion {
         inject_collateral_handler(ctx)
     }
 
-    pub fn withdraw_injected_collateral(
-        ctx: Context<WithdrawInjected>,
+    pub fn withdraw_injected_collateral<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawInjected<'info>>,
     ) -> Result<()> {
-        Ok(())
+        withdraw_injected_collateral_handler(ctx)
     }
 
     pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
@@ -259,4 +259,18 @@ pub enum CushionError {
     ZeroPrice,
     #[msg("Computation of insuring LTV threshold failed")]
     InsuringThresholdError,
+    #[msg("Position doesn't have any injected collateral")]
+    NotInjected,
+    #[msg("Computation of withdrawing LTV threshold failed")]
+    WithdrawingThresholdError,
+    #[msg("Position is not safe enough, withdrawal failed")]
+    NotYetSafePosition,
+    #[msg("Computation of amount to withdraw failed")]
+    WithdrawAmountCalculationError,
+    #[msg("Computation of accumulated interest failed")]
+    InterestCalculationError,
+    #[msg("Withdraw amount cannot be zero")]
+    WithdrawAmountIsZero,
+    #[msg("Calculation of withdraw value failed")]
+    WithdrawValueError,
 }

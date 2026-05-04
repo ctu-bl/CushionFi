@@ -82,6 +82,9 @@ pub fn init_vault_handler(
     vault.virtual_shares = virtual_shares;
     vault.market_price = 0;
     vault.market_price_last_updated = now;
+    vault.interest_last_updated = now;
+    vault.accumulated_interest = 1_000_000_000;
+    vault.interest_rate = 50_000_000;
 
     emit!(VaultInitializedEvent {
         vault: vault.key(),

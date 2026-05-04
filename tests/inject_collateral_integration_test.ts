@@ -109,6 +109,7 @@ describe("inject collateral", () => {
   let fixtureZeroPrice: Fixture; // For zero price test
   let fixtureMinimalLiquidity: Fixture; // For insufficient liquidity test
   let fixtureUnsafePosition: Fixture; // For unsafe position injection test
+  let fixtureDoubleInject: Fixture; // For unsafe position double injection test
 
   async function waitForRpcReady(retries = 180, delayMs = 1000): Promise<void> {
     let lastErr: unknown;
@@ -601,6 +602,8 @@ describe("inject collateral", () => {
     // This vault starts with market_price = 0 by default
     fixtureZeroPrice = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
 
+    fixtureDoubleInject = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
+
     // Create fixture with minimal liquidity (only 100 tokens, can't satisfy large injections)
     fixtureMinimalLiquidity = await createFixture({ vaultLiquidity: 100 });
 
@@ -610,80 +613,142 @@ describe("inject collateral", () => {
 
   it("should inject when the position is unsafe", async () => {
     
-    const transactionLogs: Array<{ sig: string; description: string }> = [];
     
-    try {
-      const computeIxs = [
+    const computeIxs = [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+    ];
+    const amount = new anchor.BN(1_000_000);
+
+    await (program as any).methods
+      .increaseCollateral(amount)
+      .preInstructions(computeIxs)
+      .accountsStrict({
+        user,
+        position: fixtureUnsafePosition.position,
+        nftMint: fixtureUnsafePosition.nftMint,
+        userCollateralAccount: fixtureUnsafePosition.ownerWsolAta,
+        positionAuthority: fixtureUnsafePosition.positionAuthority,
+        positionCollateralAccount: fixtureUnsafePosition.positionCollateralAta,
+        klendObligation: fixtureUnsafePosition.klendObligation,
+        klendReserve: RESERVE,
+        reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
+        tokenMint: RESERVE_LIQUIDITY_MINT,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        klendProgram: KLEND,
+        farmsProgram: FARMS_PROGRAM,
+        lendingMarket: MARKET,
+        pythOracle: fixtureUnsafePosition.pythOracle,
+        switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
+        switchboardTwapOracle: fixtureUnsafePosition.switchboardTwapOracle,
+        scopePrices: fixtureUnsafePosition.scopePrices,
+        lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
+        reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
+        reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
+        reserveCollateralMint: RESERVE_COLLATERAL_MINT,
+        placeholderUserDestinationCollateral: fixtureUnsafePosition.ownerPlaceholderCollateralAta,
+        liquidityTokenProgram: TOKEN_PROGRAM_ID,
+        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+        obligationFarmUserState: fixtureUnsafePosition.obligationFarmUserState,
+        reserveFarmState: RESERVE_FARM_STATE,
+      })
+      .rpc();
+
+    await program.methods
+        .updateMarketPrice([...SOL_USD_FEED_ID])
+        .accounts({
+          authority: provider.wallet.publicKey,
+          vault: fixtureUnsafePosition.vault,
+          priceUpdate: PYTH_SOL_USD_PRICE_UPDATE,
+        })
+        .rpc();
+    console.log("Price updated");
+
+    // Increase debt by borrowing USDC
+    const usdcReserve = await deriveBorrowReserveFixture(USDC_RESERVE, fixtureUnsafePosition.klendObligation);
+    const userUsdcAta = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer,
+      usdcReserve.liquidityMint,
+      user
+    );
+    const positionUsdcAta = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer,
+      usdcReserve.liquidityMint,
+      fixtureUnsafePosition.positionAuthority,
+      true
+    );
+
+    const borrowAmount = new anchor.BN(59_600); // Borrow 10 USDC (6 decimals)
+    await (program as any).methods
+      .borrowAsset(borrowAmount)
+      .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
-      ];
-      const amount = new anchor.BN(1_000_000);
-
-      const sig1 = await (program as any).methods
-        .increaseCollateral(amount)
-        .preInstructions(computeIxs)
-        .accountsStrict({
-          user,
-          position: fixtureUnsafePosition.position,
-          nftMint: fixtureUnsafePosition.nftMint,
-          userCollateralAccount: fixtureUnsafePosition.ownerWsolAta,
-          positionAuthority: fixtureUnsafePosition.positionAuthority,
-          positionCollateralAccount: fixtureUnsafePosition.positionCollateralAta,
-          klendObligation: fixtureUnsafePosition.klendObligation,
-          klendReserve: RESERVE,
-          reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
-          tokenMint: RESERVE_LIQUIDITY_MINT,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          klendProgram: KLEND,
-          farmsProgram: FARMS_PROGRAM,
+        buildRefreshReserveInstruction({
+          reserve: RESERVE,
           lendingMarket: MARKET,
           pythOracle: fixtureUnsafePosition.pythOracle,
           switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
           switchboardTwapOracle: fixtureUnsafePosition.switchboardTwapOracle,
           scopePrices: fixtureUnsafePosition.scopePrices,
-          lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
-          reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
-          reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
-          reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-          placeholderUserDestinationCollateral: fixtureUnsafePosition.ownerPlaceholderCollateralAta,
-          liquidityTokenProgram: TOKEN_PROGRAM_ID,
-          instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-          obligationFarmUserState: fixtureUnsafePosition.obligationFarmUserState,
-          reserveFarmState: RESERVE_FARM_STATE,
-        })
-        .rpc();
-      transactionLogs.push({ sig: sig1, description: "increaseCollateral" });
-
-      const sig3 = await program.methods
-          .updateMarketPrice([...SOL_USD_FEED_ID])
-          .accounts({
-            authority: provider.wallet.publicKey,
-            vault: fixtureUnsafePosition.vault,
-            priceUpdate: PYTH_SOL_USD_PRICE_UPDATE,
-          })
-          .rpc();
-      transactionLogs.push({ sig: sig3, description: "updateMarketPrice" });
-      console.log("Price updated");
-
-      // Increase debt by borrowing USDC
-      const usdcReserve = await deriveBorrowReserveFixture(USDC_RESERVE, fixtureUnsafePosition.klendObligation);
-      const userUsdcAta = await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        provider.wallet.payer,
-        usdcReserve.liquidityMint,
-        user
-      );
-      const positionUsdcAta = await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        provider.wallet.payer,
-        usdcReserve.liquidityMint,
-        fixtureUnsafePosition.positionAuthority,
-        true
-      );
-
-      const borrowAmount = new anchor.BN(40_000); // Borrow 10 USDC (6 decimals)
-      const sig2 = await (program as any).methods
-        .borrowAsset(borrowAmount)
+        }),
+        buildRefreshReserveInstruction({
+          reserve: usdcReserve.reserve,
+          lendingMarket: MARKET,
+          pythOracle: usdcReserve.pythOracle,
+          switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+          switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+          scopePrices: usdcReserve.scopePrices,
+        }),
+      ])
+      .accountsStrict({
+        user,
+        position: fixtureUnsafePosition.position,
+        nftMint: fixtureUnsafePosition.nftMint,
+        positionAuthority: fixtureUnsafePosition.positionAuthority,
+        klendObligation: fixtureUnsafePosition.klendObligation,
+        lendingMarket: MARKET,
+        pythOracle: usdcReserve.pythOracle,
+        switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+        switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+        scopePrices: usdcReserve.scopePrices,
+        lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
+        borrowReserve: usdcReserve.reserve,
+        borrowReserveLiquidityMint: usdcReserve.liquidityMint,
+        reserveSourceLiquidity: usdcReserve.liquiditySupply,
+        borrowReserveLiquidityFeeReceiver: usdcReserve.feeVault,
+        positionBorrowAccount: positionUsdcAta.address,
+        userDestinationLiquidity: userUsdcAta.address,
+        obligationFarmUserState: usdcReserve.obligationFarmUserState,
+        reserveFarmState: usdcReserve.reserveFarmState,
+        referrerTokenState: null,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+        farmsProgram: FARMS_PROGRAM,
+        klendProgram: KLEND,
+      })
+      .remainingAccounts([
+        { pubkey: RESERVE, isWritable: true, isSigner: false },
+      ])
+      .rpc();
+    
+    const vaultBefore = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
+    const vaultBalanceBefore = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
+    const positionBefore = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
+    
+    const obligationAccountBefore = await provider.connection.getAccountInfo(
+      fixtureUnsafePosition.klendObligation
+    );
+    console.log("Asset borrowed");
+    
+    
+    try {
+      await (program as any).methods
+        .injectCollateral()
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
           ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
@@ -705,151 +770,72 @@ describe("inject collateral", () => {
           }),
         ])
         .accountsStrict({
-          user,
+          caller: user,
           position: fixtureUnsafePosition.position,
           nftMint: fixtureUnsafePosition.nftMint,
+          assetMint: fixtureUnsafePosition.vaultAssetMint,
+          cushionVault: fixtureUnsafePosition.vault,
           positionAuthority: fixtureUnsafePosition.positionAuthority,
+          vaultTokenAccount: fixtureUnsafePosition.vaultTokenAccount,
+          positionCollateralAccount: fixtureUnsafePosition.positionCollateralAta,
           klendObligation: fixtureUnsafePosition.klendObligation,
-          lendingMarket: MARKET,
-          pythOracle: usdcReserve.pythOracle,
-          switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
-          switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
-          scopePrices: usdcReserve.scopePrices,
-          lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
-          borrowReserve: usdcReserve.reserve,
-          borrowReserveLiquidityMint: usdcReserve.liquidityMint,
-          reserveSourceLiquidity: usdcReserve.liquiditySupply,
-          borrowReserveLiquidityFeeReceiver: usdcReserve.feeVault,
-          positionBorrowAccount: positionUsdcAta.address,
-          userDestinationLiquidity: userUsdcAta.address,
-          obligationFarmUserState: usdcReserve.obligationFarmUserState,
-          reserveFarmState: usdcReserve.reserveFarmState,
-          referrerTokenState: null,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-          instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-          farmsProgram: FARMS_PROGRAM,
+          klendReserve: RESERVE,
+          reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
+          farmsProgram: FARMS_PROGRAM,
+          lendingMarket: MARKET,
+          pythOracle: fixtureUnsafePosition.pythOracle,
+          switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureUnsafePosition.switchboardTwapOracle,
+          scopePrices: fixtureUnsafePosition.scopePrices,
+          lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
+          reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
+          reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
+          reserveCollateralMint: RESERVE_COLLATERAL_MINT,
+          placeholderUserDestinationCollateral: fixtureUnsafePosition.ownerPlaceholderCollateralAta,
+          liquidityTokenProgram: TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+          obligationFarmUserState: fixtureUnsafePosition.obligationFarmUserState,
+          reserveFarmState: RESERVE_FARM_STATE,
         })
         .remainingAccounts([
           { pubkey: RESERVE, isWritable: true, isSigner: false },
+          { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
         ])
         .rpc();
-      transactionLogs.push({ sig: sig2, description: "borrowAsset" });
-      
-      const vaultBefore = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
-      const vaultBalanceBefore = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
-      const positionBefore = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
-      
-      const obligationAccountBefore = await provider.connection.getAccountInfo(
-        fixtureUnsafePosition.klendObligation
-      );
-      console.log("Asset borrowed");
-      
-      let sig4: string | null = null;
-      let injectError: Error | null = null;
-      
-      try {
-        sig4 = await (program as any).methods
-          .injectCollateral()
-          .preInstructions([
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
-            buildRefreshReserveInstruction({
-              reserve: RESERVE,
-              lendingMarket: MARKET,
-              pythOracle: fixtureUnsafePosition.pythOracle,
-              switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
-              switchboardTwapOracle: fixtureUnsafePosition.switchboardTwapOracle,
-              scopePrices: fixtureUnsafePosition.scopePrices,
-            }),
-            buildRefreshReserveInstruction({
-              reserve: usdcReserve.reserve,
-              lendingMarket: MARKET,
-              pythOracle: usdcReserve.pythOracle,
-              switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
-              switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
-              scopePrices: usdcReserve.scopePrices,
-            }),
-          ])
-          .accountsStrict({
-            caller: user,
-            position: fixtureUnsafePosition.position,
-            nftMint: fixtureUnsafePosition.nftMint,
-            assetMint: fixtureUnsafePosition.vaultAssetMint,
-            cushionVault: fixtureUnsafePosition.vault,
-            positionAuthority: fixtureUnsafePosition.positionAuthority,
-            vaultTokenAccount: fixtureUnsafePosition.vaultTokenAccount,
-            positionCollateralAccount: fixtureUnsafePosition.positionCollateralAta,
-            klendObligation: fixtureUnsafePosition.klendObligation,
-            klendReserve: RESERVE,
-            reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
-            klendProgram: KLEND,
-            farmsProgram: FARMS_PROGRAM,
-            lendingMarket: MARKET,
-            pythOracle: fixtureUnsafePosition.pythOracle,
-            switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
-            switchboardTwapOracle: fixtureUnsafePosition.switchboardTwapOracle,
-            scopePrices: fixtureUnsafePosition.scopePrices,
-            lendingMarketAuthority: fixtureUnsafePosition.lendingMarketAuthority,
-            reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
-            reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
-            reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-            placeholderUserDestinationCollateral: fixtureUnsafePosition.ownerPlaceholderCollateralAta,
-            liquidityTokenProgram: TOKEN_PROGRAM_ID,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-            obligationFarmUserState: fixtureUnsafePosition.obligationFarmUserState,
-            reserveFarmState: RESERVE_FARM_STATE,
-          })
-          .remainingAccounts([
-            { pubkey: RESERVE, isWritable: true, isSigner: false },
-            { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
-          ])
-          .rpc();
-        transactionLogs.push({ sig: sig4, description: "injectCollateral" });
-      } catch (err: any) {
-        injectError = err;
-        // Try to extract transaction signature from error
-        const errorSig = err?.signature || err?.txid || err?.transactionSignature || err?.logs?.[0]?.match(/\w{88}/)?.[0];
-        if (errorSig) {
-          transactionLogs.push({ sig: errorSig, description: "injectCollateral (FAILED)" });
-        } else {
-          // If we can't get signature, still record that it failed
-          transactionLogs.push({ sig: "UNKNOWN", description: "injectCollateral (FAILED - no signature)" });
-        }
-        // Don't re-throw yet, continue to finally block to print logs
-      }
-      
-      // Get state after injection
-      const vaultAfter = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
-      const vaultBalanceAfter = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
-      const positionAfter = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
-      
-      // Fetch klend obligation after (raw data)
-      const obligationAccountAfter = await provider.connection.getAccountInfo(
-        fixtureUnsafePosition.klendObligation
-      );
+    } catch (err: any) {
+      console.log(err.getLogs);
+      const err2 = err as anchor.AnchorError;
+      console.log(err2.logs); 
+    }
+    
+    // Get state after injection
+    const vaultAfter = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
+    const vaultBalanceAfter = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
+    const positionAfter = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
+    
+    // Fetch klend obligation after (raw data)
+    const obligationAccountAfter = await provider.connection.getAccountInfo(
+      fixtureUnsafePosition.klendObligation
+    );
 
-      // Verify expectations
-      // 1. Vault balance should decrease
-      expect(
-        vaultBalanceBefore.amount > vaultBalanceAfter.amount,
-        "Vault token balance should decrease after injection"
-      ).to.be.true;
+    // Verify expectations
+    // 1. Vault balance should decrease
+    expect(
+      vaultBalanceBefore.amount > vaultBalanceAfter.amount,
+      "Vault token balance should decrease after injection"
+    ).to.be.true;
 
-      // 2. Position.injected should be true
-      expect(positionAfter.injected, "Position.injected should be true").to.be.true;
+    // 2. Position.injected should be true
+    expect(positionAfter.injected, "Position.injected should be true").to.be.true;
 
-      // 3. Position.injected_amount should be increased (was 0 before)
-      expect(
-        positionAfter.injectedAmount.gt(positionBefore.injectedAmount),
-        "Position.injected_amount should increase"
-      ).to.be.true;
-
-      console.log("✓ Injection successful - vault balance decreased, position marked as injected, injected_amount updated");
-    } finally {
+    // 3. Position.injected_amount should be increased (was 0 before)
+    expect(
+      positionAfter.injectedAmount.gt(positionBefore.injectedAmount),
+      "Position.injected_amount should increase"
+    ).to.be.true;
+    /*} finally {
       // Print all collected logs
       console.log("\n\n========================================");
       console.log("PRINTING ALL TRANSACTION LOGS FROM TEST");
@@ -865,10 +851,9 @@ describe("inject collateral", () => {
       }
       console.log("========================================");
       console.log("END OF ALL TRANSACTION LOGS");
-      console.log("========================================\n");
+      console.log("========================================\n");*/
       
-    }
-  });
+    });
 
   it("should reject injection when position is not unsafe", async () => {
     
@@ -987,12 +972,12 @@ describe("inject collateral", () => {
       .preInstructions(computeIxs)
       .accountsStrict({
         user,
-        position: fixture.position,
-        nftMint: fixture.nftMint,
-        userCollateralAccount: fixture.ownerWsolAta,
-        positionAuthority: fixture.positionAuthority,
-        positionCollateralAccount: fixture.positionCollateralAta,
-        klendObligation: fixture.klendObligation,
+        position: fixtureDoubleInject.position,
+        nftMint: fixtureDoubleInject.nftMint,
+        userCollateralAccount: fixtureDoubleInject.ownerWsolAta,
+        positionAuthority: fixtureDoubleInject.positionAuthority,
+        positionCollateralAccount: fixtureDoubleInject.positionCollateralAta,
+        klendObligation: fixtureDoubleInject.klendObligation,
         klendReserve: RESERVE,
         reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
         tokenMint: RESERVE_LIQUIDITY_MINT,
@@ -1000,18 +985,18 @@ describe("inject collateral", () => {
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
         lendingMarket: MARKET,
-        pythOracle: fixture.pythOracle,
-        switchboardPriceOracle: fixture.switchboardPriceOracle,
-        switchboardTwapOracle: fixture.switchboardTwapOracle,
-        scopePrices: fixture.scopePrices,
-        lendingMarketAuthority: fixture.lendingMarketAuthority,
+        pythOracle: fixtureDoubleInject.pythOracle,
+        switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+        switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+        scopePrices: fixtureDoubleInject.scopePrices,
+        lendingMarketAuthority: fixtureDoubleInject.lendingMarketAuthority,
         reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
         reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
         reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-        placeholderUserDestinationCollateral: fixture.ownerPlaceholderCollateralAta,
+        placeholderUserDestinationCollateral: fixtureDoubleInject.ownerPlaceholderCollateralAta,
         liquidityTokenProgram: TOKEN_PROGRAM_ID,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-        obligationFarmUserState: fixture.obligationFarmUserState,
+        obligationFarmUserState: fixtureDoubleInject.obligationFarmUserState,
         reserveFarmState: RESERVE_FARM_STATE,
       })
       .remainingAccounts([
@@ -1021,7 +1006,7 @@ describe("inject collateral", () => {
       .rpc();
 
     // Increase debt by borrowing USDC
-    const usdcReserve = await deriveBorrowReserveFixture(USDC_RESERVE, fixture.klendObligation);
+    const usdcReserve = await deriveBorrowReserveFixture(USDC_RESERVE, fixtureDoubleInject.klendObligation);
     const userUsdcAta = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       provider.wallet.payer,
@@ -1032,11 +1017,11 @@ describe("inject collateral", () => {
       provider.connection,
       provider.wallet.payer,
       usdcReserve.liquidityMint,
-      fixture.positionAuthority,
+      fixtureDoubleInject.positionAuthority,
       true
     );
 
-    const borrowAmount = new anchor.BN(10_000);
+    const borrowAmount = new anchor.BN(59_600);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1045,10 +1030,10 @@ describe("inject collateral", () => {
         buildRefreshReserveInstruction({
           reserve: RESERVE,
           lendingMarket: MARKET,
-          pythOracle: fixture.pythOracle,
-          switchboardPriceOracle: fixture.switchboardPriceOracle,
-          switchboardTwapOracle: fixture.switchboardTwapOracle,
-          scopePrices: fixture.scopePrices,
+          pythOracle: fixtureDoubleInject.pythOracle,
+          switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+          scopePrices: fixtureDoubleInject.scopePrices,
         }),
         buildRefreshReserveInstruction({
           reserve: usdcReserve.reserve,
@@ -1061,16 +1046,16 @@ describe("inject collateral", () => {
       ])
       .accountsStrict({
         user,
-        position: fixture.position,
-        nftMint: fixture.nftMint,
-        positionAuthority: fixture.positionAuthority,
-        klendObligation: fixture.klendObligation,
+        position: fixtureDoubleInject.position,
+        nftMint: fixtureDoubleInject.nftMint,
+        positionAuthority: fixtureDoubleInject.positionAuthority,
+        klendObligation: fixtureDoubleInject.klendObligation,
         lendingMarket: MARKET,
         pythOracle: usdcReserve.pythOracle,
         switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
         switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
         scopePrices: usdcReserve.scopePrices,
-        lendingMarketAuthority: fixture.lendingMarketAuthority,
+        lendingMarketAuthority: fixtureDoubleInject.lendingMarketAuthority,
         borrowReserve: usdcReserve.reserve,
         borrowReserveLiquidityMint: usdcReserve.liquidityMint,
         reserveSourceLiquidity: usdcReserve.liquiditySupply,
@@ -1096,7 +1081,7 @@ describe("inject collateral", () => {
         .updateMarketPrice([...SOL_USD_FEED_ID])
         .accounts({
           authority: provider.wallet.publicKey,
-          vault: fixture.vault,
+          vault: fixtureDoubleInject.vault,
           priceUpdate: PYTH_SOL_USD_PRICE_UPDATE,
         })
         .rpc();
@@ -1109,10 +1094,10 @@ describe("inject collateral", () => {
         buildRefreshReserveInstruction({
           reserve: RESERVE,
           lendingMarket: MARKET,
-          pythOracle: fixture.pythOracle,
-          switchboardPriceOracle: fixture.switchboardPriceOracle,
-          switchboardTwapOracle: fixture.switchboardTwapOracle,
-          scopePrices: fixture.scopePrices,
+          pythOracle: fixtureDoubleInject.pythOracle,
+          switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+          scopePrices: fixtureDoubleInject.scopePrices,
         }),
         buildRefreshReserveInstruction({
           reserve: usdcReserve.reserve,
@@ -1125,14 +1110,14 @@ describe("inject collateral", () => {
       ])
         .accountsStrict({
           caller: user,
-          position: fixture.position,
-          nftMint: fixture.nftMint,
-          assetMint: fixture.vaultAssetMint,
-          cushionVault: fixture.vault,
-          positionAuthority: fixture.positionAuthority,
-          vaultTokenAccount: fixture.vaultTokenAccount,
-          positionCollateralAccount: fixture.positionCollateralAta,
-          klendObligation: fixture.klendObligation,
+          position: fixtureDoubleInject.position,
+          nftMint: fixtureDoubleInject.nftMint,
+          assetMint: fixtureDoubleInject.vaultAssetMint,
+          cushionVault: fixtureDoubleInject.vault,
+          positionAuthority: fixtureDoubleInject.positionAuthority,
+          vaultTokenAccount: fixtureDoubleInject.vaultTokenAccount,
+          positionCollateralAccount: fixtureDoubleInject.positionCollateralAta,
+          klendObligation: fixtureDoubleInject.klendObligation,
           klendReserve: RESERVE,
           tokenProgram: TOKEN_PROGRAM_ID,
           farmsProgram: FARMS_PROGRAM,
@@ -1141,23 +1126,27 @@ describe("inject collateral", () => {
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
           reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
           reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-          placeholderUserDestinationCollateral: fixture.ownerPlaceholderCollateralAta,
+          placeholderUserDestinationCollateral: fixtureDoubleInject.ownerPlaceholderCollateralAta,
           liquidityTokenProgram: TOKEN_PROGRAM_ID,
           lendingMarket: MARKET,
-          pythOracle: fixture.pythOracle,
-          switchboardPriceOracle: fixture.switchboardPriceOracle,
-          switchboardTwapOracle: fixture.switchboardTwapOracle,
-          scopePrices: fixture.scopePrices,
-          lendingMarketAuthority: fixture.lendingMarketAuthority,
+          pythOracle: fixtureDoubleInject.pythOracle,
+          switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+          scopePrices: fixtureDoubleInject.scopePrices,
+          lendingMarketAuthority: fixtureDoubleInject.lendingMarketAuthority,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-          obligationFarmUserState: fixture.obligationFarmUserState,
+          obligationFarmUserState: fixtureDoubleInject.obligationFarmUserState,
           reserveFarmState: RESERVE_FARM_STATE,
         })
         .remainingAccounts([
           { pubkey: RESERVE, isWritable: true, isSigner: false },
           { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
         ])
-        .rpc(),
+        .rpc();
+
+      const positionAfter = await (program as any).account.obligation.fetch(fixtureDoubleInject.position);
+      console.log("First inject successful");
+      expect(positionAfter.injected, "Position.injected should be true").to.be.true;
 
     await expectAnchorError(
       (program as any).methods
@@ -1168,10 +1157,10 @@ describe("inject collateral", () => {
         buildRefreshReserveInstruction({
           reserve: RESERVE,
           lendingMarket: MARKET,
-          pythOracle: fixture.pythOracle,
-          switchboardPriceOracle: fixture.switchboardPriceOracle,
-          switchboardTwapOracle: fixture.switchboardTwapOracle,
-          scopePrices: fixture.scopePrices,
+          pythOracle: fixtureDoubleInject.pythOracle,
+          switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+          scopePrices: fixtureDoubleInject.scopePrices,
         }),
         buildRefreshReserveInstruction({
           reserve: usdcReserve.reserve,
@@ -1184,32 +1173,32 @@ describe("inject collateral", () => {
       ])
         .accountsStrict({
           caller: user,
-          position: fixture.position,
-          nftMint: fixture.nftMint,
-          assetMint: fixture.vaultAssetMint,
-          cushionVault: fixture.vault,
-          positionAuthority: fixture.positionAuthority,
-          vaultTokenAccount: fixture.vaultTokenAccount,
-          positionCollateralAccount: fixture.positionCollateralAta,
-          klendObligation: fixture.klendObligation,
+          position: fixtureDoubleInject.position,
+          nftMint: fixtureDoubleInject.nftMint,
+          assetMint: fixtureDoubleInject.vaultAssetMint,
+          cushionVault: fixtureDoubleInject.vault,
+          positionAuthority: fixtureDoubleInject.positionAuthority,
+          vaultTokenAccount: fixtureDoubleInject.vaultTokenAccount,
+          positionCollateralAccount: fixtureDoubleInject.positionCollateralAta,
+          klendObligation: fixtureDoubleInject.klendObligation,
           klendReserve: RESERVE,
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
           lendingMarket: MARKET,
-          pythOracle: fixture.pythOracle,
-          switchboardPriceOracle: fixture.switchboardPriceOracle,
-          switchboardTwapOracle: fixture.switchboardTwapOracle,
-          scopePrices: fixture.scopePrices,
-          lendingMarketAuthority: fixture.lendingMarketAuthority,
+          pythOracle: fixtureDoubleInject.pythOracle,
+          switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
+          switchboardTwapOracle: fixtureDoubleInject.switchboardTwapOracle,
+          scopePrices: fixtureDoubleInject.scopePrices,
+          lendingMarketAuthority: fixtureDoubleInject.lendingMarketAuthority,
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
           reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
           reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-          placeholderUserDestinationCollateral: fixture.ownerPlaceholderCollateralAta,
+          placeholderUserDestinationCollateral: fixtureDoubleInject.ownerPlaceholderCollateralAta,
           liquidityTokenProgram: TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-          obligationFarmUserState: fixture.obligationFarmUserState,
+          obligationFarmUserState: fixtureDoubleInject.obligationFarmUserState,
           reserveFarmState: RESERVE_FARM_STATE,
         })
         .remainingAccounts([
@@ -1279,7 +1268,7 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(10_000); // Borrow 1 USDC (6 decimals)
+    const borrowAmount = new anchor.BN(59_600);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1454,7 +1443,7 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(40_000);
+    const borrowAmount = new anchor.BN(59_600);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([

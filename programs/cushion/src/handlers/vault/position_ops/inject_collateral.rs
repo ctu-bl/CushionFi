@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::{ 
     CushionError, cpi::{
         RefreshAccounts, deposit_klend::deposit_collateral_into_klend_from_vault, refresh_klend_state_for_current_slot
-    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv }
+    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
 };
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -59,18 +59,22 @@ pub fn inject_collateral_handler<'info>(
         .ok_or(CushionError::LtvCalculationError)?;
     let insuring_ltv = get_insuring_ltv_threshold(debt, max_borrow, deposit)
         .ok_or(CushionError::InsuringThresholdError)?;
+    
+    msg!("current_ltv: {}", current_ltv);
+    msg!("insuring ltv: {}", insuring_ltv);
     require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);
-
     let vault_market_price = ctx.accounts.cushion_vault.market_price;
     require!(vault_market_price > 0, CushionError::ZeroPrice);
-
+    let (price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.klend_reserve)?;
     let amount_to_inject = calculate_amount_to_inject(
         deposit,
         debt,
-        vault_market_price
+        vault_market_price,
+        price,
+        decimals
     ).ok_or(CushionError::InjectCalculationError)?;
+
     require!((amount_to_inject as u128) < (ctx.accounts.cushion_vault.total_managed_assets), CushionError::InsufficientVaultLiquidity);
-    
     let position = &mut ctx.accounts.position;
     process_inject(position, amount_to_inject)?;
     deposit_collateral_into_klend_from_vault(&ctx, amount_to_inject)?;
@@ -98,7 +102,7 @@ pub struct InjectCollateral<'info>{
     /// CHECK: Metaplex Core NFT asset, owner verified in assert_position_nft_holder
     pub nft_mint: UncheckedAccount<'info>,
 
-    pub asset_mint: Account<'info, Mint>,
+    pub asset_mint: Box<Account<'info, Mint>>,
 
     /// Cushion vault providing the liquidity to the obligation
     #[account(
@@ -108,7 +112,7 @@ pub struct InjectCollateral<'info>{
         has_one = asset_mint @ CushionError::InvalidAssetMint,
         has_one = vault_token_account @ CushionError::InvalidVaultTokenAccount
     )]
-    pub cushion_vault: Account<'info, Vault>,
+    pub cushion_vault: Box<Account<'info, Vault>>,
 
     #[account(
         mut,
@@ -124,7 +128,7 @@ pub struct InjectCollateral<'info>{
         constraint = vault_token_account.mint == asset_mint.key() @ CushionError::InvalidAssetMint,
         constraint = vault_token_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Program PDA token account (position authority ATA) that temporarily holds tokens
     #[account(
@@ -132,7 +136,7 @@ pub struct InjectCollateral<'info>{
         token::mint = reserve_liquidity_mint,
         token::authority = position_authority,
     )]
-    pub position_collateral_account: Account<'info, TokenAccount>,
+    pub position_collateral_account: Box<Account<'info, TokenAccount>>,
 
     /// Kamino obligation (CHECKED via owner)
     /// CHECK: Verified to be owned by Kamino program
@@ -181,7 +185,7 @@ pub struct InjectCollateral<'info>{
     pub lending_market_authority: AccountInfo<'info>,
 
     /// CHECK: This is the mint of the reserve liquidity token; assumed correct by CPI
-    pub reserve_liquidity_mint: Account<'info, Mint>,
+    pub reserve_liquidity_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: Verified by CPI
     #[account(mut)]

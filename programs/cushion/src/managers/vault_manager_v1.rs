@@ -188,6 +188,9 @@ mod tests {
             virtual_shares: 0,
             market_price: 0,
             market_price_last_updated: 0,
+            interest_last_updated: 0,
+            accumulated_interest: 1_000_000_000,
+            interest_rate: 50_000_000
         }
     }
 
