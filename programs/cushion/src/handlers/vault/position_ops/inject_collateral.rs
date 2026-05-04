@@ -59,10 +59,10 @@ pub fn inject_collateral_handler<'info>(
         .ok_or(CushionError::LtvCalculationError)?;
     let insuring_ltv = get_insuring_ltv_threshold(debt, max_borrow, deposit)
         .ok_or(CushionError::InsuringThresholdError)?;
+    
     msg!("current_ltv: {}", current_ltv);
     msg!("insuring ltv: {}", insuring_ltv);
     require!(current_ltv > insuring_ltv, CushionError::NotUnsafePosition);
-    //require!(current_ltv == 0, CushionError::DivisionByZero);
     let vault_market_price = ctx.accounts.cushion_vault.market_price;
     require!(vault_market_price > 0, CushionError::ZeroPrice);
     let (price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.klend_reserve)?;
@@ -73,6 +73,7 @@ pub fn inject_collateral_handler<'info>(
         price,
         decimals
     ).ok_or(CushionError::InjectCalculationError)?;
+
     require!((amount_to_inject as u128) < (ctx.accounts.cushion_vault.total_managed_assets), CushionError::InsufficientVaultLiquidity);
     let position = &mut ctx.accounts.position;
     process_inject(position, amount_to_inject)?;

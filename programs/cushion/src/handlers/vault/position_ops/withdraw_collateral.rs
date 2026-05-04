@@ -6,7 +6,7 @@ use crate::{
         withdraw_collateral_to_vault_from_klend
     }, managers::process_withdraw_after_inject, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, Vault },
     utils:: {
-        POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
+        POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, POSITION_ACCOUNT_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
         get_reserve_price_and_decimals
     }
 };
@@ -41,16 +41,17 @@ pub fn withdraw_injected_collateral_handler<'info>(
         ctx.accounts.cushion_vault.interest_rate,
         &mut ctx.accounts.cushion_vault
     ).ok_or(CushionError::InterestCalculationError)?;
+
     let withdraw_amount = calculate_amount_to_withdraw(
         current_ai,
         stored_ai,
         ctx.accounts.position.injected_amount
     ).ok_or(CushionError::WithdrawAmountCalculationError)?;
+
     require!(withdraw_amount > 0, CushionError::WithdrawAmountIsZero);
     let (price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.withdraw_reserve)?;
     let withdraw_value = get_market_value_from_reserve(withdraw_amount, price, decimals)
         .ok_or(CushionError::MarketValueError)?;
-
     let collateral_change = to_decrease(u128::from(withdraw_value));
     msg!("withdraw_amount: {}", withdraw_amount);
     msg!("withdraw_value: {}", withdraw_value);
@@ -65,6 +66,7 @@ pub fn withdraw_injected_collateral_handler<'info>(
         .ok_or(CushionError::LtvCalculationError)?;
     let withdrawing_ltv = get_withdrawing_ltv_threshold(max_borrow, deposit)
         .ok_or(CushionError::WithdrawingThresholdError)?;
+
     msg!("withdraw ltv: {}", withdrawing_ltv);
     msg!("pot ltv: {}", potential_ltv);
     require!(potential_ltv < withdrawing_ltv, CushionError::NotYetSafePosition);
@@ -73,7 +75,6 @@ pub fn withdraw_injected_collateral_handler<'info>(
     process_withdraw_after_inject(position)?;
     withdraw_collateral_to_vault_from_klend(&ctx, withdraw_amount)?;
     transfer_collateral_to_vault(&ctx, withdraw_amount)?;
-
     emit_withdraw_injected(
         ctx.accounts.cushion_vault.key(),
         ctx.accounts.position.key(),
@@ -105,13 +106,13 @@ pub struct WithdrawInjected<'info>{
 
     pub asset_mint: Account<'info, Mint>,
 
-    /*#[account(
+    #[account(
+        mut,
         seeds = [POSITION_ACCOUNT_SEED, nft_mint.key().as_ref()],
         bump = position.bump,
         has_one = position_authority @ CushionError::Unauthorized,
         constraint = position.protocol_obligation == klend_obligation.key() @ CushionError::InvalidKaminoObligation,
-    )]*/
-    #[account(mut)]
+    )]
     pub position: Box<Account<'info, Obligation>>,
 
     /// Cushion vault providing the liquidity to the obligation
