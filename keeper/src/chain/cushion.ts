@@ -77,6 +77,43 @@ export type CushionVaultSnapshot = {
   marketPrice: bigint;
 };
 
+export type WithdrawInjectedCollateralAccounts = {
+  caller: PublicKey;
+  nftMint: PublicKey;
+  assetMint: PublicKey;
+  position: PublicKey;
+  cushionVault: PublicKey;
+  positionAuthority: PublicKey;
+  vaultTokenAccount: PublicKey;
+  positionCollateralAccount: PublicKey;
+  klendObligation: PublicKey;
+  withdrawReserve: PublicKey;
+  reserveLiquidityMint: PublicKey;
+  klendProgram: PublicKey;
+  farmsProgram: PublicKey;
+  lendingMarket: PublicKey;
+  lendingMarketAuthority: PublicKey;
+  reserveLiquiditySupply: PublicKey;
+  reserveSourceCollateral: PublicKey;
+  reserveCollateralMint: PublicKey;
+  placeholderUserDestinationCollateral: PublicKey;
+  pythOracle: PublicKey | null;
+  switchboardPriceOracle: PublicKey | null;
+  switchboardTwapOracle: PublicKey | null;
+  scopePrices: PublicKey | null;
+  liquidityTokenProgram: PublicKey;
+  obligationFarmUserState: PublicKey;
+  reserveFarmState: PublicKey;
+  remainingReserves: PublicKey[];
+  refreshReserves: Array<{
+    reserve: PublicKey;
+    pythOracle: PublicKey | null;
+    switchboardPriceOracle: PublicKey | null;
+    switchboardTwapOracle: PublicKey | null;
+    scopePrices: PublicKey | null;
+  }>;
+};
+
 export type UpdateVaultMarketPriceAccounts = {
   authority: PublicKey;
   vault: PublicKey;
@@ -339,5 +376,95 @@ export class CushionChainClient {
     const signature = await this.provider.sendAndConfirm(tx, []);
 
     return signature;
+  }
+
+  async withdrawInjectedCollateral(accounts: WithdrawInjectedCollateralAccounts): Promise<string> {
+    const method = (this.program as any).methods
+      .withdrawInjectedCollateral()
+      .accountsStrict({
+        caller: accounts.caller,
+        nftMint: accounts.nftMint,
+        assetMint: accounts.assetMint,
+        position: accounts.position,
+        cushionVault: accounts.cushionVault,
+        positionAuthority: accounts.positionAuthority,
+        vaultTokenAccount: accounts.vaultTokenAccount,
+        positionCollateralAccount: accounts.positionCollateralAccount,
+        klendObligation: accounts.klendObligation,
+        withdrawReserve: accounts.withdrawReserve,
+        reserveLiquidityMint: accounts.reserveLiquidityMint,
+        klendProgram: accounts.klendProgram,
+        farmsProgram: accounts.farmsProgram,
+        lendingMarket: accounts.lendingMarket,
+        lendingMarketAuthority: accounts.lendingMarketAuthority,
+        reserveLiquiditySupply: accounts.reserveLiquiditySupply,
+        reserveSourceCollateral: accounts.reserveSourceCollateral,
+        reserveCollateralMint: accounts.reserveCollateralMint,
+        placeholderUserDestinationCollateral: accounts.placeholderUserDestinationCollateral,
+        pythOracle: accounts.pythOracle,
+        switchboardPriceOracle: accounts.switchboardPriceOracle,
+        switchboardTwapOracle: accounts.switchboardTwapOracle,
+        scopePrices: accounts.scopePrices,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        liquidityTokenProgram: accounts.liquidityTokenProgram,
+        instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
+        obligationFarmUserState: accounts.obligationFarmUserState,
+        reserveFarmState: accounts.reserveFarmState,
+      })
+      .remainingAccounts(
+        accounts.remainingReserves.map((reserve) => ({
+          pubkey: reserve,
+          isWritable: true,
+          isSigner: false,
+        }))
+      );
+
+    const tx = new Transaction();
+
+    for (const reserve of accounts.refreshReserves) {
+      tx.add(
+        new TransactionInstruction({
+          programId: accounts.klendProgram,
+          keys: [
+            { pubkey: reserve.reserve, isSigner: false, isWritable: true },
+            { pubkey: accounts.lendingMarket, isSigner: false, isWritable: false },
+            { pubkey: reserve.pythOracle ?? accounts.klendProgram, isSigner: false, isWritable: false },
+            {
+              pubkey: reserve.switchboardPriceOracle ?? accounts.klendProgram,
+              isSigner: false,
+              isWritable: false,
+            },
+            {
+              pubkey: reserve.switchboardTwapOracle ?? accounts.klendProgram,
+              isSigner: false,
+              isWritable: false,
+            },
+            { pubkey: reserve.scopePrices ?? accounts.klendProgram, isSigner: false, isWritable: false },
+          ],
+          data: REFRESH_RESERVE_IX,
+        })
+      );
+    }
+
+    if (accounts.refreshReserves.length > 0) {
+      tx.add(
+        new TransactionInstruction({
+          programId: accounts.klendProgram,
+          keys: [
+            { pubkey: accounts.lendingMarket, isSigner: false, isWritable: false },
+            { pubkey: accounts.klendObligation, isSigner: false, isWritable: true },
+            ...accounts.refreshReserves.map((reserve) => ({
+              pubkey: reserve.reserve,
+              isSigner: false,
+              isWritable: false,
+            })),
+          ],
+          data: REFRESH_OBLIGATION_IX,
+        })
+      );
+    }
+
+    tx.add(await method.instruction());
+    return this.provider.sendAndConfirm(tx, []);
   }
 }

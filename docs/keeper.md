@@ -124,6 +124,14 @@ Look for:
 - `executor.vault_price_updated` (keeper auto-updated vault price before inject)
 - `executor.inject_submitted` (successful inject tx)
 
+11. Test withdraw trigger by increasing user collateral on an injected position.
+
+```bash
+yarn position:increase-collateral:withdraw-trigger:local
+```
+
+This script is intended for withdraw testing: it increases collateral by a large amount so LTV drops below the withdraw threshold and keeper can call `withdraw_injected_collateral`.
+
 ## Docker
 
 Use compose stack from `keeper/docker-compose.yml`:

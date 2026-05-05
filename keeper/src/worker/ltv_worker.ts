@@ -1,4 +1,5 @@
 import { KlendChainClient } from "../chain/klend.ts";
+import { wadToPercentString } from "../format.ts";
 import { logInfo, logWarn } from "../logger.ts";
 import { DedupQueue } from "../queue/dedup_queue.ts";
 import type { KeeperRepository } from "../store/repository.ts";
@@ -102,8 +103,11 @@ export class LtvWorker {
         debtValueSf: risk.debtValueSf.toString(),
         unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
         ltvWad: risk.ltvWad?.toString() ?? null,
+        ltvPct: wadToPercentString(risk.ltvWad),
         maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+        maxSafeLtvPct: wadToPercentString(risk.maxSafeLtvWad),
         withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
         withdrawEligible: risk.withdrawEligible ?? false,
         slot,
       });
@@ -127,8 +131,11 @@ export class LtvWorker {
         debtValueSf: risk.debtValueSf.toString(),
         unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
         ltvWad: risk.ltvWad?.toString() ?? null,
+        ltvPct: wadToPercentString(risk.ltvWad),
         maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+        maxSafeLtvPct: wadToPercentString(risk.maxSafeLtvWad),
         withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
         withdrawEligible: risk.withdrawEligible ?? false,
         slot,
       });
@@ -154,18 +161,23 @@ export class LtvWorker {
       debtValueSf: risk.debtValueSf.toString(),
       unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
       ltvWad: risk.ltvWad?.toString() ?? null,
+      ltvPct: wadToPercentString(risk.ltvWad),
       maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+      maxSafeLtvPct: wadToPercentString(risk.maxSafeLtvWad),
       withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+      withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
       withdrawEligible: risk.withdrawEligible ?? false,
       slot,
     });
 
     if (!positionRecord.injected && ltv > injectThreshold) {
       const dedupeKey = `action:inject:${position}`;
+      const ltvPct = wadToPercentString(ltv);
+      const injectThresholdPct = wadToPercentString(injectThreshold);
       this.executeQueue.enqueue(dedupeKey, {
         kind: "inject",
         position,
-        reason: `ltv=${ltv.toString()} threshold=${injectThreshold.toString()} source=${reason}`,
+        reason: `ltv=${ltv.toString()} (${ltvPct}) threshold=${injectThreshold.toString()} (${injectThresholdPct}) source=${reason}`,
         dedupeKey,
       });
       return;
@@ -173,10 +185,12 @@ export class LtvWorker {
 
     if (withdrawEligible) {
       const dedupeKey = `action:withdraw:${position}`;
+      const ltvPct = wadToPercentString(ltv);
+      const withdrawThresholdPct = wadToPercentString(withdrawThreshold);
       this.executeQueue.enqueue(dedupeKey, {
         kind: "withdraw",
         position,
-        reason: `ltv=${ltv.toString()} threshold=${withdrawThreshold.toString()} source=${reason}`,
+        reason: `ltv=${ltv.toString()} (${ltvPct}) threshold=${withdrawThreshold.toString()} (${withdrawThresholdPct}) source=${reason}`,
         dedupeKey,
       });
     }

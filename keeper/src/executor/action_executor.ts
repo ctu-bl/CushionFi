@@ -2,12 +2,14 @@ import { PublicKey } from "@solana/web3.js";
 
 import { KlendChainClient } from "../chain/klend.ts";
 import { CushionChainClient } from "../chain/cushion.ts";
+import { wadStringToPercentString, wadToPercentString } from "../format.ts";
 import { logError, logInfo, logWarn } from "../logger.ts";
 import { DedupQueue } from "../queue/dedup_queue.ts";
 import type { KeeperRepository } from "../store/repository.ts";
 import type { ExecuteJob } from "../types.ts";
 
 const INJECT_RETRY_DELAY_MS = 5_000;
+const WITHDRAW_RETRY_DELAY_MS = 5_000;
 
 function isRetriableInjectError(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
@@ -20,6 +22,15 @@ function isRetriableInjectError(error: unknown): boolean {
     message.includes("reserve state needs to be refreshed") ||
     message.includes("zeroprice") ||
     message.includes("price of the asset in vault is zero")
+  );
+}
+
+function isRetriableWithdrawError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    message.includes("insufficient funds") ||
+    message.includes("reservestale") ||
+    message.includes("reserve state needs to be refreshed")
   );
 }
 
@@ -86,43 +97,216 @@ export class ActionExecutor {
     }
 
     if (job.kind === "withdraw") {
-      let snapshotDetails: Record<string, string | null> = {
-        depositedValueSf: null,
-        debtValueSf: null,
-        unhealthyBorrowValueSf: null,
-        ltvWad: null,
-        maxSafeLtvWad: null,
-      };
       try {
-        const slot = await this.connectionSlot();
-        const risk = await this.klendClient.fetchPositionRiskSnapshot(
+        const beforeSlot = await this.connectionSlot();
+        const beforeRisk = await this.klendClient.fetchPositionRiskSnapshot(
           position.position,
           position.protocolObligation,
-          slot
+          beforeSlot
         );
-        await this.repository.saveRiskSnapshot(risk);
-        snapshotDetails = {
-          depositedValueSf: risk.depositedValueSf.toString(),
-          debtValueSf: risk.debtValueSf.toString(),
-          unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
-          ltvWad: risk.ltvWad?.toString() ?? null,
-          maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
-        };
-      } catch (error) {
-        logWarn("executor.withdraw_risk_snapshot_failed", {
+        await this.repository.saveRiskSnapshot(beforeRisk);
+        const ltvBefore = beforeRisk.ltvWad?.toString() ?? null;
+        logInfo("executor.withdraw_risk_before", {
           executor: this.name,
           position: job.position,
+          protocolObligation: position.protocolObligation,
+          slot: beforeSlot,
+          ltvWad: ltvBefore,
+          ltvPct: wadStringToPercentString(ltvBefore),
+          maxSafeLtvWad: beforeRisk.maxSafeLtvWad?.toString() ?? null,
+          maxSafeLtvPct: wadToPercentString(beforeRisk.maxSafeLtvWad),
+          depositedValueSf: beforeRisk.depositedValueSf.toString(),
+          debtValueSf: beforeRisk.debtValueSf.toString(),
+          unhealthyBorrowValueSf: beforeRisk.unhealthyBorrowValueSf.toString(),
+          injectedBefore: position.injected,
+          injectedAmountBefore: position.injectedAmount.toString(),
+        });
+
+        const obligationContext = await this.klendClient.fetchObligationContext(
+          position.protocolObligation
+        );
+        if (obligationContext.activeDepositReserves.length === 0) {
+          throw new Error(
+            `Position ${position.position} has no active deposit reserves for collateral withdrawal`
+          );
+        }
+
+        const reserveContexts = await Promise.all(
+          obligationContext.activeDepositReserves.map((reserve) =>
+            this.klendClient.fetchReserveContext(reserve)
+          )
+        );
+
+        let selectedReserve = reserveContexts[0];
+        let vault = null as Awaited<ReturnType<CushionChainClient["fetchVaultSnapshot"]>> | null;
+        for (const reserveContext of reserveContexts) {
+          const derivedVault = this.cushionClient.deriveVaultAddress(
+            reserveContext.reserveLiquidityMint
+          );
+          try {
+            const candidateVault = await this.cushionClient.fetchVaultSnapshot(derivedVault);
+            selectedReserve = reserveContext;
+            vault = candidateVault;
+            break;
+          } catch {
+            continue;
+          }
+        }
+
+        if (!vault) {
+          throw new Error(
+            `No Cushion vault found for active deposit reserves on position ${position.position}`
+          );
+        }
+
+        if (!selectedReserve.reserveFarmCollateralState) {
+          throw new Error(
+            `Reserve ${selectedReserve.reserve.toBase58()} has no collateral farm state configured`
+          );
+        }
+
+        const obligationFarmUserState = PublicKey.findProgramAddressSync(
+          [
+            Buffer.from("user"),
+            selectedReserve.reserveFarmCollateralState.toBuffer(),
+            new PublicKey(position.protocolObligation).toBuffer(),
+          ],
+          this.farmsProgramId
+        )[0];
+
+        const lendingMarketAuthority = PublicKey.findProgramAddressSync(
+          [Buffer.from("lma"), obligationContext.lendingMarket.toBuffer()],
+          this.klendClient.programId
+        )[0];
+
+        const positionAuthority = new PublicKey(position.positionAuthority);
+        const positionCollateralAccount = await this.cushionClient.ensureAssociatedTokenAccount(
+          positionAuthority,
+          selectedReserve.reserveLiquidityMint,
+          true
+        );
+        const placeholderUserDestinationCollateral =
+          await this.cushionClient.ensureAssociatedTokenAccount(
+            this.authority,
+            selectedReserve.reserveCollateralMint,
+            false
+          );
+
+        const remainingReserves = obligationContext.activeReserves.filter(
+          (reserve) => !reserve.equals(selectedReserve.reserve)
+        );
+        const reserveContextMap = new Map<string, Awaited<ReturnType<KlendChainClient["fetchReserveContext"]>>>();
+        for (const reserveContext of reserveContexts) {
+          reserveContextMap.set(reserveContext.reserve.toBase58(), reserveContext);
+        }
+        for (const reserve of obligationContext.activeReserves) {
+          const key = reserve.toBase58();
+          if (!reserveContextMap.has(key)) {
+            reserveContextMap.set(key, await this.klendClient.fetchReserveContext(reserve));
+          }
+        }
+        const refreshReserves = obligationContext.activeReserves
+          .map((reserve) => reserveContextMap.get(reserve.toBase58()))
+          .filter((ctx): ctx is NonNullable<typeof ctx> => ctx !== undefined)
+          .map((ctx) => ({
+            reserve: ctx.reserve,
+            pythOracle: ctx.pythOracle,
+            switchboardPriceOracle: ctx.switchboardPriceOracle,
+            switchboardTwapOracle: ctx.switchboardTwapOracle,
+            scopePrices: ctx.scopePrices,
+          }));
+
+        const signature = await this.cushionClient.withdrawInjectedCollateral({
+          caller: this.authority,
+          nftMint: new PublicKey(position.nftMint),
+          assetMint: vault.assetMint,
+          position: new PublicKey(position.position),
+          cushionVault: vault.vault,
+          positionAuthority,
+          vaultTokenAccount: vault.vaultTokenAccount,
+          positionCollateralAccount,
+          klendObligation: new PublicKey(position.protocolObligation),
+          withdrawReserve: selectedReserve.reserve,
+          reserveLiquidityMint: selectedReserve.reserveLiquidityMint,
+          klendProgram: this.klendClient.programId,
+          farmsProgram: this.farmsProgramId,
+          lendingMarket: obligationContext.lendingMarket,
+          lendingMarketAuthority,
+          reserveLiquiditySupply: selectedReserve.reserveLiquiditySupply,
+          reserveSourceCollateral: selectedReserve.reserveDestinationDepositCollateral,
+          reserveCollateralMint: selectedReserve.reserveCollateralMint,
+          placeholderUserDestinationCollateral,
+          pythOracle: selectedReserve.pythOracle,
+          switchboardPriceOracle: selectedReserve.switchboardPriceOracle,
+          switchboardTwapOracle: selectedReserve.switchboardTwapOracle,
+          scopePrices: selectedReserve.scopePrices,
+          liquidityTokenProgram: selectedReserve.reserveLiquidityTokenProgram,
+          obligationFarmUserState,
+          reserveFarmState: selectedReserve.reserveFarmCollateralState,
+          remainingReserves,
+          refreshReserves,
+        });
+
+        const afterSlot = await this.connectionSlot();
+        const afterRisk = await this.klendClient.getRefreshedPositionRiskSnapshot(
+          position.position,
+          position.protocolObligation,
+          afterSlot
+        );
+        await this.repository.saveRiskSnapshot(afterRisk);
+        const ltvAfter = afterRisk.ltvWad?.toString() ?? null;
+
+        const afterPosition = await this.cushionClient.fetchPosition(new PublicKey(job.position));
+        await this.repository.upsertPositions([afterPosition]);
+        logInfo("executor.withdraw_risk_after", {
+          executor: this.name,
+          position: job.position,
+          protocolObligation: position.protocolObligation,
+          slot: afterSlot,
+          ltvWad: ltvAfter,
+          ltvPct: wadStringToPercentString(ltvAfter),
+          maxSafeLtvWad: afterRisk.maxSafeLtvWad?.toString() ?? null,
+          maxSafeLtvPct: wadToPercentString(afterRisk.maxSafeLtvWad),
+          depositedValueSf: afterRisk.depositedValueSf.toString(),
+          debtValueSf: afterRisk.debtValueSf.toString(),
+          unhealthyBorrowValueSf: afterRisk.unhealthyBorrowValueSf.toString(),
+          injectedAfter: afterPosition.injected,
+          injectedAmountAfter: afterPosition.injectedAmount.toString(),
+        });
+
+        logInfo("executor.withdraw_submitted", {
+          executor: this.name,
+          position: job.position,
+          signature,
+          ltvBefore,
+          ltvBeforePct: wadStringToPercentString(ltvBefore),
+          ltvAfter,
+          ltvAfterPct: wadStringToPercentString(ltvAfter),
+          injectedBefore: position.injected,
+          injectedAfter: afterPosition.injected,
+          injectedAmountBefore: position.injectedAmount.toString(),
+          injectedAmountAfter: afterPosition.injectedAmount.toString(),
+        });
+      } catch (error) {
+        logError("executor.withdraw_failed", {
+          executor: this.name,
+          position: job.position,
+          reason: job.reason,
           error: error instanceof Error ? error.message : String(error),
         });
-      }
 
-      // Current on-chain implementation of withdraw_injected_collateral is a placeholder.
-      logWarn("executor.withdraw_not_supported", {
-        executor: this.name,
-        position: job.position,
-        reason: job.reason,
-        ...snapshotDetails,
-      });
+        if (isRetriableWithdrawError(error)) {
+          logWarn("executor.withdraw_retry_scheduled", {
+            executor: this.name,
+            position: job.position,
+            dedupeKey: job.dedupeKey,
+            retryInMs: WITHDRAW_RETRY_DELAY_MS,
+          });
+          setTimeout(() => {
+            this.executeQueue.enqueue(job.dedupeKey, job);
+          }, WITHDRAW_RETRY_DELAY_MS);
+        }
+      }
       return;
     }
 
@@ -364,7 +548,9 @@ export class ActionExecutor {
         position: job.position,
         signature,
         ltvBefore,
+        ltvBeforePct: wadStringToPercentString(ltvBefore),
         ltvAfter,
+        ltvAfterPct: wadStringToPercentString(ltvAfter),
         injectedBefore,
         injectedAfter,
         injectedAmountBefore,
