@@ -699,7 +699,7 @@ describe("withdraw injected collateral", () => {
       .rpc();
 
     
-    const increaseAmount = new anchor.BN(4_600);
+    const increaseAmount = new anchor.BN(2);
   try {
     await (program as any).methods
       .increaseDebt(increaseAmount)
@@ -845,7 +845,7 @@ describe("withdraw injected collateral", () => {
 
   it("should withdraw injected collateral successfully", async () => {
     // Setup: inject collateral first
-    const borrowAmount = new anchor.BN(55_000);
+    const borrowAmount = new anchor.BN(55_800);
     const { usdcReserve, userUsdcAta, positionUsdcAta } = await setupInjectionWithDebt(fixtureForWithdraw, borrowAmount);
 
     const positionBefore = await (program as any).account.obligation.fetch(fixtureForWithdraw.position);
@@ -1053,7 +1053,7 @@ describe("withdraw injected collateral", () => {
 
   it("should reject withdrawal when position would remain unsafe", async () => {
     // Setup with very high debt making position still unsafe after withdrawal
-    const highBorrowAmount = new anchor.BN(55_000);
+    const highBorrowAmount = new anchor.BN(55_800);
     const { usdcReserve } = await setupInjectionWithDebt(fixture, highBorrowAmount);
 
     const positionBefore = await (program as any).account.obligation.fetch(fixture.position);

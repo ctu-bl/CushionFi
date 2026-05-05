@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
+declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
 
 pub mod cpi;
 pub mod handlers;
@@ -293,4 +293,6 @@ pub enum CushionError {
     AmountFromMarketValueError,
     #[msg("Calculation of WSOL amount failed")]
     WsolAmountCalculationError,
+    #[msg("Amount to transfer is zero")]
+    ZeroAmountToSend,
 }

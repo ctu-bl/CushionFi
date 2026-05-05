@@ -1,4 +1,7 @@
 use anchor_lang::prelude::*;
+
+use anchor_spl::token_interface;
+
 use kamino_lend::cpi;
 use kamino_lend::cpi::accounts::{
     RepayAndWithdrawAndRedeemRepayAccounts,
@@ -8,12 +11,14 @@ use kamino_lend::cpi::accounts::{
     RepayAndWithdrawAndRedeem,
 };
 
+use crate::utils::POSITION_AUTHORITY_SEED;
 use crate::{
+    CushionError,
     cpi::refresh_obligation_klend::resolve_active_refresh_reserves,
     handlers::obligation::{
-        
         position_auth::with_position_authority_signer,
     },
+    utils::{VAULT_STATE_SEED},
     handlers::vault::Liquidate,
 };
 
@@ -22,6 +27,7 @@ pub fn repay_and_withdraw_from_klend<'info>(
     repay_amount: u64,
     withdraw_amount: u64,
 ) -> Result<()> {
+    transfer_debt_tokens_to_registry(&ctx)?;
     let remaining_accounts = resolve_active_refresh_reserves(
         &ctx.accounts.klend_obligation,
         &ctx.accounts.withdraw_reserve,
@@ -42,7 +48,9 @@ pub fn repay_and_withdraw_from_klend<'info>(
             .with_remaining_accounts(remaining_accounts);
             cpi::repay_and_withdraw_and_redeem(cpi_ctx, repay_amount, withdraw_amount)
         },
-    )
+    )?;
+
+    transfer_collateral_tokens_to_vault(&ctx)
 }
 
 /// Builds the `RepayAndWithdrawAndRedeem` CPI accounts struct from the Liquidate context.
@@ -54,7 +62,7 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
     ctx: &Context<Liquidate<'info>>,
 ) -> RepayAndWithdrawAndRedeem<'info> {
     // ─── Repay Accounts (for debt repayment) ───────────────────────────
-
+    let placeholder = ctx.accounts.klend_program.to_account_info();
     let repay_accounts = RepayAndWithdrawAndRedeemRepayAccounts {
         owner: ctx.accounts.position_authority.to_account_info(),
         obligation: ctx.accounts.klend_obligation.to_account_info(),
@@ -93,8 +101,14 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
 
     // ─── Debt Farms Accounts (optional) ────────────────────────────────────
     let debt_farms_accounts = RepayAndWithdrawAndRedeemDebtFarmsAccounts {
-        obligation_farm_user_state: ctx.accounts.debt_obligation_farm_user_state.to_account_info(),
-        reserve_farm_state: ctx.accounts.debt_reserve_farm_state.to_account_info(),
+        obligation_farm_user_state: ctx.accounts.debt_obligation_farm_user_state
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or_else(|| placeholder.clone()),
+        reserve_farm_state: ctx.accounts.debt_reserve_farm_state
+            .as_ref()
+            .map(|a| a.to_account_info())
+            .unwrap_or_else(|| placeholder.clone()),
     };
 
     // ─── Build the complete struct ──────────────────────────────────────────
@@ -105,4 +119,70 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
         RepayAndWithdrawAndRedeemdebt_farms_accounts: debt_farms_accounts,
         farms_program: ctx.accounts.farms_program.to_account_info()
     }
+}
+
+fn transfer_debt_tokens_to_registry<'info>(
+    ctx: &Context<'_, '_, '_, 'info, Liquidate<'info>>,
+) -> Result<()> {
+    let user_balance = ctx.accounts.vault_debt_token_account.amount;
+   
+    require!(user_balance > 0, CushionError::ZeroAmountToSend);
+
+    let bump = find_position_authority_bump(ctx.accounts.nft_mint.key());
+    let nft_mint = ctx.accounts.position.nft_mint;
+
+    with_position_authority_signer(bump, nft_mint, |signer| {
+        token_interface::transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token_interface::TransferChecked {
+                    from: ctx.accounts.vault_debt_token_account.to_account_info(),
+                    mint: ctx.accounts.debt_mint.to_account_info(),
+                    to: ctx.accounts.position_debt_account.to_account_info(),
+                    authority: ctx.accounts.cushion_vault.to_account_info(),
+                },
+                signer
+            ),
+            user_balance,
+            ctx.accounts.debt_mint.decimals,
+        )
+    })
+}
+
+fn transfer_collateral_tokens_to_vault<'info>(
+    ctx: &Context<'_, '_, '_, 'info, Liquidate<'info>>,
+) -> Result<()> {
+    let user_balance = ctx.accounts.position_collateral_account.amount;
+   
+    require!(user_balance > 0, CushionError::ZeroAmountToSend);
+
+    let bump_seed = [ctx.accounts.cushion_vault.bump];
+    let signer_seeds: &[&[u8]] = &[
+        VAULT_STATE_SEED,
+        ctx.accounts.cushion_vault.asset_mint.as_ref(),
+        &bump_seed,
+    ];
+
+    token_interface::transfer_checked(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token_interface::TransferChecked {
+                from: ctx.accounts.position_collateral_account.to_account_info(),
+                mint: ctx.accounts.asset_mint.to_account_info(),
+                to: ctx.accounts.vault_token_account.to_account_info(),
+                authority: ctx.accounts.position_authority.to_account_info(),
+            },
+            &[signer_seeds]
+        ),
+        user_balance,
+        ctx.accounts.asset_mint.decimals,
+    )
+}
+
+fn find_position_authority_bump(nft_mint: Pubkey) -> u8 {
+    Pubkey::find_program_address(
+        &[POSITION_AUTHORITY_SEED, nft_mint.as_ref()],
+        &crate::ID,
+    )
+    .1
 }

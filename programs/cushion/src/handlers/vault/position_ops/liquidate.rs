@@ -122,6 +122,22 @@ pub struct Liquidate<'info> {
     #[account(mut)]
     pub position: Box<Account<'info, Obligation>>,
 
+    #[account(
+        mut,
+        token::mint = asset_mint,
+        token::authority = position_authority,
+    )]
+    /// Position's ATA (owned by position_authority) used as staging for the Kamino CPI.
+    pub position_collateral_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = debt_mint,
+        token::authority = position_authority,
+    )]
+    /// Position's ATA (owned by position_authority) used as staging for the Kamino CPI.
+    pub position_debt_account: Box<Account<'info, TokenAccount>>,
+
     /// NFT mint identifying the position
     /// CHECK: Ownership verified implicitly through position.nft_mint
     pub nft_mint: UncheckedAccount<'info>,
@@ -184,7 +200,7 @@ pub struct Liquidate<'info> {
 
     /// Mint of debt token
     /// CHECK: Verified via Kamino CPI
-    pub debt_mint: AccountInfo<'info>,
+    pub debt_mint: Account<'info, Mint>,
 
     /// Reserve liquidity vault that receives repaid tokens.
     /// CHECK: Verified via Kamino CPI
@@ -219,11 +235,11 @@ pub struct Liquidate<'info> {
 
     /// CHECK: Verified via Kamino CPI
     #[account(mut)]
-    pub debt_obligation_farm_user_state: AccountInfo<'info>,
+    pub debt_obligation_farm_user_state: Option<UncheckedAccount<'info>>,
 
     /// CHECK: Verified via Kamino CPI
     #[account(mut)]
-    pub debt_reserve_farm_state: AccountInfo<'info>,
+    pub debt_reserve_farm_state: Option<UncheckedAccount<'info>>,
 
     /// Kamino program
     /// CHECK: Valid Kamino program

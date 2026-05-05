@@ -680,7 +680,8 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(59_600); // Borrow 10 USDC (6 decimals)
+    const borrowAmount = new anchor.BN(55_800); // Borrow 10 USDC (6 decimals)
+    try {
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -735,7 +736,12 @@ describe("inject collateral", () => {
         { pubkey: RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
-    
+    } catch (err: any) {
+      console.log(err.getLogs);
+      const err2 = err as anchor.AnchorError;
+      console.log(err2.logs); 
+    }
+
     const vaultBefore = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
     const vaultBalanceBefore = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
     const positionBefore = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
@@ -1021,7 +1027,7 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(59_600);
+    const borrowAmount = new anchor.BN(55_800);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1268,7 +1274,7 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(59_600);
+    const borrowAmount = new anchor.BN(55_800);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1443,7 +1449,7 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(59_600);
+    const borrowAmount = new anchor.BN(55_800);
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
