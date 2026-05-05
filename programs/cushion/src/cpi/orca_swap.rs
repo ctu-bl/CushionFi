@@ -6,7 +6,7 @@ use anchor_lang::solana_program::{
 };
 
 use crate::{
-    handlers::vault::Liquidate,
+    handlers::vault::{LiquidateSwap, AdminLiquidateSwap},
     utils::VAULT_STATE_SEED,
     CushionError,
 };
@@ -111,28 +111,37 @@ fn build_swap_ix_data(amount: u64, other_amount_threshold: u64) -> [u8; 42] {
 }
 
 // -------------------------
-// CPI call
+// Core CPI implementation
 // -------------------------
 
-/// Raw CPI to Orca Whirlpool v1 `swap`: burns `wsol_amount` WSOL from the vault
-/// and deposits USDC into `vault_usdc_account`. The vault PDA signs as token_authority.
-///
-/// Tick array addresses are derived at runtime from the current pool state so that
-/// they remain valid even as the price moves between tick array boundaries.
-pub fn swap_wsol_to_usdc<'info>(
-    ctx: &Context<'_, '_, '_, 'info, Liquidate<'info>>,
+/// Shared Orca swap implementation used by both the regular and admin liquidation paths.
+#[allow(clippy::too_many_arguments)]
+fn do_orca_swap<'info>(
+    token_program: AccountInfo<'info>,
+    cushion_vault: AccountInfo<'info>,
+    whirlpool: AccountInfo<'info>,
+    vault_token_account: AccountInfo<'info>,
+    whirlpool_token_vault_a: AccountInfo<'info>,
+    vault_debt_token_account: AccountInfo<'info>,
+    whirlpool_token_vault_b: AccountInfo<'info>,
+    tick_array_0: AccountInfo<'info>,
+    tick_array_1: AccountInfo<'info>,
+    tick_array_2: AccountInfo<'info>,
+    oracle: AccountInfo<'info>,
+    orca_whirlpool_program: AccountInfo<'info>,
+    vault_bump: u8,
+    vault_asset_mint: Pubkey,
     wsol_amount: u64,
     min_usdc_out: u64,
 ) -> Result<()> {
     // Derive expected tick array addresses from live pool data.
-    // Borrow is scoped so the RefCell is released before we call invoke_signed.
     let (expected_ta0, expected_ta1, expected_ta2) = {
-        let whirlpool_data = ctx.accounts.whirlpool.data.borrow();
+        let whirlpool_data = whirlpool.data.borrow();
         let tick_spacing = read_tick_spacing(&whirlpool_data)?;
         let tick_current_index = read_tick_current_index(&whirlpool_data)?;
         let starts = compute_tick_array_starts(tick_current_index, tick_spacing);
-        let orca_program = ctx.accounts.orca_whirlpool_program.key();
-        let whirlpool_key = ctx.accounts.whirlpool.key();
+        let orca_program = orca_whirlpool_program.key();
+        let whirlpool_key = whirlpool.key();
         (
             derive_tick_array_address(&whirlpool_key, starts[0], &orca_program),
             derive_tick_array_address(&whirlpool_key, starts[1], &orca_program),
@@ -140,61 +149,113 @@ pub fn swap_wsol_to_usdc<'info>(
         )
     };
 
-    // Verify the tick array accounts passed by the caller match the derived addresses.
-    require_keys_eq!(ctx.accounts.tick_array_0.key(), expected_ta0, CushionError::InvalidTickArray);
-    require_keys_eq!(ctx.accounts.tick_array_1.key(), expected_ta1, CushionError::InvalidTickArray);
-    require_keys_eq!(ctx.accounts.tick_array_2.key(), expected_ta2, CushionError::InvalidTickArray);
+    require_keys_eq!(tick_array_0.key(), expected_ta0, CushionError::InvalidTickArray);
+    require_keys_eq!(tick_array_1.key(), expected_ta1, CushionError::InvalidTickArray);
+    require_keys_eq!(tick_array_2.key(), expected_ta2, CushionError::InvalidTickArray);
 
     let ix_data = build_swap_ix_data(wsol_amount, min_usdc_out);
 
-    // Orca v1 swap account order — must match the on-chain program exactly
     let account_metas = vec![
-        AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),     // token_program
-        AccountMeta::new_readonly(ctx.accounts.cushion_vault.key(), true),      // token_authority (PDA signer)
-        AccountMeta::new(ctx.accounts.whirlpool.key(), false),                  // whirlpool (mut)
-        AccountMeta::new(ctx.accounts.vault_token_account.key(), false),        // token_owner_account_a (WSOL, mut)
-        AccountMeta::new(ctx.accounts.whirlpool_token_vault_a.key(), false),    // token_vault_a (Orca WSOL, mut)
-        AccountMeta::new(ctx.accounts.vault_debt_token_account.key(), false),         // token_owner_account_b (USDC, mut)
-        AccountMeta::new(ctx.accounts.whirlpool_token_vault_b.key(), false),    // token_vault_b (Orca USDC, mut)
-        AccountMeta::new(ctx.accounts.tick_array_0.key(), false),               // tick_array_0 (mut)
-        AccountMeta::new(ctx.accounts.tick_array_1.key(), false),               // tick_array_1 (mut)
-        AccountMeta::new(ctx.accounts.tick_array_2.key(), false),               // tick_array_2 (mut)
-        AccountMeta::new(ctx.accounts.oracle.key(), false),                     // oracle (mut — Orca updates TWAP)
+        AccountMeta::new_readonly(token_program.key(), false),
+        AccountMeta::new_readonly(cushion_vault.key(), true),
+        AccountMeta::new(whirlpool.key(), false),
+        AccountMeta::new(vault_token_account.key(), false),
+        AccountMeta::new(whirlpool_token_vault_a.key(), false),
+        AccountMeta::new(vault_debt_token_account.key(), false),
+        AccountMeta::new(whirlpool_token_vault_b.key(), false),
+        AccountMeta::new(tick_array_0.key(), false),
+        AccountMeta::new(tick_array_1.key(), false),
+        AccountMeta::new(tick_array_2.key(), false),
+        AccountMeta::new(oracle.key(), false),
     ];
 
     let ix = Instruction {
-        program_id: ctx.accounts.orca_whirlpool_program.key(),
+        program_id: orca_whirlpool_program.key(),
         accounts: account_metas,
         data: ix_data.to_vec(),
     };
 
-    // Vault PDA seeds for signing
-    let vault_bump = [ctx.accounts.cushion_vault.bump];
+    let vault_bump_arr = [vault_bump];
     let signer_seeds: &[&[&[u8]]] = &[&[
         VAULT_STATE_SEED,
-        ctx.accounts.cushion_vault.asset_mint.as_ref(),
-        &vault_bump,
+        vault_asset_mint.as_ref(),
+        &vault_bump_arr,
     ]];
 
     invoke_signed(
         &ix,
         &[
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.cushion_vault.to_account_info(),
-            ctx.accounts.whirlpool.to_account_info(),
-            ctx.accounts.vault_token_account.to_account_info(),
-            ctx.accounts.whirlpool_token_vault_a.to_account_info(),
-            ctx.accounts.vault_debt_token_account.to_account_info(),
-            ctx.accounts.whirlpool_token_vault_b.to_account_info(),
-            ctx.accounts.tick_array_0.to_account_info(),
-            ctx.accounts.tick_array_1.to_account_info(),
-            ctx.accounts.tick_array_2.to_account_info(),
-            ctx.accounts.oracle.to_account_info(),
-            // Orca program must be present so the runtime can resolve the CPI target
-            ctx.accounts.orca_whirlpool_program.to_account_info(),
+            token_program,
+            cushion_vault,
+            whirlpool,
+            vault_token_account,
+            whirlpool_token_vault_a,
+            vault_debt_token_account,
+            whirlpool_token_vault_b,
+            tick_array_0,
+            tick_array_1,
+            tick_array_2,
+            oracle,
+            orca_whirlpool_program,
         ],
         signer_seeds,
     )?;
 
     Ok(())
+}
+
+// -------------------------
+// Public wrappers
+// -------------------------
+
+/// Raw CPI to Orca Whirlpool v1 `swap` — called from the regular liquidate_swap path.
+pub fn swap_wsol_to_usdc<'info>(
+    ctx: &Context<'_, '_, '_, 'info, LiquidateSwap<'info>>,
+    wsol_amount: u64,
+    min_usdc_out: u64,
+) -> Result<()> {
+    do_orca_swap(
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.cushion_vault.to_account_info(),
+        ctx.accounts.whirlpool.to_account_info(),
+        ctx.accounts.vault_token_account.to_account_info(),
+        ctx.accounts.whirlpool_token_vault_a.to_account_info(),
+        ctx.accounts.vault_debt_token_account.to_account_info(),
+        ctx.accounts.whirlpool_token_vault_b.to_account_info(),
+        ctx.accounts.tick_array_0.to_account_info(),
+        ctx.accounts.tick_array_1.to_account_info(),
+        ctx.accounts.tick_array_2.to_account_info(),
+        ctx.accounts.oracle.to_account_info(),
+        ctx.accounts.orca_whirlpool_program.to_account_info(),
+        ctx.accounts.cushion_vault.bump,
+        ctx.accounts.cushion_vault.asset_mint,
+        wsol_amount,
+        min_usdc_out,
+    )
+}
+
+/// Raw CPI to Orca Whirlpool v1 `swap` — called from the admin liquidate_swap path.
+pub fn swap_wsol_to_usdc_admin<'info>(
+    ctx: &Context<'_, '_, '_, 'info, AdminLiquidateSwap<'info>>,
+    wsol_amount: u64,
+    min_usdc_out: u64,
+) -> Result<()> {
+    do_orca_swap(
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.cushion_vault.to_account_info(),
+        ctx.accounts.whirlpool.to_account_info(),
+        ctx.accounts.vault_token_account.to_account_info(),
+        ctx.accounts.whirlpool_token_vault_a.to_account_info(),
+        ctx.accounts.vault_debt_token_account.to_account_info(),
+        ctx.accounts.whirlpool_token_vault_b.to_account_info(),
+        ctx.accounts.tick_array_0.to_account_info(),
+        ctx.accounts.tick_array_1.to_account_info(),
+        ctx.accounts.tick_array_2.to_account_info(),
+        ctx.accounts.oracle.to_account_info(),
+        ctx.accounts.orca_whirlpool_program.to_account_info(),
+        ctx.accounts.cushion_vault.bump,
+        ctx.accounts.cushion_vault.asset_mint,
+        wsol_amount,
+        min_usdc_out,
+    )
 }

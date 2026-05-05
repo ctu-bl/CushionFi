@@ -15,11 +15,9 @@ use crate::utils::POSITION_AUTHORITY_SEED;
 use crate::{
     CushionError,
     cpi::refresh_obligation_klend::resolve_active_refresh_reserves,
-    handlers::obligation::{
-        position_auth::with_position_authority_signer,
-    },
-    utils::{VAULT_STATE_SEED},
-    handlers::vault::Liquidate,
+    handlers::obligation::position_auth::with_position_authority_signer,
+    utils::VAULT_STATE_SEED,
+    handlers::vault::position_ops::liquidate::Liquidate,
 };
 
 pub fn repay_and_withdraw_from_klend<'info>(
@@ -99,16 +97,10 @@ fn build_repay_and_redeem_cpi_accounts<'info>(
         reserve_farm_state: ctx.accounts.col_reserve_farm_state.to_account_info(),
     };
 
-    // ─── Debt Farms Accounts (optional) ────────────────────────────────────
+    // ─── Debt Farms Accounts ────────────────────────────────────────────────
     let debt_farms_accounts = RepayAndWithdrawAndRedeemDebtFarmsAccounts {
-        obligation_farm_user_state: ctx.accounts.debt_obligation_farm_user_state
-            .as_ref()
-            .map(|a| a.to_account_info())
-            .unwrap_or_else(|| placeholder.clone()),
-        reserve_farm_state: ctx.accounts.debt_reserve_farm_state
-            .as_ref()
-            .map(|a| a.to_account_info())
-            .unwrap_or_else(|| placeholder.clone()),
+        obligation_farm_user_state: ctx.accounts.debt_obligation_farm_user_state.to_account_info(),
+        reserve_farm_state: ctx.accounts.debt_reserve_farm_state.to_account_info(),
     };
 
     // ─── Build the complete struct ──────────────────────────────────────────

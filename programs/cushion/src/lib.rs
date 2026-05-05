@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
+declare_id!("HTte5MrAPY1jf93zSNLbShD4sPZdFxTfgG8zW8eWQtLE");
 
 pub mod cpi;
 pub mod handlers;
@@ -120,6 +120,22 @@ pub mod cushion {
         withdraw_injected_collateral_handler(ctx)
     }
 
+    /// Transaction 1: swap vault WSOL → USDC to cover the position's debt
+    pub fn liquidate_swap<'info>(
+        ctx: Context<'_, '_, '_, 'info, LiquidateSwap<'info>>,
+    ) -> Result<()> {
+        liquidate_swap_handler(ctx)
+    }
+
+    /// Admin version of Transaction 1: same as liquidate_swap but skips the LTV check
+    /// and marks position as injected. Requires caller to be vault authority.
+    pub fn admin_liquidate_swap<'info>(
+        ctx: Context<'_, '_, '_, 'info, AdminLiquidateSwap<'info>>,
+    ) -> Result<()> {
+        admin_liquidate_swap_handler(ctx)
+    }
+
+    /// Transaction 2: repay USDC debt to Kamino and withdraw WSOL collateral
     pub fn liquidate<'info>(
         ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
     ) -> Result<()> {
