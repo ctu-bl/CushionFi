@@ -48,7 +48,7 @@ pub fn get_amount_from_market_value_from_reserve(market_value: u128, price: u128
 }
 
 pub fn get_insuring_ltv_threshold(
-    _debt_sum: u128,
+    debt_sum: u128,
     max_allowed_borrow: u128,
     deposit_sum: u128,
 ) -> Option<u128> {
