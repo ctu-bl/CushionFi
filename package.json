@@ -3,7 +3,8 @@
   "packageManager": "yarn@1.22.22",
   "private": true,
   "workspaces": [
-    "sdk"
+    "sdk",
+    "web"
   ],
   "scripts": {
     "anchor:keys:sync": "anchor keys sync",
@@ -37,6 +38,7 @@
     "keeper:docker:up": "docker compose --env-file keeper/.env -f keeper/docker-compose.yml up -d",
     "keeper:docker:down": "docker compose --env-file keeper/.env -f keeper/docker-compose.yml down",
     "sync:idl": "bash scripts/idl-sync.sh",
+    "sdk:web:gen": "anchor build && yarn --cwd web sdk:regen",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },

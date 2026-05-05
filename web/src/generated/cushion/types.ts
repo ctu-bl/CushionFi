@@ -1,4 +1,10 @@
-{
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/cushion.json`.
+ */
+export type Cushion = {
   "address": "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W",
   "metadata": {
     "name": "cushion",
@@ -8,7 +14,7 @@
   },
   "instructions": [
     {
-      "name": "borrow_asset",
+      "name": "borrowAsset",
       "discriminator": [
         137,
         132,
@@ -26,7 +32,7 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
           "name": "position",
@@ -52,13 +58,13 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "pda": {
             "seeds": [
               {
@@ -82,55 +88,55 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "lending_market"
+          "name": "lendingMarket"
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "borrow_reserve",
+          "name": "borrowReserve",
           "writable": true
         },
         {
-          "name": "borrow_reserve_liquidity_mint"
+          "name": "borrowReserveLiquidityMint"
         },
         {
-          "name": "reserve_source_liquidity",
+          "name": "reserveSourceLiquidity",
           "writable": true
         },
         {
-          "name": "borrow_reserve_liquidity_fee_receiver",
+          "name": "borrowReserveLiquidityFeeReceiver",
           "writable": true
         },
         {
-          "name": "position_borrow_account",
+          "name": "positionBorrowAccount",
           "writable": true
         },
         {
-          "name": "user_destination_liquidity",
+          "name": "userDestinationLiquidity",
           "writable": true
         },
         {
-          "name": "referrer_token_state",
+          "name": "referrerTokenState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -138,39 +144,39 @@
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
-          "name": "instruction_sysvar_account",
+          "name": "instructionSysvarAccount",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         }
       ],
@@ -182,7 +188,7 @@
       ]
     },
     {
-      "name": "decrease_collateral",
+      "name": "decreaseCollateral",
       "discriminator": [
         82,
         35,
@@ -200,7 +206,7 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
           "name": "position",
@@ -226,13 +232,13 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "writable": true,
           "pda": {
             "seeds": [
@@ -257,7 +263,7 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           },
@@ -266,84 +272,84 @@
           ]
         },
         {
-          "name": "position_collateral_account",
+          "name": "positionCollateralAccount",
           "writable": true
         },
         {
-          "name": "user_collateral_account",
+          "name": "userCollateralAccount",
           "writable": true
         },
         {
-          "name": "reserve_liquidity_mint"
+          "name": "reserveLiquidityMint"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "withdraw_reserve",
+          "name": "withdrawReserve",
           "writable": true
         },
         {
-          "name": "lending_market",
+          "name": "lendingMarket",
           "writable": true
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "reserve_liquidity_supply",
+          "name": "reserveLiquiditySupply",
           "writable": true
         },
         {
-          "name": "reserve_source_collateral",
+          "name": "reserveSourceCollateral",
           "writable": true
         },
         {
-          "name": "reserve_collateral_mint",
+          "name": "reserveCollateralMint",
           "writable": true
         },
         {
-          "name": "placeholder_user_destination_collateral"
+          "name": "placeholderUserDestinationCollateral"
         },
         {
-          "name": "token_program"
+          "name": "tokenProgram"
         },
         {
-          "name": "liquidity_token_program"
+          "name": "liquidityTokenProgram"
         },
         {
-          "name": "instruction_sysvar_account",
+          "name": "instructionSysvarAccount",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         }
       ],
@@ -373,7 +379,7 @@
           "signer": true
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
             "vault"
           ]
@@ -404,51 +410,51 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "share_mint",
+          "name": "shareMint",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "user_asset_account",
+          "name": "userAssetAccount",
           "writable": true
         },
         {
-          "name": "user_share_account",
+          "name": "userShareAccount",
           "writable": true
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "assets_in",
+          "name": "assetsIn",
           "type": "u64"
         },
         {
-          "name": "min_shares_out",
+          "name": "minSharesOut",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "increase_collateral",
+      "name": "increaseCollateral",
       "discriminator": [
         1,
         137,
@@ -466,7 +472,7 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
           "name": "position",
@@ -492,13 +498,13 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "writable": true,
           "pda": {
             "seeds": [
@@ -523,7 +529,7 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           },
@@ -532,85 +538,85 @@
           ]
         },
         {
-          "name": "position_collateral_account",
+          "name": "positionCollateralAccount",
           "writable": true
         },
         {
-          "name": "user_collateral_account",
+          "name": "userCollateralAccount",
           "writable": true
         },
         {
-          "name": "reserve_liquidity_mint"
+          "name": "reserveLiquidityMint"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "klend_reserve",
+          "name": "klendReserve",
           "writable": true
         },
         {
-          "name": "lending_market",
+          "name": "lendingMarket",
           "writable": true
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "reserve_liquidity_supply",
+          "name": "reserveLiquiditySupply",
           "writable": true
         },
         {
-          "name": "reserve_collateral_mint",
+          "name": "reserveCollateralMint",
           "writable": true
         },
         {
-          "name": "reserve_destination_deposit_collateral",
+          "name": "reserveDestinationDepositCollateral",
           "writable": true
         },
         {
-          "name": "placeholder_user_destination_collateral",
+          "name": "placeholderUserDestinationCollateral",
           "writable": true
         },
         {
-          "name": "token_program"
+          "name": "tokenProgram"
         },
         {
-          "name": "liquidity_token_program"
+          "name": "liquidityTokenProgram"
         },
         {
-          "name": "instruction_sysvar_account",
+          "name": "instructionSysvarAccount",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         }
       ],
@@ -622,7 +628,7 @@
       ]
     },
     {
-      "name": "increase_debt",
+      "name": "increaseDebt",
       "discriminator": [
         33,
         15,
@@ -650,10 +656,10 @@
           "writable": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "pda": {
             "seeds": [
               {
@@ -678,89 +684,89 @@
               {
                 "kind": "account",
                 "path": "position.nft_mint",
-                "account": "Obligation"
+                "account": "obligation"
               }
             ]
           }
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "lending_market"
+          "name": "lendingMarket"
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "borrow_reserve",
+          "name": "borrowReserve",
           "writable": true
         },
         {
-          "name": "borrow_reserve_liquidity_mint",
+          "name": "borrowReserveLiquidityMint",
           "docs": [
             "SPL mint of the reserve liquidity being borrowed."
           ]
         },
         {
-          "name": "reserve_source_liquidity",
+          "name": "reserveSourceLiquidity",
           "docs": [
             "Reserve liquidity vault that sends tokens out during the borrow CPI."
           ],
           "writable": true
         },
         {
-          "name": "borrow_reserve_liquidity_fee_receiver",
+          "name": "borrowReserveLiquidityFeeReceiver",
           "docs": [
             "Fee receiver configured by the Kamino reserve for borrow fees."
           ],
           "writable": true
         },
         {
-          "name": "position_borrow_account",
+          "name": "positionBorrowAccount",
           "docs": [
             "Temporary PDA-owned token account that receives the borrowed liquidity first."
           ],
           "writable": true
         },
         {
-          "name": "user_destination_liquidity",
+          "name": "userDestinationLiquidity",
           "docs": [
             "User ATA that receives liquidity after the PDA-to-user transfer."
           ],
           "writable": true
         },
         {
-          "name": "referrer_token_state",
+          "name": "referrerTokenState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "docs": [
             "SPL token program used both by Kamino CPI and the final user transfer."
           ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -768,23 +774,23 @@
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
-          "name": "instruction_sysvar_account"
+          "name": "instructionSysvarAccount"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         }
       ],
       "args": [
@@ -795,7 +801,7 @@
       ]
     },
     {
-      "name": "init_collection",
+      "name": "initCollection",
       "discriminator": [
         244,
         242,
@@ -821,7 +827,7 @@
           "signer": true
         },
         {
-          "name": "position_registry",
+          "name": "positionRegistry",
           "docs": [
             "Registry PDA acts as update_authority for the collection"
           ],
@@ -853,18 +859,18 @@
           }
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "mpl_core_program",
+          "name": "mplCoreProgram",
           "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
         }
       ],
       "args": []
     },
     {
-      "name": "init_position",
+      "name": "initPosition",
       "discriminator": [
         197,
         20,
@@ -882,7 +888,7 @@
           "signer": true
         },
         {
-          "name": "nft_mint",
+          "name": "nftMint",
           "docs": [
             "NFT keypair — account doesn't exist yet, will be created in this instruction"
           ],
@@ -897,7 +903,7 @@
           "writable": true
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "pda": {
             "seeds": [
               {
@@ -921,7 +927,7 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
@@ -951,13 +957,13 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "position_registry",
+          "name": "positionRegistry",
           "writable": true,
           "pda": {
             "seeds": [
@@ -987,7 +993,7 @@
           }
         },
         {
-          "name": "position_registry_entry",
+          "name": "positionRegistryEntry",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1021,49 +1027,49 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "klend_user_metadata",
+          "name": "klendUserMetadata",
           "writable": true
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "klend_reserve",
+          "name": "klendReserve",
           "writable": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true
         },
         {
-          "name": "lending_market"
+          "name": "lendingMarket"
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -1071,14 +1077,14 @@
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
-          "name": "mpl_core_program",
+          "name": "mplCoreProgram",
           "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
         }
       ],
       "args": []
     },
     {
-      "name": "init_position_registry",
+      "name": "initPositionRegistry",
       "discriminator": [
         177,
         221,
@@ -1096,7 +1102,7 @@
           "signer": true
         },
         {
-          "name": "position_registry",
+          "name": "positionRegistry",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1126,14 +1132,14 @@
           }
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "init_vault",
+      "name": "initVault",
       "discriminator": [
         77,
         79,
@@ -1151,7 +1157,7 @@
           "signer": true
         },
         {
-          "name": "asset_mint"
+          "name": "assetMint"
         },
         {
           "name": "vault",
@@ -1179,13 +1185,13 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "share_mint",
+          "name": "shareMint",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1221,7 +1227,7 @@
           }
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1252,7 +1258,7 @@
           }
         },
         {
-          "name": "treasury_token_account",
+          "name": "treasuryTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1286,11 +1292,11 @@
           }
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -1300,25 +1306,25 @@
       ],
       "args": [
         {
-          "name": "min_deposit",
+          "name": "minDeposit",
           "type": "u64"
         },
         {
-          "name": "deposit_cap",
+          "name": "depositCap",
           "type": "u64"
         },
         {
-          "name": "virtual_assets",
+          "name": "virtualAssets",
           "type": "u64"
         },
         {
-          "name": "virtual_shares",
+          "name": "virtualShares",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "inject_collateral",
+      "name": "injectCollateral",
       "discriminator": [
         243,
         219,
@@ -1340,16 +1346,16 @@
           "writable": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
-            "cushion_vault"
+            "cushionVault"
           ]
         },
         {
-          "name": "cushion_vault",
+          "name": "cushionVault",
           "docs": [
             "Cushion vault providing the liquidity to the obligation"
           ],
@@ -1377,13 +1383,13 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1409,127 +1415,127 @@
               {
                 "kind": "account",
                 "path": "position.nft_mint",
-                "account": "Obligation"
+                "account": "obligation"
               }
             ]
           }
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "docs": [
             "Vault token account that provides liquidity"
           ],
           "writable": true,
           "relations": [
-            "cushion_vault"
+            "cushionVault"
           ]
         },
         {
-          "name": "position_collateral_account",
+          "name": "positionCollateralAccount",
           "docs": [
             "Program PDA token account (position authority ATA) that temporarily holds tokens"
           ],
           "writable": true
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "docs": [
             "Kamino obligation (CHECKED via owner)"
           ],
           "writable": true
         },
         {
-          "name": "klend_reserve",
+          "name": "klendReserve",
           "docs": [
             "Kamino reserve account"
           ],
           "writable": true
         },
         {
-          "name": "reserve_liquidity_supply",
+          "name": "reserveLiquiditySupply",
           "docs": [
             "Kamino reserve liquidity supply"
           ],
           "writable": true
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "docs": [
             "SPL token program associated with the token used as a collateral"
           ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "klend_program",
+          "name": "klendProgram",
           "docs": [
             "Kamino LB program"
           ]
         },
         {
-          "name": "farms_program",
+          "name": "farmsProgram",
           "docs": [
             "Farms program"
           ]
         },
         {
-          "name": "lending_market",
+          "name": "lendingMarket",
           "docs": [
             "Kamino CPI needed accounts"
           ],
           "writable": true
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "reserve_liquidity_mint"
+          "name": "reserveLiquidityMint"
         },
         {
-          "name": "reserve_destination_deposit_collateral",
+          "name": "reserveDestinationDepositCollateral",
           "writable": true
         },
         {
-          "name": "reserve_collateral_mint",
+          "name": "reserveCollateralMint",
           "writable": true
         },
         {
-          "name": "placeholder_user_destination_collateral"
+          "name": "placeholderUserDestinationCollateral"
         },
         {
-          "name": "liquidity_token_program"
+          "name": "liquidityTokenProgram"
         },
         {
-          "name": "instruction_sysvar_account"
+          "name": "instructionSysvarAccount"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true
         }
       ],
       "args": []
     },
     {
-      "name": "insure_existing_position",
+      "name": "insureExistingPosition",
       "discriminator": [
         160,
         35,
@@ -1591,7 +1597,7 @@
           "signer": true
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
             "vault"
           ]
@@ -1622,45 +1628,45 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "share_mint",
+          "name": "shareMint",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "user_asset_account",
+          "name": "userAssetAccount",
           "writable": true
         },
         {
-          "name": "user_share_account",
+          "name": "userShareAccount",
           "writable": true
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "shares_out",
+          "name": "sharesOut",
           "type": "u64"
         },
         {
-          "name": "max_assets_in",
+          "name": "maxAssetsIn",
           "type": "u64"
         }
       ]
@@ -1684,7 +1690,7 @@
           "signer": true
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
             "vault"
           ]
@@ -1715,51 +1721,51 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "share_mint",
+          "name": "shareMint",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "user_asset_account",
+          "name": "userAssetAccount",
           "writable": true
         },
         {
-          "name": "user_share_account",
+          "name": "userShareAccount",
           "writable": true
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "shares_in",
+          "name": "sharesIn",
           "type": "u64"
         },
         {
-          "name": "min_assets_out",
+          "name": "minAssetsOut",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "repay_debt",
+      "name": "repayDebt",
       "discriminator": [
         79,
         200,
@@ -1787,10 +1793,10 @@
           "writable": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "pda": {
             "seeds": [
               {
@@ -1815,96 +1821,96 @@
               {
                 "kind": "account",
                 "path": "position.nft_mint",
-                "account": "Obligation"
+                "account": "obligation"
               }
             ]
           }
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "lending_market"
+          "name": "lendingMarket"
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "repay_reserve",
+          "name": "repayReserve",
           "writable": true
         },
         {
-          "name": "repay_reserve_liquidity_mint",
+          "name": "repayReserveLiquidityMint",
           "docs": [
             "SPL mint of the reserve liquidity being repaid."
           ]
         },
         {
-          "name": "reserve_destination_liquidity",
+          "name": "reserveDestinationLiquidity",
           "docs": [
             "Reserve liquidity vault that receives repaid tokens."
           ],
           "writable": true
         },
         {
-          "name": "user_source_liquidity",
+          "name": "userSourceLiquidity",
           "docs": [
             "User ATA holding the debt tokens to repay."
           ],
           "writable": true
         },
         {
-          "name": "position_repay_account",
+          "name": "positionRepayAccount",
           "docs": [
             "Position's ATA (owned by position_authority) used as staging for the Kamino repay CPI."
           ],
           "writable": true
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true,
           "optional": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "docs": [
             "SPL token program used by Kamino CPI."
           ],
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "instruction_sysvar_account"
+          "name": "instructionSysvarAccount"
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
         {
@@ -1920,7 +1926,7 @@
       ]
     },
     {
-      "name": "update_market_price",
+      "name": "updateMarketPrice",
       "discriminator": [
         5,
         156,
@@ -1963,18 +1969,18 @@
               {
                 "kind": "account",
                 "path": "vault.asset_mint",
-                "account": "Vault"
+                "account": "vault"
               }
             ]
           }
         },
         {
-          "name": "price_update"
+          "name": "priceUpdate"
         }
       ],
       "args": [
         {
-          "name": "feed_id",
+          "name": "feedId",
           "type": {
             "array": [
               "u8",
@@ -2003,7 +2009,7 @@
           "signer": true
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
             "vault"
           ]
@@ -2034,51 +2040,51 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "share_mint",
+          "name": "shareMint",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "user_asset_account",
+          "name": "userAssetAccount",
           "writable": true
         },
         {
-          "name": "user_share_account",
+          "name": "userShareAccount",
           "writable": true
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "writable": true,
           "relations": [
             "vault"
           ]
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [
         {
-          "name": "assets_out",
+          "name": "assetsOut",
           "type": "u64"
         },
         {
-          "name": "max_shares_burn",
+          "name": "maxSharesBurn",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "withdraw_injected_collateral",
+      "name": "withdrawInjectedCollateral",
       "discriminator": [
         125,
         44,
@@ -2096,12 +2102,12 @@
           "signer": true
         },
         {
-          "name": "nft_mint"
+          "name": "nftMint"
         },
         {
-          "name": "asset_mint",
+          "name": "assetMint",
           "relations": [
-            "cushion_vault"
+            "cushionVault"
           ]
         },
         {
@@ -2129,13 +2135,13 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           }
         },
         {
-          "name": "cushion_vault",
+          "name": "cushionVault",
           "docs": [
             "Cushion vault providing the liquidity to the obligation"
           ],
@@ -2163,13 +2169,13 @@
               },
               {
                 "kind": "account",
-                "path": "asset_mint"
+                "path": "assetMint"
               }
             ]
           }
         },
         {
-          "name": "position_authority",
+          "name": "positionAuthority",
           "writable": true,
           "pda": {
             "seeds": [
@@ -2194,7 +2200,7 @@
               },
               {
                 "kind": "account",
-                "path": "nft_mint"
+                "path": "nftMint"
               }
             ]
           },
@@ -2203,91 +2209,91 @@
           ]
         },
         {
-          "name": "vault_token_account",
+          "name": "vaultTokenAccount",
           "docs": [
             "Vault token account that provides liquidity"
           ],
           "writable": true,
           "relations": [
-            "cushion_vault"
+            "cushionVault"
           ]
         },
         {
-          "name": "position_collateral_account",
+          "name": "positionCollateralAccount",
           "writable": true
         },
         {
-          "name": "reserve_liquidity_mint"
+          "name": "reserveLiquidityMint"
         },
         {
-          "name": "klend_program"
+          "name": "klendProgram"
         },
         {
-          "name": "klend_obligation",
+          "name": "klendObligation",
           "writable": true
         },
         {
-          "name": "withdraw_reserve",
+          "name": "withdrawReserve",
           "writable": true
         },
         {
-          "name": "lending_market",
+          "name": "lendingMarket",
           "writable": true
         },
         {
-          "name": "lending_market_authority"
+          "name": "lendingMarketAuthority"
         },
         {
-          "name": "reserve_liquidity_supply",
+          "name": "reserveLiquiditySupply",
           "writable": true
         },
         {
-          "name": "reserve_source_collateral",
+          "name": "reserveSourceCollateral",
           "writable": true
         },
         {
-          "name": "reserve_collateral_mint",
+          "name": "reserveCollateralMint",
           "writable": true
         },
         {
-          "name": "placeholder_user_destination_collateral"
+          "name": "placeholderUserDestinationCollateral"
         },
         {
-          "name": "token_program",
+          "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "liquidity_token_program"
+          "name": "liquidityTokenProgram"
         },
         {
-          "name": "instruction_sysvar_account",
+          "name": "instructionSysvarAccount",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
-          "name": "obligation_farm_user_state",
+          "name": "obligationFarmUserState",
           "writable": true
         },
         {
-          "name": "reserve_farm_state",
+          "name": "reserveFarmState",
           "writable": true
         },
         {
-          "name": "farms_program"
+          "name": "farmsProgram"
         },
         {
-          "name": "pyth_oracle",
+          "name": "pythOracle",
           "optional": true
         },
         {
-          "name": "switchboard_price_oracle",
+          "name": "switchboardPriceOracle",
           "optional": true
         },
         {
-          "name": "switchboard_twap_oracle",
+          "name": "switchboardTwapOracle",
           "optional": true
         },
         {
-          "name": "scope_prices",
+          "name": "scopePrices",
           "optional": true
         }
       ],
@@ -2296,7 +2302,7 @@
   ],
   "accounts": [
     {
-      "name": "Obligation",
+      "name": "obligation",
       "discriminator": [
         168,
         206,
@@ -2309,7 +2315,7 @@
       ]
     },
     {
-      "name": "PositionRegistry",
+      "name": "positionRegistry",
       "discriminator": [
         82,
         58,
@@ -2322,7 +2328,7 @@
       ]
     },
     {
-      "name": "PositionRegistryEntry",
+      "name": "positionRegistryEntry",
       "discriminator": [
         6,
         212,
@@ -2335,7 +2341,7 @@
       ]
     },
     {
-      "name": "PriceUpdateV2",
+      "name": "priceUpdateV2",
       "discriminator": [
         34,
         241,
@@ -2348,7 +2354,7 @@
       ]
     },
     {
-      "name": "Vault",
+      "name": "vault",
       "discriminator": [
         211,
         8,
@@ -2363,7 +2369,7 @@
   ],
   "events": [
     {
-      "name": "AccInterestUpdateEvent",
+      "name": "accInterestUpdateEvent",
       "discriminator": [
         236,
         105,
@@ -2376,7 +2382,7 @@
       ]
     },
     {
-      "name": "CollateralDecreasedEvent",
+      "name": "collateralDecreasedEvent",
       "discriminator": [
         122,
         42,
@@ -2389,7 +2395,7 @@
       ]
     },
     {
-      "name": "CollateralIncreasedEvent",
+      "name": "collateralIncreasedEvent",
       "discriminator": [
         24,
         154,
@@ -2402,7 +2408,7 @@
       ]
     },
     {
-      "name": "DebtIncreasedEvent",
+      "name": "debtIncreasedEvent",
       "discriminator": [
         245,
         189,
@@ -2415,7 +2421,7 @@
       ]
     },
     {
-      "name": "DebtRepaidEvent",
+      "name": "debtRepaidEvent",
       "discriminator": [
         57,
         46,
@@ -2428,7 +2434,7 @@
       ]
     },
     {
-      "name": "InjectEvent",
+      "name": "injectEvent",
       "discriminator": [
         190,
         238,
@@ -2441,7 +2447,7 @@
       ]
     },
     {
-      "name": "LiquidateEvent",
+      "name": "liquidateEvent",
       "discriminator": [
         158,
         94,
@@ -2454,7 +2460,7 @@
       ]
     },
     {
-      "name": "LoanTakenEvent",
+      "name": "loanTakenEvent",
       "discriminator": [
         135,
         214,
@@ -2467,7 +2473,7 @@
       ]
     },
     {
-      "name": "VaultDepositEvent",
+      "name": "vaultDepositEvent",
       "discriminator": [
         187,
         186,
@@ -2480,7 +2486,7 @@
       ]
     },
     {
-      "name": "VaultInitializedEvent",
+      "name": "vaultInitializedEvent",
       "discriminator": [
         203,
         214,
@@ -2493,7 +2499,7 @@
       ]
     },
     {
-      "name": "VaultMintEvent",
+      "name": "vaultMintEvent",
       "discriminator": [
         234,
         202,
@@ -2506,7 +2512,7 @@
       ]
     },
     {
-      "name": "VaultRedeemEvent",
+      "name": "vaultRedeemEvent",
       "discriminator": [
         217,
         58,
@@ -2519,7 +2525,7 @@
       ]
     },
     {
-      "name": "VaultWithdrawEvent",
+      "name": "vaultWithdrawEvent",
       "discriminator": [
         192,
         143,
@@ -2532,7 +2538,7 @@
       ]
     },
     {
-      "name": "WithdrawInjectedEvent",
+      "name": "withdrawInjectedEvent",
       "discriminator": [
         146,
         209,
@@ -2548,307 +2554,307 @@
   "errors": [
     {
       "code": 6000,
-      "name": "Unauthorized",
-      "msg": "Unauthorized"
+      "name": "unauthorized",
+      "msg": "unauthorized"
     },
     {
       "code": 6001,
-      "name": "Overflow",
-      "msg": "Overflow"
+      "name": "overflow",
+      "msg": "overflow"
     },
     {
       "code": 6002,
-      "name": "ZeroCollateralAmount",
+      "name": "zeroCollateralAmount",
       "msg": "Collateral amount can't be zero when creating the position"
     },
     {
       "code": 6003,
-      "name": "ZeroDebtAmount",
+      "name": "zeroDebtAmount",
       "msg": "Debt amount can't be zero"
     },
     {
       "code": 6004,
-      "name": "ZeroRepayAmount",
+      "name": "zeroRepayAmount",
       "msg": "Amount for repaying can't be zero"
     },
     {
       "code": 6005,
-      "name": "UnsafePosition",
+      "name": "unsafePosition",
       "msg": "Position is too close to liquidation and cannot be insured"
     },
     {
       "code": 6006,
-      "name": "ZeroDepositAmount",
+      "name": "zeroDepositAmount",
       "msg": "Deposit amount cannot be zero"
     },
     {
       "code": 6007,
-      "name": "ZeroWithdrawAmount",
+      "name": "zeroWithdrawAmount",
       "msg": "Withdraw amount cannot be zero"
     },
     {
       "code": 6008,
-      "name": "ZeroMintAmount",
+      "name": "zeroMintAmount",
       "msg": "Mint amount cannot be zero"
     },
     {
       "code": 6009,
-      "name": "ZeroRedeemAmount",
+      "name": "zeroRedeemAmount",
       "msg": "Redeem amount cannot be zero"
     },
     {
       "code": 6010,
-      "name": "VaultPaused",
+      "name": "vaultPaused",
       "msg": "Vault is paused"
     },
     {
       "code": 6011,
-      "name": "WithdrawalsPaused",
+      "name": "withdrawalsPaused",
       "msg": "Withdrawals are paused"
     },
     {
       "code": 6012,
-      "name": "DepositTooSmall",
+      "name": "depositTooSmall",
       "msg": "Deposit amount is below vault minimum"
     },
     {
       "code": 6013,
-      "name": "DepositCapExceeded",
+      "name": "depositCapExceeded",
       "msg": "Vault deposit cap exceeded"
     },
     {
       "code": 6014,
-      "name": "ZeroSharesOut",
+      "name": "zeroSharesOut",
       "msg": "Share output rounded down to zero"
     },
     {
       "code": 6015,
-      "name": "ZeroAssetsOut",
+      "name": "zeroAssetsOut",
       "msg": "Asset output rounded down to zero"
     },
     {
       "code": 6016,
-      "name": "InsufficientVaultLiquidity",
+      "name": "insufficientVaultLiquidity",
       "msg": "Vault does not have enough idle liquidity"
     },
     {
       "code": 6017,
-      "name": "InsufficientRepayLiquidity",
+      "name": "insufficientRepayLiquidity",
       "msg": "Insufficient liquidity in user's source account"
     },
     {
       "code": 6018,
-      "name": "InvalidAssetMint",
+      "name": "invalidAssetMint",
       "msg": "Invalid asset mint account"
     },
     {
       "code": 6019,
-      "name": "InvalidShareMint",
+      "name": "invalidShareMint",
       "msg": "Invalid share mint account"
     },
     {
       "code": 6020,
-      "name": "InvalidVaultTokenAccount",
+      "name": "invalidVaultTokenAccount",
       "msg": "Invalid vault token account"
     },
     {
       "code": 6021,
-      "name": "InvalidTreasuryAccount",
+      "name": "invalidTreasuryAccount",
       "msg": "Invalid treasury token account"
     },
     {
       "code": 6022,
-      "name": "InvalidDepositCap",
+      "name": "invalidDepositCap",
       "msg": "Invalid deposit cap configuration"
     },
     {
       "code": 6023,
-      "name": "DivisionByZero",
+      "name": "divisionByZero",
       "msg": "Division by zero"
     },
     {
       "code": 6024,
-      "name": "CastError",
+      "name": "castError",
       "msg": "Cast error"
     },
     {
       "code": 6025,
-      "name": "StalePythPrice",
+      "name": "stalePythPrice",
       "msg": "Pyth price is stale or unavailable"
     },
     {
       "code": 6026,
-      "name": "InvalidPythPrice",
+      "name": "invalidPythPrice",
       "msg": "Pyth price is negative or zero"
     },
     {
       "code": 6027,
-      "name": "MinSharesOutNotMet",
+      "name": "minSharesOutNotMet",
       "msg": "Slippage: min shares out not met"
     },
     {
       "code": 6028,
-      "name": "MaxAssetsInExceeded",
+      "name": "maxAssetsInExceeded",
       "msg": "Slippage: max assets in exceeded"
     },
     {
       "code": 6029,
-      "name": "MinAssetsOutNotMet",
+      "name": "minAssetsOutNotMet",
       "msg": "Slippage: min assets out not met"
     },
     {
       "code": 6030,
-      "name": "MaxSharesBurnExceeded",
+      "name": "maxSharesBurnExceeded",
       "msg": "Slippage: max shares burn exceeded"
     },
     {
       "code": 6031,
-      "name": "InvalidKaminoProgram",
+      "name": "invalidKaminoProgram",
       "msg": "Invalid Kamino program account"
     },
     {
       "code": 6032,
-      "name": "InvalidKaminoUserMetadata",
+      "name": "invalidKaminoUserMetadata",
       "msg": "Invalid Kamino user metadata PDA"
     },
     {
       "code": 6033,
-      "name": "InvalidKaminoObligation",
+      "name": "invalidKaminoObligation",
       "msg": "Invalid Kamino obligation PDA"
     },
     {
       "code": 6034,
-      "name": "InvalidKaminoLendingMarketAuthority",
+      "name": "invalidKaminoLendingMarketAuthority",
       "msg": "Invalid Kamino lending market authority PDA"
     },
     {
       "code": 6035,
-      "name": "InvalidKaminoFarmUserState",
+      "name": "invalidKaminoFarmUserState",
       "msg": "Invalid Kamino farm user state PDA"
     },
     {
       "code": 6036,
-      "name": "InvalidPositionNftMint",
+      "name": "invalidPositionNftMint",
       "msg": "Invalid NFT token account mint for Cushion position"
     },
     {
       "code": 6037,
-      "name": "InvalidPositionNftOwner",
+      "name": "invalidPositionNftOwner",
       "msg": "NFT token account owner must match signer"
     },
     {
       "code": 6038,
-      "name": "ReserveAlreadyUsedOnOtherSide",
+      "name": "reserveAlreadyUsedOnOtherSide",
       "msg": "Reserve is already used as a borrow on this obligation"
     },
     {
       "code": 6039,
-      "name": "MissingKaminoRefreshReserve",
+      "name": "missingKaminoRefreshReserve",
       "msg": "A required Kamino reserve account is missing from remaining accounts"
     },
     {
       "code": 6040,
-      "name": "InjectedCollateral",
+      "name": "injectedCollateral",
       "msg": "Position has injected collateral and cannot be decreased"
     },
     {
       "code": 6041,
-      "name": "MarketValueError",
+      "name": "marketValueError",
       "msg": "Failed to compute market value from reserve data"
     },
     {
       "code": 6042,
-      "name": "LtvComputationError",
+      "name": "ltvComputationError",
       "msg": "Failed to compute potential LTV"
     },
     {
       "code": 6043,
-      "name": "UnsafeDecreaseCollateral",
+      "name": "unsafeDecreaseCollateral",
       "msg": "Collateral decrease would put position below safe LTV threshold"
     },
     {
       "code": 6044,
-      "name": "DeserializationError",
+      "name": "deserializationError",
       "msg": "Failed to deserialize account data"
     },
     {
       "code": 6045,
-      "name": "AlreadyInjected",
+      "name": "alreadyInjected",
       "msg": "Position already has injected collateral"
     },
     {
       "code": 6046,
-      "name": "NotUnsafePosition",
+      "name": "notUnsafePosition",
       "msg": "Position is not unsafe, injection failed"
     },
     {
       "code": 6047,
-      "name": "InjectCalculationError",
+      "name": "injectCalculationError",
       "msg": "Amount to inject calculation failed"
     },
     {
       "code": 6048,
-      "name": "LtvCalculationError",
+      "name": "ltvCalculationError",
       "msg": "Calculation of current LTV failed"
     },
     {
       "code": 6049,
-      "name": "ZeroPrice",
+      "name": "zeroPrice",
       "msg": "Price of the asset in vault is zero"
     },
     {
       "code": 6050,
-      "name": "InsuringThresholdError",
+      "name": "insuringThresholdError",
       "msg": "Computation of insuring LTV threshold failed"
     },
     {
       "code": 6051,
-      "name": "NotInjected",
+      "name": "notInjected",
       "msg": "Position doesn't have any injected collateral"
     },
     {
       "code": 6052,
-      "name": "WithdrawingThresholdError",
+      "name": "withdrawingThresholdError",
       "msg": "Computation of withdrawing LTV threshold failed"
     },
     {
       "code": 6053,
-      "name": "NotYetSafePosition",
+      "name": "notYetSafePosition",
       "msg": "Position is not safe enough, withdrawal failed"
     },
     {
       "code": 6054,
-      "name": "WithdrawAmountCalculationError",
+      "name": "withdrawAmountCalculationError",
       "msg": "Computation of amount to withdraw failed"
     },
     {
       "code": 6055,
-      "name": "InterestCalculationError",
+      "name": "interestCalculationError",
       "msg": "Computation of accumulated interest failed"
     },
     {
       "code": 6056,
-      "name": "WithdrawAmountIsZero",
+      "name": "withdrawAmountIsZero",
       "msg": "Withdraw amount cannot be zero"
     },
     {
       "code": 6057,
-      "name": "WithdrawValueError",
+      "name": "withdrawValueError",
       "msg": "Calculation of withdraw value failed"
     }
   ],
   "types": [
     {
-      "name": "AccInterestUpdateEvent",
+      "name": "accInterestUpdateEvent",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "old_ai",
+            "name": "oldAi",
             "type": "u64"
           },
           {
-            "name": "new_ai",
+            "name": "newAi",
             "type": "u64"
           },
           {
@@ -2859,7 +2865,7 @@
       }
     },
     {
-      "name": "CollateralDecreasedEvent",
+      "name": "collateralDecreasedEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2868,7 +2874,7 @@
             "type": "pubkey"
           },
           {
-            "name": "col_decrease_value",
+            "name": "colDecreaseValue",
             "type": "u64"
           },
           {
@@ -2879,7 +2885,7 @@
       }
     },
     {
-      "name": "CollateralIncreasedEvent",
+      "name": "collateralIncreasedEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2888,7 +2894,7 @@
             "type": "pubkey"
           },
           {
-            "name": "col_increase_value",
+            "name": "colIncreaseValue",
             "type": "u64"
           },
           {
@@ -2899,7 +2905,7 @@
       }
     },
     {
-      "name": "DebtIncreasedEvent",
+      "name": "debtIncreasedEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2908,7 +2914,7 @@
             "type": "pubkey"
           },
           {
-            "name": "debt_increase_value",
+            "name": "debtIncreaseValue",
             "type": "u64"
           },
           {
@@ -2923,7 +2929,7 @@
       }
     },
     {
-      "name": "DebtRepaidEvent",
+      "name": "debtRepaidEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2932,7 +2938,7 @@
             "type": "pubkey"
           },
           {
-            "name": "repay_value",
+            "name": "repayValue",
             "type": "u64"
           },
           {
@@ -2943,7 +2949,7 @@
       }
     },
     {
-      "name": "InjectEvent",
+      "name": "injectEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2956,14 +2962,14 @@
             "type": "pubkey"
           },
           {
-            "name": "injected_amount",
+            "name": "injectedAmount",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "LiquidateEvent",
+      "name": "liquidateEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2976,14 +2982,14 @@
             "type": "pubkey"
           },
           {
-            "name": "collateral_amount_liquidated",
+            "name": "collateralAmountLiquidated",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "LoanTakenEvent",
+      "name": "loanTakenEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2992,18 +2998,18 @@
             "type": "pubkey"
           },
           {
-            "name": "col_value",
+            "name": "colValue",
             "type": "u64"
           },
           {
-            "name": "debt_value",
+            "name": "debtValue",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "Obligation",
+      "name": "obligation",
       "docs": [
         "Wrapper account that references a Kamino obligation managed by a Cushion position.",
         "",
@@ -3017,14 +3023,14 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "nft_mint",
+            "name": "nftMint",
             "docs": [
               "NFT mint that deterministically identifies this Cushion position."
             ],
             "type": "pubkey"
           },
           {
-            "name": "position_authority",
+            "name": "positionAuthority",
             "docs": [
               "Cushion position authority PDA used for CPI signing."
             ],
@@ -3045,28 +3051,28 @@
             "type": "pubkey"
           },
           {
-            "name": "protocol_obligation",
+            "name": "protocolObligation",
             "docs": [
               "Address of the underlying Kamino obligation account."
             ],
             "type": "pubkey"
           },
           {
-            "name": "protocol_user_metadata",
+            "name": "protocolUserMetadata",
             "docs": [
               "Kamino user metadata PDA linked to the position authority PDA."
             ],
             "type": "pubkey"
           },
           {
-            "name": "collateral_vault",
+            "name": "collateralVault",
             "docs": [
               "Vault that injects additional collateral"
             ],
             "type": "pubkey"
           },
           {
-            "name": "injected_amount",
+            "name": "injectedAmount",
             "docs": [
               "amount of tokens injected into the obligation"
             ],
@@ -3090,7 +3096,7 @@
       }
     },
     {
-      "name": "PositionRegistry",
+      "name": "positionRegistry",
       "docs": [
         "Global position registry PDA.",
         "",
@@ -3101,7 +3107,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "total_positions",
+            "name": "totalPositions",
             "type": "u64"
           },
           {
@@ -3112,7 +3118,7 @@
       }
     },
     {
-      "name": "PositionRegistryEntry",
+      "name": "positionRegistryEntry",
       "docs": [
         "Per-position registry entry, keyed by NFT mint.",
         "",
@@ -3124,7 +3130,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "nft_mint",
+            "name": "nftMint",
             "type": "pubkey"
           },
           {
@@ -3132,7 +3138,7 @@
             "type": "pubkey"
           },
           {
-            "name": "position_authority",
+            "name": "positionAuthority",
             "type": "pubkey"
           },
           {
@@ -3140,7 +3146,7 @@
             "type": "pubkey"
           },
           {
-            "name": "created_at",
+            "name": "createdAt",
             "type": "i64"
           },
           {
@@ -3151,7 +3157,7 @@
       }
     },
     {
-      "name": "PriceFeedMessage",
+      "name": "priceFeedMessage",
       "repr": {
         "kind": "c"
       },
@@ -3159,7 +3165,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "feed_id",
+            "name": "feedId",
             "docs": [
               "`FeedId` but avoid the type alias because of compatibility issues with Anchor's `idl-build` feature."
             ],
@@ -3183,14 +3189,14 @@
             "type": "i32"
           },
           {
-            "name": "publish_time",
+            "name": "publishTime",
             "docs": [
               "The timestamp of this price update in seconds"
             ],
             "type": "i64"
           },
           {
-            "name": "prev_publish_time",
+            "name": "prevPublishTime",
             "docs": [
               "The timestamp of the previous price update. This field is intended to allow users to",
               "identify the single unique price update for any moment in time:",
@@ -3208,18 +3214,18 @@
             "type": "i64"
           },
           {
-            "name": "ema_price",
+            "name": "emaPrice",
             "type": "i64"
           },
           {
-            "name": "ema_conf",
+            "name": "emaConf",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "PriceUpdateV2",
+      "name": "priceUpdateV2",
       "docs": [
         "A price update account. This account is used by the Pyth Receiver program to store a verified price update from a Pyth price feed.",
         "It contains:",
@@ -3232,34 +3238,34 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "write_authority",
+            "name": "writeAuthority",
             "type": "pubkey"
           },
           {
-            "name": "verification_level",
+            "name": "verificationLevel",
             "type": {
               "defined": {
-                "name": "VerificationLevel"
+                "name": "verificationLevel"
               }
             }
           },
           {
-            "name": "price_message",
+            "name": "priceMessage",
             "type": {
               "defined": {
-                "name": "PriceFeedMessage"
+                "name": "priceFeedMessage"
               }
             }
           },
           {
-            "name": "posted_slot",
+            "name": "postedSlot",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "Vault",
+      "name": "vault",
       "docs": [
         "On-chain state for a single Cushion vault that tracks mint relationships,",
         "accounting parameters, and aggregate managed assets."
@@ -3282,98 +3288,98 @@
             "type": "pubkey"
           },
           {
-            "name": "asset_mint",
+            "name": "assetMint",
             "docs": [
               "Underlying SPL token mint held by the vault."
             ],
             "type": "pubkey"
           },
           {
-            "name": "share_mint",
+            "name": "shareMint",
             "docs": [
               "Mint for vault shares."
             ],
             "type": "pubkey"
           },
           {
-            "name": "vault_token_account",
+            "name": "vaultTokenAccount",
             "docs": [
               "Token account holding idle underlying assets."
             ],
             "type": "pubkey"
           },
           {
-            "name": "treasury_token_account",
+            "name": "treasuryTokenAccount",
             "docs": [
               "Treasury token account (reserved for future fee logic)."
             ],
             "type": "pubkey"
           },
           {
-            "name": "total_managed_assets",
+            "name": "totalManagedAssets",
             "docs": [
               "Source of truth for total assets economically managed by the vault."
             ],
             "type": "u128"
           },
           {
-            "name": "min_deposit",
+            "name": "minDeposit",
             "docs": [
               "Minimum accepted deposit amount."
             ],
             "type": "u64"
           },
           {
-            "name": "deposit_cap",
+            "name": "depositCap",
             "docs": [
               "Hard cap for total managed assets."
             ],
             "type": "u64"
           },
           {
-            "name": "virtual_assets",
+            "name": "virtualAssets",
             "docs": [
               "Virtual assets used in share conversion."
             ],
             "type": "u64"
           },
           {
-            "name": "virtual_shares",
+            "name": "virtualShares",
             "docs": [
               "Virtual shares used in share conversion."
             ],
             "type": "u64"
           },
           {
-            "name": "market_price",
+            "name": "marketPrice",
             "docs": [
               "Price of the underlying asset."
             ],
             "type": "u128"
           },
           {
-            "name": "market_price_last_updated",
+            "name": "marketPriceLastUpdated",
             "docs": [
               "Last timestamp when the market price was updated."
             ],
             "type": "i64"
           },
           {
-            "name": "interest_last_updated",
+            "name": "interestLastUpdated",
             "docs": [
               "Last timestamp when the accumulated interest was updated."
             ],
             "type": "i64"
           },
           {
-            "name": "accumulated_interest",
+            "name": "accumulatedInterest",
             "docs": [
               "Accumulated interest of the vault."
             ],
             "type": "u64"
           },
           {
-            "name": "interest_rate",
+            "name": "interestRate",
             "docs": [
               "Interest rate of the vault."
             ],
@@ -3383,7 +3389,7 @@
       }
     },
     {
-      "name": "VaultDepositEvent",
+      "name": "vaultDepositEvent",
       "docs": [
         "Emitted when a user deposits assets and receives freshly minted vault",
         "shares."
@@ -3400,22 +3406,22 @@
             "type": "pubkey"
           },
           {
-            "name": "assets_in",
+            "name": "assetsIn",
             "type": "u64"
           },
           {
-            "name": "shares_out",
+            "name": "sharesOut",
             "type": "u64"
           },
           {
-            "name": "total_managed_assets",
+            "name": "totalManagedAssets",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "VaultInitializedEvent",
+      "name": "vaultInitializedEvent",
       "docs": [
         "Emitted when a new vault is initialized for an underlying asset mint."
       ],
@@ -3431,34 +3437,34 @@
             "type": "pubkey"
           },
           {
-            "name": "asset_mint",
+            "name": "assetMint",
             "type": "pubkey"
           },
           {
-            "name": "share_mint",
+            "name": "shareMint",
             "type": "pubkey"
           },
           {
-            "name": "min_deposit",
+            "name": "minDeposit",
             "type": "u64"
           },
           {
-            "name": "deposit_cap",
+            "name": "depositCap",
             "type": "u64"
           },
           {
-            "name": "virtual_assets",
+            "name": "virtualAssets",
             "type": "u64"
           },
           {
-            "name": "virtual_shares",
+            "name": "virtualShares",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "VaultMintEvent",
+      "name": "vaultMintEvent",
       "docs": [
         "Emitted when a user mints an exact amount of shares and transfers the",
         "required underlying assets into the vault."
@@ -3475,22 +3481,22 @@
             "type": "pubkey"
           },
           {
-            "name": "assets_in",
+            "name": "assetsIn",
             "type": "u64"
           },
           {
-            "name": "shares_out",
+            "name": "sharesOut",
             "type": "u64"
           },
           {
-            "name": "total_managed_assets",
+            "name": "totalManagedAssets",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "VaultRedeemEvent",
+      "name": "vaultRedeemEvent",
       "docs": [
         "Emitted when a user redeems shares for underlying assets withdrawn from the",
         "vault."
@@ -3507,22 +3513,22 @@
             "type": "pubkey"
           },
           {
-            "name": "shares_in",
+            "name": "sharesIn",
             "type": "u64"
           },
           {
-            "name": "assets_out",
+            "name": "assetsOut",
             "type": "u64"
           },
           {
-            "name": "total_managed_assets",
+            "name": "totalManagedAssets",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "VaultWithdrawEvent",
+      "name": "vaultWithdrawEvent",
       "docs": [
         "Emitted when a user withdraws an exact amount of assets and burns the",
         "necessary vault shares."
@@ -3539,22 +3545,22 @@
             "type": "pubkey"
           },
           {
-            "name": "assets_out",
+            "name": "assetsOut",
             "type": "u64"
           },
           {
-            "name": "shares_burned",
+            "name": "sharesBurned",
             "type": "u64"
           },
           {
-            "name": "total_managed_assets",
+            "name": "totalManagedAssets",
             "type": "u128"
           }
         ]
       }
     },
     {
-      "name": "VerificationLevel",
+      "name": "verificationLevel",
       "docs": [
         "Pyth price updates are bridged to all blockchains via Wormhole.",
         "Using the price updates on another chain requires verifying the signatures of the Wormhole guardians.",
@@ -3572,22 +3578,22 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Partial",
+            "name": "partial",
             "fields": [
               {
-                "name": "num_signatures",
+                "name": "numSignatures",
                 "type": "u8"
               }
             ]
           },
           {
-            "name": "Full"
+            "name": "full"
           }
         ]
       }
     },
     {
-      "name": "WithdrawInjectedEvent",
+      "name": "withdrawInjectedEvent",
       "type": {
         "kind": "struct",
         "fields": [
@@ -3600,11 +3606,11 @@
             "type": "pubkey"
           },
           {
-            "name": "withdrawn_amount",
+            "name": "withdrawnAmount",
             "type": "u64"
           }
         ]
       }
     }
   ]
-}
+};
