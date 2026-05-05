@@ -140,15 +140,6 @@ Use compose stack from `keeper/docker-compose.yml`:
 yarn keeper:docker:up
 ```
 
-Adminer UI:
-
-- URL: `http://127.0.0.1:${KEEPER_ADMINER_PORT:-8080}`
-- System: `PostgreSQL`
-- Server: `postgres`
-- Username: `${KEEPER_DB_USER:-postgres}`
-- Password: `${KEEPER_DB_PASSWORD:-postgres}`
-- Database: `${KEEPER_DB_NAME:-cushion_keeper}`
-
 Stop:
 
 ```bash
