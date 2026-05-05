@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS keeper_positions (
   protocol_obligation TEXT NOT NULL,
   protocol_user_metadata TEXT NOT NULL,
   collateral_vault TEXT NOT NULL,
-  inject_threshold_wad NUMERIC(39, 0) NOT NULL,
+  injected_amount NUMERIC(39, 0) NOT NULL DEFAULT 0,
   injected BOOLEAN NOT NULL,
   bump SMALLINT NOT NULL,
   updated_at_slot BIGINT NOT NULL,
@@ -22,6 +22,18 @@ CREATE TABLE IF NOT EXISTS keeper_positions (
 
 ALTER TABLE keeper_positions
   ADD COLUMN IF NOT EXISTS injected_amount NUMERIC(39, 0) NOT NULL DEFAULT 0;
+
+-- Remove legacy columns that are now sourced from keeper_position_risk.
+ALTER TABLE keeper_positions
+  DROP COLUMN IF EXISTS inject_threshold_wad;
+ALTER TABLE keeper_positions
+  DROP COLUMN IF EXISTS deposited_value_sf;
+ALTER TABLE keeper_positions
+  DROP COLUMN IF EXISTS debt_value_sf;
+ALTER TABLE keeper_positions
+  DROP COLUMN IF EXISTS ltv_wad;
+ALTER TABLE keeper_positions
+  DROP COLUMN IF EXISTS last_refreshed_slot;
 
 CREATE TABLE IF NOT EXISTS keeper_position_risk (
   position TEXT PRIMARY KEY REFERENCES keeper_positions(position) ON DELETE CASCADE,
@@ -134,14 +146,13 @@ export class PostgresKeeperRepository implements KeeperRepository {
             protocol_obligation,
             protocol_user_metadata,
             collateral_vault,
-            inject_threshold_wad,
             injected_amount,
             injected,
             bump,
             updated_at_slot,
             updated_at
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW()
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()
           )
           ON CONFLICT (position)
           DO UPDATE SET
@@ -153,7 +164,6 @@ export class PostgresKeeperRepository implements KeeperRepository {
             protocol_user_metadata = EXCLUDED.protocol_user_metadata,
             collateral_vault = EXCLUDED.collateral_vault,
             injected_amount = EXCLUDED.injected_amount,
-            inject_threshold_wad = EXCLUDED.inject_threshold_wad,
             injected = EXCLUDED.injected,
             bump = EXCLUDED.bump,
             updated_at_slot = EXCLUDED.updated_at_slot,
@@ -168,7 +178,6 @@ export class PostgresKeeperRepository implements KeeperRepository {
           position.protocolObligation,
           position.protocolUserMetadata,
           position.collateralVault,
-          "0",
           position.injectedAmount.toString(),
           position.injected,
           position.bump,

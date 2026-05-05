@@ -4,15 +4,15 @@ services:
     container_name: cushion-keeper-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cushion_keeper
+      POSTGRES_USER: ${KEEPER_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${KEEPER_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${KEEPER_DB_NAME:-cushion_keeper}
     ports:
       - "5432:5432"
     volumes:
       - keeper_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cushion_keeper"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -31,7 +31,7 @@ services:
     environment:
       KEEPER_MODE: localnet_static
       KEEPER_RPC_URL: http://host.docker.internal:8899
-      KEEPER_DATABASE_URL: postgres://postgres:postgres@postgres:5432/cushion_keeper
+      KEEPER_DATABASE_URL: postgres://${KEEPER_DB_USER:-postgres}:${KEEPER_DB_PASSWORD:-postgres}@postgres:5432/${KEEPER_DB_NAME:-cushion_keeper}
       KEEPER_KEYPAIR_PATH: /app/keeper/id.json
       CUSHION_PROGRAM_ID: H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W
       KLEND_PROGRAM_ID: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
@@ -43,6 +43,18 @@ services:
       KEEPER_EXECUTOR_CONCURRENCY: 1
     volumes:
       - ${HOME}/.config/solana/id.json:/app/keeper/id.json:ro
+
+  adminer:
+    image: adminer:4
+    container_name: cushion-keeper-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "${KEEPER_ADMINER_PORT:-8080}:8080"
 
 volumes:
   keeper_pg_data:

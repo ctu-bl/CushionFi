@@ -28,7 +28,13 @@ Use `.env` (root) or export vars directly:
 
 - `KEEPER_MODE=localnet_static|dynamic`
 - `KEEPER_RPC_URL=http://127.0.0.1:8899`
-- `KEEPER_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/cushion_keeper`
+- `KEEPER_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/cushion_keeper` (takes precedence when set)
+- `KEEPER_DB_HOST=127.0.0.1` (used when `KEEPER_DATABASE_URL` is not set)
+- `KEEPER_DB_PORT=5432` (used when `KEEPER_DATABASE_URL` is not set)
+- `KEEPER_DB_USER=postgres` (used by `keeper/docker-compose.yml`)
+- `KEEPER_DB_PASSWORD=postgres` (used by `keeper/docker-compose.yml`)
+- `KEEPER_DB_NAME=cushion_keeper` (used by `keeper/docker-compose.yml`)
+- `KEEPER_ADMINER_PORT=8080` (optional, defaults to `8080`)
 - `KEEPER_KEYPAIR_PATH=~/.config/solana/id.json`
 - `CUSHION_PROGRAM_ID=H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W`
 - `KLEND_PROGRAM_ID=KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD`
@@ -133,6 +139,15 @@ Use compose stack from `keeper/docker-compose.yml`:
 ```bash
 yarn keeper:docker:up
 ```
+
+Adminer UI:
+
+- URL: `http://127.0.0.1:${KEEPER_ADMINER_PORT:-8080}`
+- System: `PostgreSQL`
+- Server: `postgres`
+- Username: `${KEEPER_DB_USER:-postgres}`
+- Password: `${KEEPER_DB_PASSWORD:-postgres}`
+- Database: `${KEEPER_DB_NAME:-cushion_keeper}`
 
 Stop:
 

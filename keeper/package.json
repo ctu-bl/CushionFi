@@ -1,9 +1,0 @@
-{
-  "name": "cushion-keeper",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "start": "node --env-file ../.env --experimental-strip-types src/main.ts"
-  }
-}

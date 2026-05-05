@@ -27,7 +27,11 @@ export type KeeperConfig = {
 const DEFAULT_KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
 const DEFAULT_FARMS_PROGRAM = "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr";
 const DEFAULT_CUSHION_PROGRAM = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W";
-const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/cushion_keeper";
+const DEFAULT_DB_HOST = "127.0.0.1";
+const DEFAULT_DB_PORT = "5432";
+const DEFAULT_DB_USER = "postgres";
+const DEFAULT_DB_PASSWORD = "postgres";
+const DEFAULT_DB_NAME = "cushion_keeper";
 const DEFAULT_PYTH_SOL_USD_PRICE_UPDATE = "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE";
 const DEFAULT_PYTH_SOL_USD_FEED_ID_HEX =
   "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d";
@@ -80,6 +84,18 @@ function parsePublicKeys(csv: string | undefined): PublicKey[] {
     .map((value) => new PublicKey(value));
 }
 
+function resolveDatabaseUrl(): string {
+  const explicitUrl = process.env.KEEPER_DATABASE_URL?.trim();
+  if (explicitUrl) return explicitUrl;
+
+  const host = process.env.KEEPER_DB_HOST?.trim() || DEFAULT_DB_HOST;
+  const port = process.env.KEEPER_DB_PORT?.trim() || DEFAULT_DB_PORT;
+  const user = process.env.KEEPER_DB_USER?.trim() || DEFAULT_DB_USER;
+  const password = process.env.KEEPER_DB_PASSWORD?.trim() || DEFAULT_DB_PASSWORD;
+  const dbName = process.env.KEEPER_DB_NAME?.trim() || DEFAULT_DB_NAME;
+  return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${dbName}`;
+}
+
 export function loadConfigFromEnv(): KeeperConfig {
   const mode = (process.env.KEEPER_MODE?.trim() || "localnet_static") as KeeperMode;
   if (mode !== "localnet_static" && mode !== "dynamic") {
@@ -87,7 +103,7 @@ export function loadConfigFromEnv(): KeeperConfig {
   }
 
   const rpcUrl = process.env.KEEPER_RPC_URL?.trim() || "http://127.0.0.1:8899";
-  const databaseUrl = process.env.KEEPER_DATABASE_URL?.trim() || DEFAULT_DATABASE_URL;
+  const databaseUrl = resolveDatabaseUrl();
   const cushionProgramId = new PublicKey(
     process.env.CUSHION_PROGRAM_ID?.trim() || DEFAULT_CUSHION_PROGRAM
   );

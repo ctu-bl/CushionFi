@@ -33,9 +33,9 @@
     "keeper:start": "node --env-file keeper/.env --experimental-strip-types keeper/src/main.ts",
     "reset-db": "node --env-file keeper/.env scripts/reset-keeper-db.js",
     "keeper:reset-db": "yarn reset-db",
-    "keeper:docker:build": "docker compose -f keeper/docker-compose.yml build",
-    "keeper:docker:up": "docker compose -f keeper/docker-compose.yml up -d",
-    "keeper:docker:down": "docker compose -f keeper/docker-compose.yml down",
+    "keeper:docker:build": "docker compose --env-file keeper/.env -f keeper/docker-compose.yml build",
+    "keeper:docker:up": "docker compose --env-file keeper/.env -f keeper/docker-compose.yml up -d",
+    "keeper:docker:down": "docker compose --env-file keeper/.env -f keeper/docker-compose.yml down",
     "sync:idl": "bash scripts/idl-sync.sh",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"

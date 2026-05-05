@@ -1,5 +1,3 @@
-import { PublicKey } from "@solana/web3.js";
-
 export type KeeperMode = "localnet_static" | "dynamic";
 
 export type ComputeJob =
@@ -66,9 +64,4 @@ export type ReservePriceSnapshot = {
   switchboardTwapOracle: string | null;
   scopePrices: string | null;
   slot: number;
-};
-
-export type KeeperContext = {
-  programId: PublicKey;
-  authority: PublicKey;
 };
