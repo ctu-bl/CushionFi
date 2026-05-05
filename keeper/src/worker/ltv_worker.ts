@@ -39,7 +39,16 @@ export class LtvWorker {
   async run() {
     while (this.running) {
       const { payload } = await this.computeQueue.dequeue();
-      await this.processJob(payload);
+      try {
+        await this.processJob(payload);
+      } catch (error) {
+        logWarn("ltv_worker.job_failed", {
+          worker: this.name,
+          kind: payload.kind,
+          position: payload.kind === "position_changed" ? payload.position : null,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 
@@ -77,6 +86,64 @@ export class LtvWorker {
       slot
     );
 
+    risk.injected = positionRecord.injected;
+    risk.withdrawThresholdWad = null;
+    risk.withdrawEligible = false;
+
+    const ltv = risk.ltvWad;
+    if (ltv === null) {
+      await this.repository.saveRiskSnapshot(risk);
+      logInfo("ltv_worker.risk_snapshot", {
+        worker: this.name,
+        position,
+        reason,
+        protocolObligation: positionRecord.protocolObligation,
+        depositedValueSf: risk.depositedValueSf.toString(),
+        debtValueSf: risk.debtValueSf.toString(),
+        unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
+        ltvWad: risk.ltvWad?.toString() ?? null,
+        maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+        withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawEligible: risk.withdrawEligible ?? false,
+        slot,
+      });
+      logInfo("ltv_worker.position_no_collateral", {
+        worker: this.name,
+        position,
+        reason,
+      });
+      return;
+    }
+
+    const injectThreshold = risk.maxSafeLtvWad;
+    if (injectThreshold === null) {
+      await this.repository.saveRiskSnapshot(risk);
+      logInfo("ltv_worker.risk_snapshot", {
+        worker: this.name,
+        position,
+        reason,
+        protocolObligation: positionRecord.protocolObligation,
+        depositedValueSf: risk.depositedValueSf.toString(),
+        debtValueSf: risk.debtValueSf.toString(),
+        unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
+        ltvWad: risk.ltvWad?.toString() ?? null,
+        maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+        withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawEligible: risk.withdrawEligible ?? false,
+        slot,
+      });
+      logWarn("ltv_worker.position_missing_safe_ltv", {
+        worker: this.name,
+        position,
+        reason,
+      });
+      return;
+    }
+
+    const withdrawThreshold = (injectThreshold * BigInt(this.withdrawLtvBps)) / 10_000n;
+    const withdrawEligible = positionRecord.injected && ltv <= withdrawThreshold;
+    risk.withdrawThresholdWad = withdrawThreshold;
+    risk.withdrawEligible = withdrawEligible;
     await this.repository.saveRiskSnapshot(risk);
     logInfo("ltv_worker.risk_snapshot", {
       worker: this.name,
@@ -88,30 +155,10 @@ export class LtvWorker {
       unhealthyBorrowValueSf: risk.unhealthyBorrowValueSf.toString(),
       ltvWad: risk.ltvWad?.toString() ?? null,
       maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
+      withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+      withdrawEligible: risk.withdrawEligible ?? false,
       slot,
     });
-
-    const ltv = risk.ltvWad;
-    if (ltv === null) {
-      logInfo("ltv_worker.position_no_collateral", {
-        worker: this.name,
-        position,
-        reason,
-      });
-      return;
-    }
-
-    const injectThreshold = risk.maxSafeLtvWad;
-    if (injectThreshold === null) {
-      logWarn("ltv_worker.position_missing_safe_ltv", {
-        worker: this.name,
-        position,
-        reason,
-      });
-      return;
-    }
-
-    const withdrawThreshold = (injectThreshold * BigInt(this.withdrawLtvBps)) / 10_000n;
 
     if (!positionRecord.injected && ltv > injectThreshold) {
       const dedupeKey = `action:inject:${position}`;
@@ -124,7 +171,7 @@ export class LtvWorker {
       return;
     }
 
-    if (positionRecord.injected && ltv <= withdrawThreshold) {
+    if (withdrawEligible) {
       const dedupeKey = `action:withdraw:${position}`;
       this.executeQueue.enqueue(dedupeKey, {
         kind: "withdraw",

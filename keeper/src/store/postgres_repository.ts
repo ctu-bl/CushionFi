@@ -31,10 +31,22 @@ CREATE TABLE IF NOT EXISTS keeper_position_risk (
   unhealthy_borrow_value_sf NUMERIC(39, 0) NOT NULL,
   ltv_wad NUMERIC(39, 0),
   max_safe_ltv_wad NUMERIC(39, 0),
+  injected BOOLEAN NOT NULL DEFAULT FALSE,
+  withdraw_threshold_wad NUMERIC(39, 0),
+  withdraw_eligible BOOLEAN NOT NULL DEFAULT FALSE,
   refreshed_at_slot BIGINT NOT NULL,
   refreshed_at_unix_ms BIGINT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE keeper_position_risk
+  ADD COLUMN IF NOT EXISTS injected BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE keeper_position_risk
+  ADD COLUMN IF NOT EXISTS withdraw_threshold_wad NUMERIC(39, 0);
+
+ALTER TABLE keeper_position_risk
+  ADD COLUMN IF NOT EXISTS withdraw_eligible BOOLEAN NOT NULL DEFAULT FALSE;
 `;
 
 type PositionRow = {
@@ -60,6 +72,9 @@ type RiskRow = {
   unhealthy_borrow_value_sf: string;
   ltv_wad: string | null;
   max_safe_ltv_wad: string | null;
+  injected: boolean;
+  withdraw_threshold_wad: string | null;
+  withdraw_eligible: boolean;
   refreshed_at_slot: string;
   refreshed_at_unix_ms: string;
 };
@@ -184,11 +199,14 @@ export class PostgresKeeperRepository implements KeeperRepository {
           unhealthy_borrow_value_sf,
           ltv_wad,
           max_safe_ltv_wad,
+          injected,
+          withdraw_threshold_wad,
+          withdraw_eligible,
           refreshed_at_slot,
           refreshed_at_unix_ms,
           updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,NOW()
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()
         )
         ON CONFLICT (position)
         DO UPDATE SET
@@ -198,6 +216,9 @@ export class PostgresKeeperRepository implements KeeperRepository {
           unhealthy_borrow_value_sf = EXCLUDED.unhealthy_borrow_value_sf,
           ltv_wad = EXCLUDED.ltv_wad,
           max_safe_ltv_wad = EXCLUDED.max_safe_ltv_wad,
+          injected = EXCLUDED.injected,
+          withdraw_threshold_wad = EXCLUDED.withdraw_threshold_wad,
+          withdraw_eligible = EXCLUDED.withdraw_eligible,
           refreshed_at_slot = EXCLUDED.refreshed_at_slot,
           refreshed_at_unix_ms = EXCLUDED.refreshed_at_unix_ms,
           updated_at = NOW()
@@ -210,6 +231,9 @@ export class PostgresKeeperRepository implements KeeperRepository {
         snapshot.unhealthyBorrowValueSf.toString(),
         snapshot.ltvWad?.toString() ?? null,
         snapshot.maxSafeLtvWad?.toString() ?? null,
+        snapshot.injected ?? false,
+        snapshot.withdrawThresholdWad?.toString() ?? null,
+        snapshot.withdrawEligible ?? false,
         snapshot.refreshedAtSlot,
         snapshot.refreshedAtUnixMs,
       ]
@@ -257,6 +281,10 @@ function mapRiskRow(row: RiskRow): PositionRiskSnapshot {
     ltvWad: row.ltv_wad === null ? null : BigInt(row.ltv_wad),
     maxSafeLtvWad:
       row.max_safe_ltv_wad === null ? null : BigInt(row.max_safe_ltv_wad),
+    injected: row.injected,
+    withdrawThresholdWad:
+      row.withdraw_threshold_wad === null ? null : BigInt(row.withdraw_threshold_wad),
+    withdrawEligible: row.withdraw_eligible,
     refreshedAtSlot: Number(row.refreshed_at_slot),
     refreshedAtUnixMs: Number(row.refreshed_at_unix_ms),
   };

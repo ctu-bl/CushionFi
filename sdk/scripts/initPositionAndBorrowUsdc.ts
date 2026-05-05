@@ -331,11 +331,15 @@ async function main() {
   const collateralLamports = BigInt(process.env.COLLATERAL_LAMPORTS ?? "2000000");
   const borrowAmountUsdcRawOverride = process.env.BORROW_USDC_RAW?.trim();
   const borrowTargetLtvBps = BigInt(process.env.BORROW_TARGET_LTV_BPS ?? "10000");
+  const borrowTargetLtvWadOffset = BigInt(process.env.BORROW_TARGET_LTV_WAD_OFFSET ?? "0");
   const borrowOverThresholdRaw = BigInt(process.env.BORROW_OVER_THRESHOLD_RAW ?? "2");
   const borrowSearchDownRaw = BigInt(process.env.BORROW_SEARCH_DOWN_RAW ?? "50");
   const wrapLamports = Number(process.env.WRAP_SOL_LAMPORTS ?? "8000000");
   if (borrowTargetLtvBps <= 0n || borrowTargetLtvBps > 10_000n) {
     throw new Error("BORROW_TARGET_LTV_BPS must be in the range 1..10000");
+  }
+  if (borrowTargetLtvWadOffset < 0n) {
+    throw new Error("BORROW_TARGET_LTV_WAD_OFFSET must be >= 0");
   }
   if (borrowOverThresholdRaw < 0n) {
     throw new Error("BORROW_OVER_THRESHOLD_RAW must be >= 0");
@@ -530,7 +534,8 @@ async function main() {
   if (borrowAmountUsdcRawOverride) {
     borrowCandidates.push(BigInt(borrowAmountUsdcRawOverride));
   } else {
-    const targetLtvWad = (riskBeforeBorrow.maxSafeLtvWad * borrowTargetLtvBps) / 10_000n;
+    const targetLtvWad =
+      (riskBeforeBorrow.maxSafeLtvWad * borrowTargetLtvBps) / 10_000n + borrowTargetLtvWadOffset;
     const targetDebtValueSf = (targetLtvWad * riskBeforeBorrow.depositedValueSf) / WAD;
     const debtHeadroomSf =
       targetDebtValueSf > riskBeforeBorrow.debtValueSf

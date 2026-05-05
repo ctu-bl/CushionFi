@@ -38,6 +38,9 @@ Use `.env` (root) or export vars directly:
 - `KEEPER_WITHDRAW_LTV_BPS=8500`
 - `KEEPER_COMPUTE_CONCURRENCY=2`
 - `KEEPER_EXECUTOR_CONCURRENCY=1`
+- `KEEPER_AUTO_UPDATE_VAULT_PRICE=true`
+- `KEEPER_PYTH_PRICE_UPDATE_ACCOUNT=7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE`
+- `KEEPER_PYTH_FEED_ID_HEX=ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d`
 
 ## Complete local test flow
 
@@ -118,6 +121,7 @@ yarn position:borrow-usdc:risky:local
 Look for:
 
 - `ltv_worker.risk_snapshot` where `ltvWad > maxSafeLtvWad`
+- `executor.vault_price_updated` (keeper auto-updated vault price before inject)
 - `executor.inject_submitted` (successful inject tx)
 
 ## Docker

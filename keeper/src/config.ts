@@ -18,6 +18,9 @@ export type KeeperConfig = {
   withdrawLtvBps: number;
   computeConcurrency: number;
   executorConcurrency: number;
+  autoUpdateVaultPrice: boolean;
+  pythPriceUpdateAccount: PublicKey;
+  pythFeedId: number[];
   connection: Connection;
 };
 
@@ -25,6 +28,9 @@ const DEFAULT_KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
 const DEFAULT_FARMS_PROGRAM = "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr";
 const DEFAULT_CUSHION_PROGRAM = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W";
 const DEFAULT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/cushion_keeper";
+const DEFAULT_PYTH_SOL_USD_PRICE_UPDATE = "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE";
+const DEFAULT_PYTH_SOL_USD_FEED_ID_HEX =
+  "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d";
 
 function parseNumber(name: string, fallback: number): number {
   const raw = process.env[name]?.trim();
@@ -34,6 +40,23 @@ function parseNumber(name: string, fallback: number): number {
     throw new Error(`${name} must be a finite number`);
   }
   return parsed;
+}
+
+function parseBoolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) return fallback;
+  if (raw === "1" || raw === "true" || raw === "yes" || raw === "on") return true;
+  if (raw === "0" || raw === "false" || raw === "no" || raw === "off") return false;
+  throw new Error(`${name} must be boolean-like (true/false/1/0/yes/no/on/off)`);
+}
+
+function parseFeedIdHex(hexValue: string): number[] {
+  const normalized = hexValue.trim().toLowerCase();
+  const withoutPrefix = normalized.startsWith("0x") ? normalized.slice(2) : normalized;
+  if (!/^[0-9a-f]{64}$/.test(withoutPrefix)) {
+    throw new Error("KEEPER_PYTH_FEED_ID_HEX must be exactly 64 hex chars (32 bytes)");
+  }
+  return Array.from(Buffer.from(withoutPrefix, "hex"));
 }
 
 function loadKeypairFromFile(filePath: string): Keypair {
@@ -85,6 +108,13 @@ export function loadConfigFromEnv(): KeeperConfig {
 
   const computeConcurrency = Math.max(1, parseNumber("KEEPER_COMPUTE_CONCURRENCY", 2));
   const executorConcurrency = Math.max(1, parseNumber("KEEPER_EXECUTOR_CONCURRENCY", 1));
+  const autoUpdateVaultPrice = parseBoolean("KEEPER_AUTO_UPDATE_VAULT_PRICE", true);
+  const pythPriceUpdateAccount = new PublicKey(
+    process.env.KEEPER_PYTH_PRICE_UPDATE_ACCOUNT?.trim() || DEFAULT_PYTH_SOL_USD_PRICE_UPDATE
+  );
+  const pythFeedId = parseFeedIdHex(
+    process.env.KEEPER_PYTH_FEED_ID_HEX?.trim() || DEFAULT_PYTH_SOL_USD_FEED_ID_HEX
+  );
 
   const authority = loadKeypairFromFile(keypairPath);
   const connection = new Connection(rpcUrl, "confirmed");
@@ -102,6 +132,9 @@ export function loadConfigFromEnv(): KeeperConfig {
     withdrawLtvBps,
     computeConcurrency,
     executorConcurrency,
+    autoUpdateVaultPrice,
+    pythPriceUpdateAccount,
+    pythFeedId,
     connection,
   };
 }

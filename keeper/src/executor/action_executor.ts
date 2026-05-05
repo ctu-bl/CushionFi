@@ -17,7 +17,9 @@ function isRetriableInjectError(error: unknown): boolean {
     message.includes("insufficient vault liquidity") ||
     message.includes("insufficient funds") ||
     message.includes("reservestale") ||
-    message.includes("reserve state needs to be refreshed")
+    message.includes("reserve state needs to be refreshed") ||
+    message.includes("zeroprice") ||
+    message.includes("price of the asset in vault is zero")
   );
 }
 
@@ -30,6 +32,9 @@ export class ActionExecutor {
   private readonly authority: PublicKey;
   private readonly farmsProgramId: PublicKey;
   private readonly connectionSlot: () => Promise<number>;
+  private readonly autoUpdateVaultPrice: boolean;
+  private readonly pythPriceUpdateAccount: PublicKey;
+  private readonly pythFeedId: number[];
   private running = true;
 
   constructor(
@@ -40,7 +45,10 @@ export class ActionExecutor {
     executeQueue: DedupQueue<ExecuteJob>,
     authority: PublicKey,
     farmsProgramId: PublicKey,
-    connectionSlot: () => Promise<number>
+    connectionSlot: () => Promise<number>,
+    autoUpdateVaultPrice: boolean,
+    pythPriceUpdateAccount: PublicKey,
+    pythFeedId: number[]
   ) {
     this.name = name;
     this.cushionClient = cushionClient;
@@ -50,6 +58,9 @@ export class ActionExecutor {
     this.authority = authority;
     this.farmsProgramId = farmsProgramId;
     this.connectionSlot = connectionSlot;
+    this.autoUpdateVaultPrice = autoUpdateVaultPrice;
+    this.pythPriceUpdateAccount = pythPriceUpdateAccount;
+    this.pythFeedId = pythFeedId;
   }
 
   stop() {
@@ -126,6 +137,22 @@ export class ActionExecutor {
     try {
       let ltvBefore: string | null = null;
       let ltvAfter: string | null = null;
+      let injectedAmountBefore: string | null = null;
+      let injectedAmountAfter: string | null = null;
+      let injectedBefore: boolean | null = null;
+      let injectedAfter: boolean | null = null;
+
+      try {
+        const beforePosition = await this.cushionClient.fetchPosition(new PublicKey(job.position));
+        injectedAmountBefore = beforePosition.injectedAmount.toString();
+        injectedBefore = beforePosition.injected;
+      } catch (error) {
+        logWarn("executor.inject_position_before_fetch_failed", {
+          executor: this.name,
+          position: job.position,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
       try {
         const beforeSlot = await this.connectionSlot();
@@ -238,6 +265,34 @@ export class ActionExecutor {
           scopePrices: ctx.scopePrices,
         }));
 
+      if (this.autoUpdateVaultPrice) {
+        try {
+          const updateSignature = await this.cushionClient.updateVaultMarketPrice({
+            authority: this.authority,
+            vault: vault.vault,
+            priceUpdate: this.pythPriceUpdateAccount,
+            feedId: this.pythFeedId,
+          });
+          const vaultAfterUpdate = await this.cushionClient.fetchVaultSnapshot(vault.vault);
+          logInfo("executor.vault_price_updated", {
+            executor: this.name,
+            position: job.position,
+            vault: vault.vault.toBase58(),
+            assetMint: vault.assetMint.toBase58(),
+            signature: updateSignature,
+            marketPrice: vaultAfterUpdate.marketPrice.toString(),
+          });
+        } catch (error) {
+          logWarn("executor.vault_price_update_failed", {
+            executor: this.name,
+            position: job.position,
+            vault: vault.vault.toBase58(),
+            priceUpdateAccount: this.pythPriceUpdateAccount.toBase58(),
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       const signature = await this.cushionClient.injectCollateral({
         caller: this.authority,
         position: new PublicKey(job.position),
@@ -271,7 +326,7 @@ export class ActionExecutor {
 
       try {
         const afterSlot = await this.connectionSlot();
-        const afterRisk = await this.klendClient.fetchPositionRiskSnapshot(
+        const afterRisk = await this.klendClient.getRefreshedPositionRiskSnapshot(
           position.position,
           position.protocolObligation,
           afterSlot
@@ -286,12 +341,35 @@ export class ActionExecutor {
         });
       }
 
+      try {
+        const afterPosition = await this.cushionClient.fetchPosition(new PublicKey(job.position));
+        await this.repository.upsertPositions([afterPosition]);
+        injectedAmountAfter = afterPosition.injectedAmount.toString();
+        injectedAfter = afterPosition.injected;
+      } catch (error) {
+        logWarn("executor.inject_position_after_fetch_failed", {
+          executor: this.name,
+          position: job.position,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      const injectedAmountDelta =
+        injectedAmountBefore !== null && injectedAmountAfter !== null
+          ? (BigInt(injectedAmountAfter) - BigInt(injectedAmountBefore)).toString()
+          : null;
+
       logInfo("executor.inject_submitted", {
         executor: this.name,
         position: job.position,
         signature,
         ltvBefore,
         ltvAfter,
+        injectedBefore,
+        injectedAfter,
+        injectedAmountBefore,
+        injectedAmountAfter,
+        injectedAmountDelta,
       });
     } catch (error) {
       logError("executor.inject_failed", {

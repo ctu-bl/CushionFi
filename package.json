@@ -31,7 +31,7 @@
     "position:borrow-usdc:local": "env APP_ENV=local node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
     "position:borrow-usdc:localnet": "yarn position:borrow-usdc:local",
     "position:borrow-usdc:devnet": "env APP_ENV=devnet node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
-    "position:borrow-usdc:risky:local": "env APP_ENV=local BORROW_TARGET_LTV_BPS=10000 node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
+    "position:borrow-usdc:risky:local": "env APP_ENV=local BORROW_TARGET_LTV_BPS=10000 BORROW_TARGET_LTV_WAD_OFFSET=20000000000000 node --env-file .env --experimental-strip-types sdk/scripts/initPositionAndBorrowUsdc.ts",
     "position:borrow-usdc:risky:localnet": "yarn position:borrow-usdc:risky:local",
     "bootstrap:vault:local": "bash scripts/bootstrap-local-vault.sh",
     "bootstrap:vault:localnet": "yarn bootstrap:vault:local",

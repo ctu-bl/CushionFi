@@ -74,9 +74,27 @@ export type CushionVaultSnapshot = {
   vault: PublicKey;
   assetMint: PublicKey;
   vaultTokenAccount: PublicKey;
+  marketPrice: bigint;
+};
+
+export type UpdateVaultMarketPriceAccounts = {
+  authority: PublicKey;
+  vault: PublicKey;
+  priceUpdate: PublicKey;
+  feedId: number[];
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function asBigInt(value: unknown): bigint {
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") return BigInt(value);
+  if (typeof value === "string") return BigInt(value);
+  if (value && typeof value === "object" && "toString" in value) {
+    return BigInt((value as { toString(): string }).toString());
+  }
+  throw new Error(`Cannot convert value to bigint: ${String(value)}`);
+}
 
 function loadCushionIdl() {
   const idlPath = path.resolve(__dirname, "..", "..", "..", "target", "idl", "cushion.json");
@@ -193,7 +211,19 @@ export class CushionChainClient {
       vault,
       assetMint: new PublicKey(account.assetMint),
       vaultTokenAccount: new PublicKey(account.vaultTokenAccount),
+      marketPrice: asBigInt(account.marketPrice),
     };
+  }
+
+  async updateVaultMarketPrice(accounts: UpdateVaultMarketPriceAccounts): Promise<string> {
+    return (this.program as any).methods
+      .updateMarketPrice(accounts.feedId)
+      .accounts({
+        authority: accounts.authority,
+        vault: accounts.vault,
+        priceUpdate: accounts.priceUpdate,
+      })
+      .rpc();
   }
 
   async ensureAssociatedTokenAccount(

@@ -49,6 +49,9 @@ export type PositionRiskSnapshot = {
   unhealthyBorrowValueSf: bigint;
   ltvWad: bigint | null;
   maxSafeLtvWad: bigint | null;
+  injected?: boolean;
+  withdrawThresholdWad?: bigint | null;
+  withdrawEligible?: boolean;
   refreshedAtSlot: number;
   refreshedAtUnixMs: number;
 };

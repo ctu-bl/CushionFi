@@ -42,6 +42,7 @@ async function main() {
 
   const positionWatcher = new PositionWatcher(
     cushionClient,
+    klendClient,
     repository,
     computeQueue,
     config.pollIntervalMs,
@@ -74,7 +75,10 @@ async function main() {
         executeQueue,
         config.authority.publicKey,
         config.farmsProgramId,
-        connectionSlot
+        connectionSlot,
+        config.autoUpdateVaultPrice,
+        config.pythPriceUpdateAccount,
+        config.pythFeedId
       )
     );
   }
@@ -105,6 +109,9 @@ async function main() {
     executorConcurrency: config.executorConcurrency,
     pollIntervalMs: config.pollIntervalMs,
     databaseUrl: config.databaseUrl,
+    autoUpdateVaultPrice: config.autoUpdateVaultPrice,
+    pythPriceUpdateAccount: config.pythPriceUpdateAccount.toBase58(),
+    pythFeedIdHex: Buffer.from(config.pythFeedId).toString("hex"),
   });
 
   const shutdown = async () => {

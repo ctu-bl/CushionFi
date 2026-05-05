@@ -190,6 +190,60 @@ export class KlendChainClient {
     };
   }
 
+  async fetchObligationUserStateDigest(protocolObligation: string): Promise<string> {
+    const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
+    if (!account) {
+      throw new Error(`Missing protocol obligation ${protocolObligation}`);
+    }
+
+    const decoded = Obligation.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    const deposits = pickFirstOptional<unknown[]>(decoded, ["deposits"]) ?? [];
+    const borrows = pickFirstOptional<unknown[]>(decoded, ["borrows"]) ?? [];
+
+    const depositParts: string[] = [];
+    for (const entry of deposits) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const reserveRaw = pickFirstOptional(record, ["depositReserve", "deposit_reserve"]);
+      if (reserveRaw === undefined || reserveRaw === null) continue;
+      const reserve = String(reserveRaw);
+      if (reserve === PublicKey.default.toBase58()) continue;
+
+      const depositedAmountRaw =
+        pickFirstOptional(record, ["depositedAmount", "deposited_amount"]) ?? 0;
+      const elevationDebtRaw =
+        pickFirstOptional(record, [
+          "borrowedAmountAgainstThisCollateralInElevationGroup",
+          "borrowed_amount_against_this_collateral_in_elevation_group",
+        ]) ?? 0;
+      const depositedAmount = asBigInt(depositedAmountRaw);
+      const elevationDebt = asBigInt(elevationDebtRaw);
+      depositParts.push(`${reserve}:${depositedAmount.toString()}:${elevationDebt.toString()}`);
+    }
+    depositParts.sort();
+
+    const borrowParts: string[] = [];
+    for (const entry of borrows) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const reserveRaw = pickFirstOptional(record, ["borrowReserve", "borrow_reserve"]);
+      if (reserveRaw === undefined || reserveRaw === null) continue;
+      const reserve = String(reserveRaw);
+      if (reserve === PublicKey.default.toBase58()) continue;
+
+      const borrowedOutsideRaw =
+        pickFirstOptional(record, [
+          "borrowedAmountOutsideElevationGroups",
+          "borrowed_amount_outside_elevation_groups",
+        ]) ?? 0;
+      const borrowedOutside = asBigInt(borrowedOutsideRaw);
+      borrowParts.push(`${reserve}:${borrowedOutside.toString()}`);
+    }
+    borrowParts.sort();
+
+    return `deposits=${depositParts.join("|")};borrows=${borrowParts.join("|")}`;
+  }
+
   async fetchPositionRiskSnapshot(position: string, protocolObligation: string, slot: number): Promise<PositionRiskSnapshot> {
     const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
     if (!account) {
@@ -238,6 +292,14 @@ export class KlendChainClient {
     await this.refreshObligationState(protocolObligation);
     const refreshedSlot = await this.connection.getSlot("confirmed");
     return this.fetchPositionRiskSnapshot(position, protocolObligation, refreshedSlot || slot);
+  }
+
+  private isAlreadyProcessedError(error: unknown): boolean {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    return (
+      message.includes("already been processed") ||
+      message.includes("alreadyprocessed")
+    );
   }
 
   private async refreshObligationState(protocolObligation: string): Promise<void> {
@@ -289,10 +351,18 @@ export class KlendChainClient {
     );
 
     const tx = new Transaction().add(...refreshIxs);
-    await this.connection.sendTransaction(tx, [this.payer], {
-      skipPreflight: false,
-      preflightCommitment: "confirmed",
-    });
+    try {
+      await this.connection.sendTransaction(tx, [this.payer], {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      });
+    } catch (error) {
+      // This is benign for identical refresh txs sent in quick succession.
+      if (this.isAlreadyProcessedError(error)) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private async extractActiveReserves(decodedObligation: Record<string, unknown>): Promise<PublicKey[]> {
