@@ -39,9 +39,11 @@ export async function main() {
   const appEnv = runtimeConfig.appEnv;
   const clusterName = runtimeConfig.solanaCluster;
   const rpcUrl = runtimeConfig.solanaRpcUrl;
+  const configuredAssetMint = process.env.ASSET_MINT?.trim();
   const assetMint =
-    process.env.ASSET_MINT?.trim() ??
+    configuredAssetMint ??
     DEFAULT_SOL_ASSET_MINT;
+  const usingDefaultWsolMint = !configuredAssetMint;
 
   const payer = loadKeypair(runtimeConfig.solanaKeypairPath);
   const connection = new Connection(rpcUrl, "confirmed");
@@ -66,7 +68,11 @@ export async function main() {
   console.log("Using RPC:", rpcUrl);
   console.log("Program ID:", programId.toBase58());
   console.log("Authority:", provider.wallet.publicKey.toBase58());
-  console.log("Asset mint:", assetMint);
+  console.log(
+    "Asset mint:",
+    assetMint,
+    usingDefaultWsolMint ? "(default WSOL)" : "(from ASSET_MINT)"
+  );
 
   await connection.getVersion();
 

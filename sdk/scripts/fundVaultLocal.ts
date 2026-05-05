@@ -37,10 +37,12 @@ export async function main() {
   const runtimeConfig = getRuntimeConfig(process.env);
   const appEnv = runtimeConfig.appEnv;
   const rpcUrl = runtimeConfig.solanaRpcUrl;
+  const configuredAssetMint = process.env.ASSET_MINT?.trim();
 
   const assetMint =
-    process.env.ASSET_MINT?.trim() ??
+    configuredAssetMint ??
     DEFAULT_SOL_ASSET_MINT;
+  const usingDefaultWsolMint = !configuredAssetMint;
 
   const depositRaw = BigInt(process.env.VAULT_DEPOSIT_RAW ?? "1000000000000");
   const minSharesOutRaw = BigInt(process.env.VAULT_MIN_SHARES_OUT_RAW ?? "0");
@@ -149,7 +151,11 @@ export async function main() {
   console.log("fund_vault tx signature:", txSig);
   console.log("appEnv:", appEnv);
   console.log("rpcUrl:", rpcUrl);
-  console.log("assetMint:", assetMintPubkey.toBase58());
+  console.log(
+    "assetMint:",
+    assetMintPubkey.toBase58(),
+    usingDefaultWsolMint ? "(default WSOL)" : "(from ASSET_MINT)"
+  );
   console.log("vault:", vaultPda.toBase58());
   console.log("vaultTokenAccount:", vaultTokenAccount.toBase58());
   console.log("userAssetAccount:", userAssetAta.toBase58());

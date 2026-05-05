@@ -59,33 +59,27 @@ yarn keeper:docker:up
 yarn anchor:deploy:local
 ```
 
-3. Create/reuse local asset mint.
-
-```bash
-yarn create:asset:local
-```
-
-4. Initialize position registry.
+3. Initialize position registry.
 
 ```bash
 yarn init:position-registry:local
 ```
 
-5. Initialize Cushion vault.
+4. Initialize Cushion vault.
 
 ```bash
 yarn init:vault:local
 ```
 
-Note: `init:vault:local` now defaults to SOL/WSOL asset mint (`So11111111111111111111111111111111111111112`) when `ASSET_MINT` is not set (it does not read `.local-state` mint for this flow).
+Note: `init:vault:local` defaults to WSOL (`So11111111111111111111111111111111111111112`) when `ASSET_MINT` is not set.
 
-6. Fund the vault with assets for future `inject_collateral`.
+5. Fund the vault with assets for future `inject_collateral`.
 
 ```bash
 yarn vault:fund:local
 ```
 
-Note: `vault:fund:local` also defaults to SOL/WSOL mint, auto-wraps SOL into WSOL when needed, and does not use `.local-state` mint unless you explicitly pass `ASSET_MINT`.
+Note: `vault:fund:local` also defaults to WSOL, auto-wraps SOL into WSOL when needed, and uses a different mint only if you explicitly set `ASSET_MINT`.
 
 Optional funding params:
 
@@ -98,25 +92,25 @@ Example:
 VAULT_DEPOSIT_RAW=5000000000000 yarn vault:fund:local
 ```
 
-7. Reset keeper DB when switching to a fresh validator ledger.
+6. Reset keeper DB when switching to a fresh validator ledger.
 
 ```bash
 yarn reset-db
 ```
 
-8. Start keeper.
+7. Start keeper.
 
 ```bash
 yarn keeper:start
 ```
 
-9. Create risky position (collateral + borrow via script).
+8. Create risky position (collateral + borrow via script).
 
 ```bash
 yarn position:borrow-usdc:risky:local
 ```
 
-10. Confirm inject in keeper logs.
+9. Confirm inject in keeper logs.
 
 Look for:
 
@@ -124,7 +118,7 @@ Look for:
 - `executor.vault_price_updated` (keeper auto-updated vault price before inject)
 - `executor.inject_submitted` (successful inject tx)
 
-11. Test withdraw trigger by increasing user collateral on an injected position.
+10. Test withdraw trigger by increasing user collateral on an injected position.
 
 ```bash
 yarn position:increase-collateral:withdraw-trigger:local

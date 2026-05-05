@@ -5,7 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV=${APP_ENV:-local}
 NAME=${1:-}
 
-bash "$ROOT_DIR/scripts/sync-anchor-keys.sh"
+echo "Syncing Anchor program IDs..."
+anchor keys sync
 
 # For local runs, verify the validator is up before proceeding
 if [ "$ENV" = "local" ]; then
