@@ -457,4 +457,10 @@ mod tests {
         // Should be exactly 85% of WAD
         assert_eq!(result.unwrap(), WITHDRAWING_LTV_THRESHOLD_MULTIPLIER);
     }
+
+    #[test]
+    fn get_insuring_ltv_threshold_overflow_on_multiply() {
+        let result = get_insuring_ltv_threshold(0, u128::MAX, 100);
+        assert_eq!(result, None);
+    }
 }

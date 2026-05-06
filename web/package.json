@@ -1,0 +1,24 @@
+{
+  "name": "@ctu-bl/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sdk:clean": "rm -rf src/generated/cushion",
+    "sdk:gen": "node scripts/generate-anchor-sdk.mjs",
+    "sdk:regen": "yarn sdk:clean && yarn sdk:gen",
+    "sdk:check": "tsc -p tsconfig.json --noEmit",
+    "sdk:smoke": "node --env-file ../.env --experimental-strip-types scripts/smoke-business-sdk.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@coral-xyz/borsh": "^0.31.1",
+    "@kamino-finance/klend-sdk": "^7.3.19",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

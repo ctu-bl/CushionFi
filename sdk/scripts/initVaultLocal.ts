@@ -10,7 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {
   getRuntimeConfig,
   loadKeypair,
-  readEnvironmentState,
 } from "./_common.ts";
 
 const { AnchorProvider, BN, Program, Wallet, setProvider } = anchor;
@@ -18,6 +17,7 @@ const { AnchorProvider, BN, Program, Wallet, setProvider } = anchor;
 const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 );
+const DEFAULT_SOL_ASSET_MINT = "So11111111111111111111111111111111111111112";
 const SYSTEM_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
 const RENT_SYSVAR_ID = new PublicKey(
   "SysvarRent111111111111111111111111111111111"
@@ -39,15 +39,11 @@ export async function main() {
   const appEnv = runtimeConfig.appEnv;
   const clusterName = runtimeConfig.solanaCluster;
   const rpcUrl = runtimeConfig.solanaRpcUrl;
-  const environmentState = readEnvironmentState(appEnv);
+  const configuredAssetMint = process.env.ASSET_MINT?.trim();
   const assetMint =
-    process.env.ASSET_MINT?.trim() ?? environmentState.assetMint?.trim();
-
-  if (!assetMint) {
-    throw new Error(
-      "Asset mint is not configured. Run `yarn create:asset:local` first or pass ASSET_MINT explicitly."
-    );
-  }
+    configuredAssetMint ??
+    DEFAULT_SOL_ASSET_MINT;
+  const usingDefaultWsolMint = !configuredAssetMint;
 
   const payer = loadKeypair(runtimeConfig.solanaKeypairPath);
   const connection = new Connection(rpcUrl, "confirmed");
@@ -72,7 +68,11 @@ export async function main() {
   console.log("Using RPC:", rpcUrl);
   console.log("Program ID:", programId.toBase58());
   console.log("Authority:", provider.wallet.publicKey.toBase58());
-  console.log("Asset mint:", assetMint);
+  console.log(
+    "Asset mint:",
+    assetMint,
+    usingDefaultWsolMint ? "(default WSOL)" : "(from ASSET_MINT)"
+  );
 
   await connection.getVersion();
 
@@ -152,4 +152,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   });
 }
-

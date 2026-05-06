@@ -1,9 +1,6 @@
 import { Keypair } from "@solana/web3.js";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export type RuntimeConfig = {
   appEnv: string;
@@ -11,18 +8,6 @@ export type RuntimeConfig = {
   solanaRpcUrl: string;
   solanaKeypairPath: string;
 };
-
-type EnvironmentState = {
-  assetMint?: string;
-};
-
-type LocalStateStore = Record<string, EnvironmentState>;
-
-export const LOCAL_STATE_PATH = path.resolve(
-  __dirname,
-  "..",
-  ".local-state.json"
-);
 
 export function getRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   return {
@@ -58,31 +43,3 @@ export function loadKeypair(keypairPath: string): Keypair {
   const secret = JSON.parse(fs.readFileSync(expandedPath, "utf-8")) as number[];
   return Keypair.fromSecretKey(Uint8Array.from(secret));
 }
-
-export function readEnvironmentState(appEnv: string): EnvironmentState {
-  if (!fs.existsSync(LOCAL_STATE_PATH)) {
-    return {};
-  }
-
-  const raw = fs.readFileSync(LOCAL_STATE_PATH, "utf-8");
-  const parsed = JSON.parse(raw) as LocalStateStore;
-  return parsed[appEnv] ?? {};
-}
-
-export function writeEnvironmentState(
-  appEnv: string,
-  patch: EnvironmentState
-): void {
-  const existingStore: LocalStateStore = fs.existsSync(LOCAL_STATE_PATH)
-    ? (JSON.parse(fs.readFileSync(LOCAL_STATE_PATH, "utf-8")) as LocalStateStore)
-    : {};
-
-  existingStore[appEnv] = {
-    ...existingStore[appEnv],
-    ...patch,
-  };
-
-  fs.mkdirSync(path.dirname(LOCAL_STATE_PATH), { recursive: true });
-  fs.writeFileSync(LOCAL_STATE_PATH, JSON.stringify(existingStore, null, 2));
-}
-

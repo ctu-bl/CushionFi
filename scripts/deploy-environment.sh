@@ -40,7 +40,8 @@ if [[ -n "$ANCHOR_WALLET_VALUE" ]]; then
   export ANCHOR_WALLET="$ANCHOR_WALLET_VALUE"
 fi
 
-bash "$ROOT_DIR/scripts/sync-anchor-keys.sh"
+echo "Syncing Anchor program IDs..."
+anchor keys sync
 
 echo "Building Cushion Anchor program..."
 anchor build
@@ -53,13 +54,11 @@ fi
 echo "Deploying Cushion program to ${ANCHOR_CLUSTER}..."
 env APP_ENV="$TARGET_ENV" ANCHOR_PROVIDER_URL="$RPC_URL" anchor deploy --provider.cluster "$ANCHOR_CLUSTER"
 
-echo "Creating or reusing asset mint for ${TARGET_ENV}..."
-env APP_ENV="$TARGET_ENV" node --env-file "$ENV_FILE" --experimental-strip-types sdk/scripts/createLocalAssetMint.ts
-
 echo "Initializing Cushion position registry on ${TARGET_ENV}..."
 env APP_ENV="$TARGET_ENV" node --env-file "$ENV_FILE" --experimental-strip-types sdk/scripts/initPositionRegistry.ts
 
 echo "Initializing Cushion vault on ${TARGET_ENV}..."
+echo "Default vault asset mint is WSOL (So11111111111111111111111111111111111111112) when ASSET_MINT is not set."
 env APP_ENV="$TARGET_ENV" node --env-file "$ENV_FILE" --experimental-strip-types sdk/scripts/initVaultLocal.ts
 
 echo
