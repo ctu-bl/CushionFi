@@ -901,17 +901,19 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         positionCollateralAccount: fixtureForLiquidate.positionCollateralAta,
         klendObligation: fixtureForLiquidate.klendObligation,
         withdrawReserve: RESERVE,
+        repayReserve: USDC_RESERVE,
         lendingMarket: MARKET,
         debtMint: fixtureForLiquidate.debtReserve.liquidityMint,
         reserveDestinationLiquidity: fixtureForLiquidate.debtReserve.liquiditySupply,
         reserveSourceCollateral: RESERVE_DESTINATION_COLLATERAL,
-        reserveLiquiditySupply: fixtureForLiquidate.debtReserve.liquiditySupply,
+        reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
         reserveCollateralMint: RESERVE_COLLATERAL_MINT,
         placeholderUserDestinationCollateral: fixtureForLiquidate.ownerPlaceholderCollateralAta,
+        lendingMarketAuthority: fixtureForLiquidate.lendingMarketAuthority,
         colObligationFarmUserState: fixtureForLiquidate.obligationFarmUserState,
         colReserveFarmState: RESERVE_FARM_STATE,
-        debtObligationFarmUserState: fixtureForLiquidate.debtReserve.obligationFarmUserState ?? KLEND,
-        debtReserveFarmState: fixtureForLiquidate.debtReserve.reserveFarmState ?? KLEND,
+        debtObligationFarmUserState: fixtureForLiquidate.debtReserve.obligationFarmUserState ?? fixtureForLiquidate.obligationFarmUserState,
+        debtReserveFarmState: fixtureForLiquidate.debtReserve.reserveFarmState ?? RESERVE_FARM_STATE,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
         pythOracle: fixtureForLiquidate.pythOracle,
@@ -1160,19 +1162,13 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
             })
             .rpc();
 
-    // ========== Step 2: Inject collateral ==========
+    // ========== Step 2: Mark injected via adminLiquidateSwap (bypasses LTV, no inject threshold) ==========
+    // adminLiquidateSwap sets position.injected = true without requiring LTV >= liquidation_threshold.
+    // After this, liquidateSwap (regular) will pass the injected check but fail NotLiquidable
+    // because the position's LTV is still below the actual liquidation threshold.
     await (program as any).methods
-        .updateMarketPrice([...SOL_USD_FEED_ID])
-        .accountsStrict({
-          authority: provider.wallet.publicKey,
-          vault: fixtureForNotLiquidable.vault,
-          priceUpdate: PYTH_SOL_USD_PRICE_UPDATE,
-        })
-        .rpc();
-
-    await (program as any).methods
-        .injectCollateral()
-        .preInstructions([
+      .adminLiquidateSwap()
+      .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
         buildRefreshReserveInstruction({
@@ -1192,41 +1188,38 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
           scopePrices: usdcReserve.scopePrices,
         }),
       ])
-        .accountsStrict({
-          caller: user,
-          position: fixtureForNotLiquidable.position,
-          nftMint: fixtureForNotLiquidable.nftMint,
-          assetMint: fixtureForNotLiquidable.vaultAssetMint,
-          cushionVault: fixtureForNotLiquidable.vault,
-          positionAuthority: fixtureForNotLiquidable.positionAuthority,
-          vaultTokenAccount: fixtureForNotLiquidable.vaultTokenAccount,
-          positionCollateralAccount: fixtureForNotLiquidable.positionCollateralAta,
-          klendObligation: fixtureForNotLiquidable.klendObligation,
-          klendReserve: RESERVE,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          farmsProgram: FARMS_PROGRAM,
-          reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
-          klendProgram: KLEND,
-          reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
-          reserveDestinationDepositCollateral: RESERVE_DESTINATION_COLLATERAL,
-          reserveCollateralMint: RESERVE_COLLATERAL_MINT,
-          placeholderUserDestinationCollateral: fixtureForNotLiquidable.ownerPlaceholderCollateralAta,
-          liquidityTokenProgram: TOKEN_PROGRAM_ID,
-          lendingMarket: MARKET,
-          pythOracle: fixtureForNotLiquidable.pythOracle,
-          switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
-          switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
-          scopePrices: fixtureForNotLiquidable.scopePrices,
-          lendingMarketAuthority: fixtureForNotLiquidable.lendingMarketAuthority,
-          instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
-          obligationFarmUserState: fixtureForNotLiquidable.obligationFarmUserState,
-          reserveFarmState: RESERVE_FARM_STATE,
-        })
-        .remainingAccounts([
-          { pubkey: RESERVE, isWritable: true, isSigner: false },
-          { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
-        ])
-        .rpc();
+      .accountsStrict({
+        caller: user,
+        position: fixtureForNotLiquidable.position,
+        nftMint: fixtureForNotLiquidable.nftMint,
+        assetMint: fixtureForNotLiquidable.vaultAssetMint,
+        cushionVault: fixtureForNotLiquidable.vault,
+        vaultTokenAccount: fixtureForNotLiquidable.vaultTokenAccount,
+        vaultDebtTokenAccount: fixtureForNotLiquidable.vaultUsdcAta,
+        klendObligation: fixtureForNotLiquidable.klendObligation,
+        withdrawReserve: RESERVE,
+        lendingMarket: MARKET,
+        debtReserve: USDC_RESERVE,
+        klendProgram: KLEND,
+        pythOracle: fixtureForNotLiquidable.pythOracle,
+        switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
+        switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
+        scopePrices: fixtureForNotLiquidable.scopePrices,
+        whirlpool: WSOL_USDC_MARKET,
+        whirlpoolTokenVaultA: WSOL_USDC_POOL_1,
+        whirlpoolTokenVaultB: WSOL_USDC_POOL_2,
+        tickArray0: tickArrays[0],
+        tickArray1: tickArrays[1],
+        tickArray2: tickArrays[2],
+        oracle: WHIRLPOOL_WSOL_USDC_ORACLE,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        orcaWhirlpoolProgram: WHIRLPOOL,
+      })
+      .remainingAccounts([
+        { pubkey: RESERVE, isWritable: true, isSigner: false },
+        { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
+      ])
+      .rpc();
 
     await expectAnchorError(
       (program as any).methods

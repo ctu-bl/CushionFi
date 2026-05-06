@@ -166,6 +166,11 @@ pub struct Liquidate<'info> {
     #[account(mut)]
     pub withdraw_reserve: AccountInfo<'info>,
 
+    /// USDC borrow reserve on Kamino — used as repay_reserve in repay CPI
+    /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
+    pub repay_reserve: AccountInfo<'info>,
+
     /// Kamino lending market
     /// CHECK: Verified via Kamino CPI
     #[account(mut)]
@@ -189,13 +194,18 @@ pub struct Liquidate<'info> {
     #[account(mut)]
     pub reserve_liquidity_supply: AccountInfo<'info>,
 
-    /// Mint of the reserve collateral token in Kamino
+    /// Mint of the reserve collateral token in Kamino (mut — Kamino burns cTokens)
     /// CHECK: Verified via Kamino CPI
+    #[account(mut)]
     pub reserve_collateral_mint: AccountInfo<'info>,
 
     /// Placeholder collateral destination required by Kamino v2
     /// CHECK: Verified via Kamino CPI
     pub placeholder_user_destination_collateral: AccountInfo<'info>,
+
+    /// Kamino lending market authority PDA — required by repay_and_withdraw_and_redeem
+    /// CHECK: Verified via Kamino CPI
+    pub lending_market_authority: AccountInfo<'info>,
 
     /// CHECK: Verified via Kamino CPI
     #[account(mut)]
