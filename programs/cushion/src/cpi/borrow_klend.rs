@@ -162,6 +162,7 @@ fn assess_safe_debt_increase<'info>(
 
     let max_safe_ltv = apply_ltv_buffer(liquidation_ltv, BORROW_LIQUIDATION_BUFFER_MULTIPLIER)
         .ok_or(CushionError::LtvComputationError)?;
+    msg!("liquidation_ltv: {}", liquidation_ltv);
     msg!("potential_ltv: {}", potential_ltv);
     msg!("max_safe_ltv: {}", max_safe_ltv);
     require!(potential_ltv <= max_safe_ltv, CushionError::UnsafePosition);

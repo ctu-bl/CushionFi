@@ -40,6 +40,7 @@ pub fn calculate_amount_to_withdraw_after_repay(
     let remaining_deposit_value = diff_value.checked_mul(LIQUIDATION_PROFIT_PERCENTAGE)?.checked_div(WAD)?;
     let withdraw_value = debt_value.checked_add(remaining_deposit_value)?;
     let amount_u128 = withdraw_value.checked_mul(TOKEN_PRECISION as u128)?.checked_div(vault_token_price)?;
+    msg!("amount: {}", amount_u128);
     amount_u128.try_into().ok()
 }
 

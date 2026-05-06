@@ -65,6 +65,8 @@ pub fn liquidate_swap_handler<'info>(
         .ok_or(CushionError::LtvCalculationError)?;
     let liquidation_ltv = get_liquidation_ltv_threshold(unhealthy_borrow_value, deposit)
         .ok_or(CushionError::LiquidationLtvCalculationError)?;
+    msg!("current_ltv: {}", current_ltv);
+    msg!("liquidation_ltv {}", liquidation_ltv);
 
     require!(current_ltv >= liquidation_ltv, CushionError::NotLiquidable);
 

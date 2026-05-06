@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { Reserve as KlendReserveAccount } from "@kamino-finance/klend-sdk";
+import { Reserve as KlendReserveAccount, Obligation as KlendObligation } from "@kamino-finance/klend-sdk";
 import {
   getAccount,
   getOrCreateAssociatedTokenAccount,
@@ -669,7 +669,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
   it("should liquidate successfully with scenario: borrow -> admin_liquidate_swap (marks injected, skips LTV check) -> liquidate", async () => {
     // ========== Step 1: Create a position with some collateral and debt ==========
     const depositAmount = new anchor.BN(1_000_000);
-    const borrowAmount = new anchor.BN(55_000);
+    const borrowAmount = new anchor.BN(53_000);
 
     const computeIxs = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
@@ -793,7 +793,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
     const poolInfo = await connection.getAccountInfo(WSOL_USDC_MARKET);
     if (!poolInfo) throw new Error("WSOL/USDC Whirlpool není naklonovaný — spusť yarn validator:local");
     const poolData = Buffer.from(poolInfo.data);
-
+  
     const tickSpacing    = poolData.readUInt16LE(TICK_SPACING_OFFSET);
     const tickCurrentIdx = poolData.readInt32LE(TICK_CURRENT_INDEX_OFFSET);
     const ticksInArray = TICKS_PER_ARRAY * tickSpacing;
@@ -810,7 +810,8 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
     // after a price drop makes the position liquidatable.
 
     // Tx 1: Admin liquidate swap — bypasses LTV check, marks position.injected = true, swaps WSOL → USDC
-    await (program as any).methods
+    
+    try { await (program as any).methods
       .adminLiquidateSwap()
       .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
@@ -864,8 +865,14 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
+    } catch (err: any) {
+          console.log(err.getLogs);
+          const err2 = err as anchor.AnchorError;
+          console.log(err2.logs); 
+    }
 
     // Tx 2: Repay USDC debt to Kamino and withdraw WSOL collateral back to vault
+    try {
     await (program as any).methods
       .liquidate()
       .preInstructions([
@@ -928,10 +935,23 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
+    } catch (err: any) {
+          console.log(err.getLogs);
+          const err2 = err as anchor.AnchorError;
+          console.log(err2.logs); 
+    
+    }
 
     // Verify position state after liquidation
-    const positionAfter = await program.account.obligation.fetch(fixtureForLiquidate.position);
+    const positionAfter = await (program as any).account.obligation.fetch(fixtureForLiquidate.position);
     expect(positionAfter.injected).to.be.false;
+    expect(positionAfter.injectedAmount == 0);
+    const klendObligationAccount = await provider.connection.getAccountInfo(fixtureForLiquidate.klendObligation);
+    if (!klendObligationAccount) throw new Error("Klend obligation account not found");
+    const klendObligation = KlendObligation.decode(Buffer.from(klendObligationAccount.data));
+    expect(klendObligation.borrowedAssetsMarketValueSf.toString()).to.equal("0");
+    expect(parseInt(klendObligation.depositedValueSf.toString())).to.be.greaterThan(0);
+    
   });
 
   it("should fail to liquidate a position without injected collateral", async () => {

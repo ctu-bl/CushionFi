@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { Reserve as KlendReserveAccount } from "@kamino-finance/klend-sdk";
+import { Reserve as KlendReserveAccount, Obligation as KlendObligation } from "@kamino-finance/klend-sdk";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createTransferCheckedInstruction,
@@ -659,11 +659,16 @@ describe("decrease collateral nft auth", () => {
       })
       .rpc();
 
+    const klendObligationAccountBefore = await provider.connection.getAccountInfo(fixture.klendObligation);
+    if (!klendObligationAccountBefore) throw new Error("Klend obligation account not found");
+    const klendObligationBefore = KlendObligation.decode(Buffer.from(klendObligationAccountBefore.data));
+    console.log("collateral value before decrese: ", parseInt(klendObligationBefore.depositedValueSf.toString()));
+
     const ownerBalanceBefore = (
       await getAccount(provider.connection, fixture.ownerWsolAta)
     ).amount;
     console.log("before:", ownerBalanceBefore);
-    try {
+    
     await (program as any).methods
       .decreaseCollateral(decreaseAmount)
       .preInstructions(computeIxs)
@@ -698,9 +703,7 @@ describe("decrease collateral nft auth", () => {
         reserveFarmState: RESERVE_FARM_STATE,
       })
       .rpc();
-    } catch (err) {
-      console.log("Logs", err.logs);
-    }
+    
 
     const ownerBalanceAfter = (
       await getAccount(provider.connection, fixture.ownerWsolAta)
@@ -712,6 +715,11 @@ describe("decrease collateral nft auth", () => {
       gained == decreaseAmountBig,
       `Expected gained == ${decreaseAmountBig.toString()}, got ${gained.toString()}`
     ).to.equal(true);
+    const klendObligationAccount = await provider.connection.getAccountInfo(fixture.klendObligation);
+    if (!klendObligationAccount) throw new Error("Klend obligation account not found");
+    const klendObligation = KlendObligation.decode(Buffer.from(klendObligationAccount.data));
+    expect(parseInt(klendObligation.depositedValueSf.toString())).to.be.greaterThan(0);
+    console.log("collateral value after decrese: ", parseInt(klendObligation.depositedValueSf.toString()));
   });
 
   it("rejects non-owner signer", async () => {
