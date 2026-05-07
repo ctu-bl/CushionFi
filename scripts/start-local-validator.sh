@@ -9,6 +9,9 @@ WARP_SLOT_CONFIG="${SOLANA_VALIDATOR_WARP_SLOT:-auto}"
 FIXTURE_DIR="${SOLANA_VALIDATOR_FIXTURE_DIR:-/tmp/cushion-validator-fixtures}"
 SCOPE_PRICE_ACCOUNTS="${KAMINO_SCOPE_PRICE_ACCOUNTS:-3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH}"
 SOLANA_VALIDATOR_SLOT_MS="${SOLANA_VALIDATOR_SLOT_MS:-400}"
+LOCAL_WALLET_PATH="${SOLANA_KEYPAIR:-${ANCHOR_WALLET:-$HOME/.config/solana/id.json}}"
+LOCAL_USDC_FIXTURE_ENABLED="${LOCAL_USDC_FIXTURE_ENABLED:-true}"
+LOCAL_USDC_FIXTURE_AMOUNT_RAW="${LOCAL_USDC_FIXTURE_AMOUNT_RAW:-${MOCK_USDC_SUPPLY_RAW:-5000000000000}}"
 
 echo "Starting local validator from ${MAINNET_RPC_URL}..."
 echo "RPC port: ${RPC_PORT}"
@@ -83,6 +86,27 @@ for raw_account in "${SCOPE_ACCOUNTS[@]}"; do
 
   ACCOUNT_OVERRIDES+=(--account "${scope_account}" "${fixture_path}")
 done
+
+if [[ "${LOCAL_USDC_FIXTURE_ENABLED}" == "true" ]]; then
+  usdc_fixture_path="${FIXTURE_DIR}/payer-usdc-ata.json"
+  echo "Preparing local USDC ATA fixture for ${LOCAL_WALLET_PATH} (amount ${LOCAL_USDC_FIXTURE_AMOUNT_RAW})..."
+  FIXTURE_META="$(
+    node scripts/prepare-local-usdc-ata-fixture.js \
+      --wallet="${LOCAL_WALLET_PATH}" \
+      --rpc="${MAINNET_RPC_URL}" \
+      --amount="${LOCAL_USDC_FIXTURE_AMOUNT_RAW}" \
+      --out="${usdc_fixture_path}"
+  )"
+  usdc_ata="$(printf '%s\n' "${FIXTURE_META}" | awk -F= '/^USDC_ATA=/{print $2}')"
+  usdc_fixture_loaded_path="$(printf '%s\n' "${FIXTURE_META}" | awk -F= '/^FIXTURE_PATH=/{print $2}')"
+  if [[ -z "${usdc_ata}" || -z "${usdc_fixture_loaded_path}" ]]; then
+    echo "Failed to parse USDC ATA fixture metadata:" >&2
+    printf '%s\n' "${FIXTURE_META}" >&2
+    exit 1
+  fi
+  echo "Injecting USDC fixture account ${usdc_ata}"
+  ACCOUNT_OVERRIDES+=(--account "${usdc_ata}" "${usdc_fixture_loaded_path}")
+fi
 
 exec solana-test-validator "${VALIDATOR_ARGS[@]}" "${ACCOUNT_OVERRIDES[@]}" \
   --clone-upgradeable-program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD \
