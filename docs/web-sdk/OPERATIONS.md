@@ -26,18 +26,22 @@ Operations in this document fall into three categories:
 ## 1.1 Initialize SDK
 
 ```ts
-import { createCushionSdk, WalletAdapterTxSender } from "@/src/sdk";
-import { PublicKey } from "@solana/web3.js";
+import { createCushionSdkFromEnv, WalletAdapterTxSender } from "@/src/sdk";
 
-const sdk = createCushionSdk({
+const sdk = createCushionSdkFromEnv({
   provider, // AnchorProvider
-  klendProgramId: new PublicKey(process.env.NEXT_PUBLIC_KLEND_PROGRAM_ID!),
-  farmsProgramId: new PublicKey(process.env.NEXT_PUBLIC_FARMS_PROGRAM_ID!),
-  mplCoreProgramId: new PublicKey(process.env.NEXT_PUBLIC_MPL_CORE_PROGRAM_ID!),
   sender: new WalletAdapterTxSender(provider, wallet),
   borrowInstructionVariant: "increaseDebt", // default behavior
 });
 ```
+
+`createCushionSdkFromEnv` resolves KLend/Farms programs and keeps business calls unchanged for FE callers.
+Optional env overrides:
+
+- `NEXT_PUBLIC_KLEND_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]`
+- `NEXT_PUBLIC_FARMS_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]`
+- `NEXT_PUBLIC_KLEND_FARMS_PROGRAM[_LOCAL|_DEVNET|_PROD]`
+- `NEXT_PUBLIC_MPL_CORE_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]`
 
 ## 1.2 Error handling helper
 
@@ -499,6 +503,7 @@ await (sdk.context.program as any).methods
   - vault PDAs
   - position PDAs
   - registry PDAs
+  - protocol config PDA
 - KLend/farms PDAs (where supported in wrappers)
 - user ATAs and position-authority ATAs
 - missing ATA creation instructions
@@ -519,4 +524,3 @@ await (sdk.context.program as any).methods
   - repay amount too high for current user balance
 
 For full Cushion error list, see `web/sdk/ERRORS.md`.
-
