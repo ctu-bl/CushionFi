@@ -78,7 +78,10 @@ async function main() {
   }
 
   const signer = loadSigner();
-  const connection = new Connection(rpcUrl, "confirmed");
+  const connection = new Connection(rpcUrl, {
+    commitment: "confirmed",
+    wsEndpoint: runtimeConfig.solanaWsUrl,
+  });
   const programId = new PublicKey(programAddress);
   await assertProgramDeployed({
     connection,

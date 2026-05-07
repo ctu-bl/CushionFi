@@ -1,0 +1,1022 @@
+{
+  "address": "FHqW31mKXKPQqrHYYmGKcUGM5q8EF8SPeU3axkNG6bxe",
+  "metadata": {
+    "name": "klend_mock",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "borrow_obligation_liquidity_v2",
+      "discriminator": [
+        161,
+        128,
+        143,
+        245,
+        171,
+        199,
+        194,
+        6
+      ],
+      "accounts": [
+        {
+          "name": "owner"
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "borrow_reserve",
+          "writable": true
+        },
+        {
+          "name": "borrow_reserve_liquidity_mint"
+        },
+        {
+          "name": "reserve_source_liquidity",
+          "writable": true
+        },
+        {
+          "name": "borrow_reserve_liquidity_fee_receiver",
+          "writable": true
+        },
+        {
+          "name": "user_destination_liquidity",
+          "writable": true
+        },
+        {
+          "name": "referrer_token_state",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instruction_sysvar_account"
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "farms_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidity_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "deposit_reserve_liquidity_and_obligation_collateral_v2",
+      "discriminator": [
+        216,
+        224,
+        191,
+        27,
+        204,
+        151,
+        102,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_liquidity_mint"
+        },
+        {
+          "name": "reserve_liquidity_supply",
+          "writable": true
+        },
+        {
+          "name": "reserve_collateral_mint"
+        },
+        {
+          "name": "reserve_destination_deposit_collateral",
+          "writable": true
+        },
+        {
+          "name": "user_source_liquidity",
+          "writable": true
+        },
+        {
+          "name": "placeholder_user_destination_collateral"
+        },
+        {
+          "name": "collateral_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "liquidity_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instruction_sysvar_account"
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "farms_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidity_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "init_mock_lending_market",
+      "discriminator": [
+        107,
+        225,
+        175,
+        1,
+        18,
+        79,
+        105,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lending_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  111,
+                  99,
+                  107,
+                  95,
+                  108,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_mock_lending_market_authority",
+      "discriminator": [
+        2,
+        32,
+        14,
+        242,
+        77,
+        15,
+        42,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "lending_market_authority",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_mock_oracle",
+      "discriminator": [
+        50,
+        28,
+        114,
+        119,
+        255,
+        98,
+        24,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mock_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  111,
+                  99,
+                  107,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "price_sf",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "init_mock_reserve",
+      "discriminator": [
+        72,
+        247,
+        155,
+        76,
+        250,
+        182,
+        118,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_liquidity_mint"
+        },
+        {
+          "name": "reserve_liquidity_supply",
+          "writable": true
+        },
+        {
+          "name": "borrow_reserve_liquidity_fee_receiver",
+          "writable": true
+        },
+        {
+          "name": "reserve_collateral_mint"
+        },
+        {
+          "name": "reserve_source_collateral"
+        },
+        {
+          "name": "reserve_farm_state"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "market_price_sf",
+          "type": "u128"
+        },
+        {
+          "name": "loan_to_value_pct",
+          "type": "u8"
+        },
+        {
+          "name": "liquidation_threshold_pct",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "init_obligation",
+      "discriminator": [
+        251,
+        10,
+        231,
+        76,
+        27,
+        11,
+        159,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "obligation_owner"
+        },
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "seed1_account"
+        },
+        {
+          "name": "seed2_account"
+        },
+        {
+          "name": "owner_user_metadata"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_args",
+          "type": {
+            "defined": {
+              "name": "InitObligationArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_obligation_farms_for_reserve",
+      "discriminator": [
+        136,
+        63,
+        15,
+        186,
+        211,
+        152,
+        168,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "obligation_farm",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "farms_program"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_mode",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "init_user_metadata",
+      "discriminator": [
+        117,
+        169,
+        176,
+        69,
+        197,
+        23,
+        15,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "owner"
+        },
+        {
+          "name": "fee_payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_metadata",
+          "writable": true
+        },
+        {
+          "name": "referrer_user_metadata"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "user_lookup_table",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "refresh_obligation",
+      "discriminator": [
+        33,
+        132,
+        147,
+        228,
+        151,
+        192,
+        72,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refresh_obligation_farms_for_reserve",
+      "discriminator": [
+        140,
+        144,
+        253,
+        21,
+        10,
+        74,
+        248,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "crank",
+          "signer": true
+        },
+        {
+          "name": "obligation"
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "reserve"
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "farms_program"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_mode",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "refresh_reserve",
+      "discriminator": [
+        2,
+        218,
+        138,
+        235,
+        79,
+        201,
+        25,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "reserve",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "pyth_oracle"
+        },
+        {
+          "name": "switchboard_price_oracle"
+        },
+        {
+          "name": "switchboard_twap_oracle"
+        },
+        {
+          "name": "scope_prices"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "repay_obligation_liquidity_v2",
+      "discriminator": [
+        116,
+        174,
+        213,
+        76,
+        180,
+        53,
+        210,
+        144
+      ],
+      "accounts": [
+        {
+          "name": "owner"
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "repay_reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_liquidity_mint"
+        },
+        {
+          "name": "reserve_destination_liquidity",
+          "writable": true
+        },
+        {
+          "name": "user_source_liquidity",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instruction_sysvar_account"
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "farms_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidity_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_mock_reserve_config",
+      "discriminator": [
+        28,
+        200,
+        237,
+        130,
+        241,
+        12,
+        101,
+        23
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "reserve",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "market_price_sf",
+          "type": "u128"
+        },
+        {
+          "name": "loan_to_value_pct",
+          "type": "u8"
+        },
+        {
+          "name": "liquidation_threshold_pct",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "update_mock_oracle",
+      "discriminator": [
+        196,
+        202,
+        24,
+        173,
+        225,
+        179,
+        237,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "mock_oracle"
+          ]
+        },
+        {
+          "name": "mock_oracle",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "price_sf",
+          "type": "u128"
+        },
+        {
+          "name": "max_slot_age",
+          "type": "u64"
+        },
+        {
+          "name": "fail_stale",
+          "type": "bool"
+        },
+        {
+          "name": "fail_invalid_price",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_obligation_collateral_and_redeem_reserve_collateral_v2",
+      "discriminator": [
+        235,
+        52,
+        119,
+        152,
+        149,
+        197,
+        20,
+        7
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true
+        },
+        {
+          "name": "obligation",
+          "writable": true
+        },
+        {
+          "name": "lending_market"
+        },
+        {
+          "name": "lending_market_authority"
+        },
+        {
+          "name": "withdraw_reserve",
+          "writable": true
+        },
+        {
+          "name": "reserve_liquidity_mint"
+        },
+        {
+          "name": "reserve_source_collateral",
+          "writable": true
+        },
+        {
+          "name": "reserve_collateral_mint"
+        },
+        {
+          "name": "reserve_liquidity_supply",
+          "writable": true
+        },
+        {
+          "name": "user_destination_liquidity",
+          "writable": true
+        },
+        {
+          "name": "placeholder_user_destination_collateral"
+        },
+        {
+          "name": "collateral_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "liquidity_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "instruction_sysvar_account"
+        },
+        {
+          "name": "obligation_farm_user_state",
+          "writable": true
+        },
+        {
+          "name": "reserve_farm_state",
+          "writable": true
+        },
+        {
+          "name": "farms_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "collateral_amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MockOracle",
+      "discriminator": [
+        208,
+        74,
+        71,
+        99,
+        160,
+        22,
+        158,
+        240
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAccountDiscriminator",
+      "msg": "Invalid account discriminator"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAccountData",
+      "msg": "Invalid account data"
+    },
+    {
+      "code": 6002,
+      "name": "MissingOwnerSignature",
+      "msg": "Required owner signature missing"
+    },
+    {
+      "code": 6003,
+      "name": "AlreadyInitialized",
+      "msg": "Account already initialized"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidPda",
+      "msg": "Invalid PDA account"
+    },
+    {
+      "code": 6005,
+      "name": "NoFreeObligationSlot",
+      "msg": "No free obligation slot"
+    },
+    {
+      "code": 6006,
+      "name": "UnsafeBorrow",
+      "msg": "Borrow would exceed unhealthy threshold"
+    },
+    {
+      "code": 6007,
+      "name": "MissingRefreshReserve",
+      "msg": "Missing reserve in refresh remaining_accounts"
+    },
+    {
+      "code": 6008,
+      "name": "OracleStale",
+      "msg": "Oracle stale"
+    },
+    {
+      "code": 6009,
+      "name": "OracleInvalidPrice",
+      "msg": "Oracle invalid price"
+    },
+    {
+      "code": 6010,
+      "name": "UnsupportedFarmsProgram",
+      "msg": "Mock only supports farms_program == klend_mock program id"
+    }
+  ],
+  "types": [
+    {
+      "name": "InitObligationArgs",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tag",
+            "type": "u8"
+          },
+          {
+            "name": "id",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MockOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_sf",
+            "type": "u128"
+          },
+          {
+            "name": "max_slot_age",
+            "type": "u64"
+          },
+          {
+            "name": "last_updated_slot",
+            "type": "u64"
+          },
+          {
+            "name": "fail_stale",
+            "type": "bool"
+          },
+          {
+            "name": "fail_invalid_price",
+            "type": "bool"
+          }
+        ]
+      }
+    }
+  ]
+}
