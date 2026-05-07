@@ -45,6 +45,7 @@ export type PositionRiskSnapshot = {
   depositedValueSf: bigint;
   debtValueSf: bigint;
   unhealthyBorrowValueSf: bigint;
+  allowedBorrowValueSf: bigint;
   ltvWad: bigint | null;
   maxSafeLtvWad: bigint | null;
   injected?: boolean;

@@ -10,6 +10,61 @@ import type { ExecuteJob } from "../types.ts";
 
 const INJECT_RETRY_DELAY_MS = 5_000;
 const WITHDRAW_RETRY_DELAY_MS = 5_000;
+const WAD = 1_000_000_000_000_000_000n;
+const TOKEN_PRECISION = 1_000_000_000n;
+const U64_MAX = 18_446_744_073_709_551_615n;
+const WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD = 743_333_333_333_333_333n;
+
+function tenPow(exp: number): bigint {
+  let out = 1n;
+  for (let i = 0; i < exp; i += 1) out *= 10n;
+  return out;
+}
+
+function computeWithdrawAmountContractLike(params: {
+  storedAi: bigint;
+  interestRate: bigint;
+  interestLastUpdated: bigint;
+  injectedAmount: bigint;
+  nowUnixSec: bigint;
+}): bigint | null {
+  if (params.storedAi <= 0n) return null;
+  if (params.injectedAmount <= 0n) return 0n;
+  if (params.storedAi > U64_MAX || params.interestRate > U64_MAX || params.injectedAmount > U64_MAX) {
+    return null;
+  }
+
+  const timeDiff = params.nowUnixSec - params.interestLastUpdated;
+  if (timeDiff < 0n) return null;
+
+  const irPlusOne = params.interestRate + TOKEN_PRECISION;
+  if (irPlusOne > U64_MAX) return null;
+
+  const aiMul = params.storedAi * irPlusOne;
+  if (aiMul > U64_MAX) return null;
+  let currentAi = aiMul / TOKEN_PRECISION;
+  if (currentAi > U64_MAX) return null;
+
+  const years = Number((((timeDiff / 60n) / 60n) / 24n) / 365n);
+  if (years < 0 || !Number.isFinite(years)) return null;
+  if (years > 0) {
+    let powAcc = 1n;
+    for (let i = 0; i < years; i += 1) {
+      powAcc *= currentAi;
+      if (powAcc > U64_MAX) return null;
+    }
+    currentAi = powAcc;
+  }
+
+  const aiDivisionMul = currentAi * TOKEN_PRECISION;
+  if (aiDivisionMul > U64_MAX) return null;
+  const aiDivision = aiDivisionMul / params.storedAi;
+  if (aiDivision > U64_MAX) return null;
+
+  const amount = (aiDivision * params.injectedAmount) / TOKEN_PRECISION;
+  if (amount > U64_MAX) return null;
+  return amount;
+}
 
 function isRetriableInjectError(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
@@ -157,6 +212,79 @@ export class ActionExecutor {
           throw new Error(
             `No Cushion vault found for active deposit reserves on position ${position.position}`
           );
+        }
+
+        const reservePriceSnapshot = await this.klendClient.fetchReservePrice(
+          selectedReserve.reserve,
+          beforeSlot
+        );
+        const nowUnixSec = BigInt(Math.floor(Date.now() / 1000));
+        const withdrawAmount = computeWithdrawAmountContractLike({
+          storedAi: vault.accumulatedInterest,
+          interestRate: vault.interestRate,
+          interestLastUpdated: vault.interestLastUpdated,
+          injectedAmount: position.injectedAmount,
+          nowUnixSec,
+        });
+        if (withdrawAmount === null) {
+          logWarn("executor.withdraw_skipped_contract_precheck_failed", {
+            executor: this.name,
+            position: job.position,
+            reason: "withdraw_amount_computation_failed",
+          });
+          return;
+        }
+        if (withdrawAmount === 0n) {
+          logInfo("executor.withdraw_skipped_contract_precheck", {
+            executor: this.name,
+            position: job.position,
+            reason: "withdraw_amount_zero",
+          });
+          return;
+        }
+
+        const withdrawValueSf =
+          (withdrawAmount * reservePriceSnapshot.marketPriceSf) /
+          tenPow(reservePriceSnapshot.mintDecimals);
+        const nextCollateralSf = beforeRisk.depositedValueSf - withdrawValueSf;
+        if (nextCollateralSf <= 0n) {
+          logInfo("executor.withdraw_skipped_contract_precheck", {
+            executor: this.name,
+            position: job.position,
+            reason: "next_collateral_non_positive",
+            withdrawAmount: withdrawAmount.toString(),
+            withdrawValueSf: withdrawValueSf.toString(),
+            depositedValueSf: beforeRisk.depositedValueSf.toString(),
+          });
+          return;
+        }
+
+        const potentialLtvWad = (beforeRisk.debtValueSf * WAD) / nextCollateralSf;
+        if (beforeRisk.depositedValueSf <= 0n) {
+          logInfo("executor.withdraw_skipped_contract_precheck", {
+            executor: this.name,
+            position: job.position,
+            reason: "deposited_value_non_positive",
+          });
+          return;
+        }
+        const withdrawingLtvWad =
+          (((beforeRisk.allowedBorrowValueSf * WAD) / beforeRisk.depositedValueSf) *
+            WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD) /
+          WAD;
+        if (potentialLtvWad >= withdrawingLtvWad) {
+          logInfo("executor.withdraw_skipped_contract_precheck", {
+            executor: this.name,
+            position: job.position,
+            reason: "not_yet_safe_position",
+            potentialLtvWad: potentialLtvWad.toString(),
+            potentialLtvPct: wadToPercentString(potentialLtvWad),
+            withdrawingLtvWad: withdrawingLtvWad.toString(),
+            withdrawingLtvPct: wadToPercentString(withdrawingLtvWad),
+            withdrawAmount: withdrawAmount.toString(),
+            withdrawValueSf: withdrawValueSf.toString(),
+          });
+          return;
         }
 
         if (!selectedReserve.reserveFarmCollateralState) {

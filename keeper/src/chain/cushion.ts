@@ -22,6 +22,7 @@ import type { CushionPosition } from "../types.ts";
 
 const { AnchorProvider, Program, Wallet } = anchor;
 const VAULT_STATE_SEED = Buffer.from("vault_state_v1");
+const PROTOCOL_CONFIG_SEED = Buffer.from("protocol_config_v1");
 const REFRESH_RESERVE_IX = crypto
   .createHash("sha256")
   .update("global:refresh_reserve")
@@ -75,6 +76,9 @@ export type CushionVaultSnapshot = {
   assetMint: PublicKey;
   vaultTokenAccount: PublicKey;
   marketPrice: bigint;
+  accumulatedInterest: bigint;
+  interestRate: bigint;
+  interestLastUpdated: bigint;
 };
 
 export type WithdrawInjectedCollateralAccounts = {
@@ -242,6 +246,13 @@ export class CushionChainClient {
     )[0];
   }
 
+  deriveProtocolConfigAddress(): PublicKey {
+    return PublicKey.findProgramAddressSync(
+      [PROTOCOL_CONFIG_SEED],
+      this.cushionProgramId
+    )[0];
+  }
+
   async fetchVaultSnapshot(vault: PublicKey): Promise<CushionVaultSnapshot> {
     const account = await (this.program as any).account.vault.fetch(vault);
     return {
@@ -249,6 +260,9 @@ export class CushionChainClient {
       assetMint: new PublicKey(account.assetMint),
       vaultTokenAccount: new PublicKey(account.vaultTokenAccount),
       marketPrice: asBigInt(account.marketPrice),
+      accumulatedInterest: asBigInt(account.accumulatedInterest),
+      interestRate: asBigInt(account.interestRate),
+      interestLastUpdated: asBigInt(account.interestLastUpdated),
     };
   }
 
@@ -318,6 +332,7 @@ export class CushionChainClient {
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         obligationFarmUserState: accounts.obligationFarmUserState,
         reserveFarmState: accounts.reserveFarmState,
+        protocolConfig: this.deriveProtocolConfigAddress(),
       })
       .remainingAccounts(
         accounts.remainingReserves.map((reserve) => ({
@@ -410,6 +425,7 @@ export class CushionChainClient {
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         obligationFarmUserState: accounts.obligationFarmUserState,
         reserveFarmState: accounts.reserveFarmState,
+        protocolConfig: this.deriveProtocolConfigAddress(),
       })
       .remainingAccounts(
         accounts.remainingReserves.map((reserve) => ({

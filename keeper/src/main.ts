@@ -58,7 +58,6 @@ async function main() {
         repository,
         computeQueue,
         executeQueue,
-        config.withdrawLtvBps,
         connectionSlot
       )
     );

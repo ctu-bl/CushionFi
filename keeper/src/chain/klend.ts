@@ -277,6 +277,7 @@ export class KlendChainClient {
       depositedValueSf,
       debtValueSf,
       unhealthyBorrowValueSf,
+      allowedBorrowValueSf,
       ltvWad,
       maxSafeLtvWad,
       refreshedAtSlot: slot,

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS keeper_position_risk (
   deposited_value_sf NUMERIC(39, 0) NOT NULL,
   debt_value_sf NUMERIC(39, 0) NOT NULL,
   unhealthy_borrow_value_sf NUMERIC(39, 0) NOT NULL,
+  allowed_borrow_value_sf NUMERIC(39, 0) NOT NULL DEFAULT 0,
   ltv_wad NUMERIC(39, 0),
   max_safe_ltv_wad NUMERIC(39, 0),
   injected BOOLEAN NOT NULL DEFAULT FALSE,
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS keeper_position_risk (
   refreshed_at_unix_ms BIGINT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE keeper_position_risk
+  ADD COLUMN IF NOT EXISTS allowed_borrow_value_sf NUMERIC(39, 0) NOT NULL DEFAULT 0;
 
 ALTER TABLE keeper_position_risk
   ADD COLUMN IF NOT EXISTS injected BOOLEAN NOT NULL DEFAULT FALSE;
@@ -82,6 +86,7 @@ type RiskRow = {
   deposited_value_sf: string;
   debt_value_sf: string;
   unhealthy_borrow_value_sf: string;
+  allowed_borrow_value_sf: string;
   ltv_wad: string | null;
   max_safe_ltv_wad: string | null;
   injected: boolean;
@@ -206,6 +211,7 @@ export class PostgresKeeperRepository implements KeeperRepository {
           deposited_value_sf,
           debt_value_sf,
           unhealthy_borrow_value_sf,
+          allowed_borrow_value_sf,
           ltv_wad,
           max_safe_ltv_wad,
           injected,
@@ -215,7 +221,7 @@ export class PostgresKeeperRepository implements KeeperRepository {
           refreshed_at_unix_ms,
           updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW()
         )
         ON CONFLICT (position)
         DO UPDATE SET
@@ -223,6 +229,7 @@ export class PostgresKeeperRepository implements KeeperRepository {
           deposited_value_sf = EXCLUDED.deposited_value_sf,
           debt_value_sf = EXCLUDED.debt_value_sf,
           unhealthy_borrow_value_sf = EXCLUDED.unhealthy_borrow_value_sf,
+          allowed_borrow_value_sf = EXCLUDED.allowed_borrow_value_sf,
           ltv_wad = EXCLUDED.ltv_wad,
           max_safe_ltv_wad = EXCLUDED.max_safe_ltv_wad,
           injected = EXCLUDED.injected,
@@ -238,6 +245,7 @@ export class PostgresKeeperRepository implements KeeperRepository {
         snapshot.depositedValueSf.toString(),
         snapshot.debtValueSf.toString(),
         snapshot.unhealthyBorrowValueSf.toString(),
+        snapshot.allowedBorrowValueSf.toString(),
         snapshot.ltvWad?.toString() ?? null,
         snapshot.maxSafeLtvWad?.toString() ?? null,
         snapshot.injected ?? false,
@@ -287,6 +295,7 @@ function mapRiskRow(row: RiskRow): PositionRiskSnapshot {
     depositedValueSf: BigInt(row.deposited_value_sf),
     debtValueSf: BigInt(row.debt_value_sf),
     unhealthyBorrowValueSf: BigInt(row.unhealthy_borrow_value_sf),
+    allowedBorrowValueSf: BigInt(row.allowed_borrow_value_sf),
     ltvWad: row.ltv_wad === null ? null : BigInt(row.ltv_wad),
     maxSafeLtvWad:
       row.max_safe_ltv_wad === null ? null : BigInt(row.max_safe_ltv_wad),
