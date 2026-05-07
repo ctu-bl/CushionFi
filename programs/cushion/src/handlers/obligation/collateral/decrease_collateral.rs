@@ -14,10 +14,13 @@ use crate::{
         apply_ltv_buffer, compute_potential_ltv, get_liquidation_ltv_threshold,
         get_market_value_from_reserve, to_decrease, Delta,
     },
-    state::obligation::Obligation,
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, obligation::Obligation,
+        ProtocolConfig,
+    },
     utils::{
-        BORROW_LIQUIDATION_BUFFER_MULTIPLIER, CollateralDecreasedEvent, POSITION_ACCOUNT_SEED,
-        POSITION_AUTHORITY_SEED,
+        CollateralDecreasedEvent, BORROW_LIQUIDATION_BUFFER_MULTIPLIER, POSITION_ACCOUNT_SEED,
+        POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED,
     },
     CushionError,
 };
@@ -26,6 +29,14 @@ pub fn decrease_collateral_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, DecreaseCollateral<'info>>,
     amount: u64,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     assert_position_nft_holder(
         &ctx.accounts.user,
         &ctx.accounts.position,
@@ -33,14 +44,21 @@ pub fn decrease_collateral_handler<'info>(
     )?;
 
     require!(amount > 0, CushionError::ZeroCollateralAmount);
-    require!(!ctx.accounts.position.injected, CushionError::InjectedCollateral);
+    require!(
+        !ctx.accounts.position.injected,
+        CushionError::InjectedCollateral
+    );
 
     refresh_klend_state_for_current_slot(RefreshAccounts {
         klend_program: ctx.accounts.klend_program.to_account_info(),
         klend_obligation: ctx.accounts.klend_obligation.to_account_info(),
         klend_reserve: ctx.accounts.withdraw_reserve.to_account_info(),
         lending_market: ctx.accounts.lending_market.to_account_info(),
-        pyth_oracle: ctx.accounts.pyth_oracle.as_ref().map(|a| a.to_account_info()),
+        pyth_oracle: ctx
+            .accounts
+            .pyth_oracle
+            .as_ref()
+            .map(|a| a.to_account_info()),
         switchboard_price_oracle: ctx
             .accounts
             .switchboard_price_oracle
@@ -51,7 +69,11 @@ pub fn decrease_collateral_handler<'info>(
             .switchboard_twap_oracle
             .as_ref()
             .map(|a| a.to_account_info()),
-        scope_prices: ctx.accounts.scope_prices.as_ref().map(|a| a.to_account_info()),
+        scope_prices: ctx
+            .accounts
+            .scope_prices
+            .as_ref()
+            .map(|a| a.to_account_info()),
         remaining_accounts: ctx.remaining_accounts.to_vec(),
     })?;
 
@@ -225,6 +247,12 @@ pub struct DecreaseCollateral<'info> {
 
     /// CHECK: Kamino farms program
     pub farms_program: UncheckedAccount<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// CHECK: Pyth price oracle; omit when reserve does not use Pyth
     pub pyth_oracle: Option<UncheckedAccount<'info>>,

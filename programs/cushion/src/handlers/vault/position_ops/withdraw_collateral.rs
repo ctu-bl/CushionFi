@@ -4,9 +4,13 @@ use crate::{
         RefreshAccounts, 
         refresh_klend_state_for_current_slot, transfer_collateral_to_vault,
         withdraw_collateral_to_vault_from_klend
+<<<<<<< HEAD
     }, managers::process_withdraw_after_inject_or_liquidate, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, Vault },
+=======
+    }, managers::process_withdraw_after_inject, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, ProtocolConfig, Vault },
+>>>>>>> dbe4ad9 (add protocol config)
     utils:: {
-        POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, POSITION_ACCOUNT_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
+        POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, POSITION_ACCOUNT_SEED, PROTOCOL_CONFIG_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
         get_reserve_price_and_decimals
     }
 };
@@ -212,4 +216,10 @@ pub struct WithdrawInjected<'info>{
 
     /// CHECK: Scope prices oracle; omit when reserve does not use Scope
     pub scope_prices: Option<UncheckedAccount<'info>>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 }

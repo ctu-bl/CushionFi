@@ -4,18 +4,19 @@ declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
 
 pub mod cpi;
 pub mod handlers;
-pub mod state;
 pub mod managers;
 pub mod math;
-pub mod utils;
 pub mod registry;
+pub mod state;
+pub mod utils;
 
 use cpi::*;
-use handlers::obligation::*;
-use handlers::collection::*;
-use handlers::vault::*;
 use handlers::admin::*;
+use handlers::collection::*;
+use handlers::obligation::*;
+use handlers::vault::*;
 use registry::*;
+use state::ProtocolMode;
 
 #[program]
 pub mod cushion {
@@ -25,15 +26,11 @@ pub mod cushion {
     // USER INSTRUCTIONS
     // -------------------------
 
-    pub fn init_position(
-        ctx: Context<InitPosition>,
-    ) -> Result<()> {
+    pub fn init_position(ctx: Context<InitPosition>) -> Result<()> {
         register_new_position(ctx)
     }
 
-    pub fn insure_existing_position(
-        ctx: Context<ExistingPosition>,
-    ) -> Result<()> {
+    pub fn insure_existing_position(ctx: Context<ExistingPosition>) -> Result<()> {
         Ok(())
     }
 
@@ -76,35 +73,19 @@ pub mod cushion {
     // VAULT INSTRUCTIONS
     // -------------------------
 
-    pub fn deposit(
-        ctx: Context<Deposit>,
-        assets_in: u64,
-        min_shares_out: u64,
-    ) -> Result<()> {
+    pub fn deposit(ctx: Context<Deposit>, assets_in: u64, min_shares_out: u64) -> Result<()> {
         deposit_handler(ctx, assets_in, min_shares_out)
     }
 
-    pub fn mint(
-        ctx: Context<MintShares>,
-        shares_out: u64,
-        max_assets_in: u64,
-    ) -> Result<()> {
+    pub fn mint(ctx: Context<MintShares>, shares_out: u64, max_assets_in: u64) -> Result<()> {
         mint_handler(ctx, shares_out, max_assets_in)
     }
 
-    pub fn redeem(
-        ctx: Context<Redeem>,
-        shares_in: u64,
-        min_assets_out: u64,
-    ) -> Result<()> {
+    pub fn redeem(ctx: Context<Redeem>, shares_in: u64, min_assets_out: u64) -> Result<()> {
         redeem_handler(ctx, shares_in, min_assets_out)
     }
 
-    pub fn withdraw(
-        ctx: Context<Withdraw>,
-        assets_out: u64,
-        max_shares_burn: u64,
-    ) -> Result<()> {
+    pub fn withdraw(ctx: Context<Withdraw>, assets_out: u64, max_shares_burn: u64) -> Result<()> {
         withdraw_handler(ctx, assets_out, max_shares_burn)
     }
 
@@ -146,9 +127,29 @@ pub mod cushion {
     // ADMIN
     // -------------------------
 
-    pub fn init_position_registry(
-        ctx: Context<InitPositionRegistry>,
+    pub fn init_protocol_config(
+        ctx: Context<InitProtocolConfig>,
+        klend_program_id: Pubkey,
+        farms_program_id: Pubkey,
+        mode: ProtocolMode,
     ) -> Result<()> {
+        init_protocol_config_handler(ctx, klend_program_id, farms_program_id, mode)
+    }
+
+    pub fn update_protocol_config(
+        ctx: Context<UpdateProtocolConfig>,
+        klend_program_id: Pubkey,
+        farms_program_id: Pubkey,
+        mode: ProtocolMode,
+    ) -> Result<()> {
+        update_protocol_config_handler(ctx, klend_program_id, farms_program_id, mode)
+    }
+
+    pub fn freeze_protocol_config(ctx: Context<FreezeProtocolConfig>) -> Result<()> {
+        freeze_protocol_config_handler(ctx)
+    }
+
+    pub fn init_position_registry(ctx: Context<InitPositionRegistry>) -> Result<()> {
         init_position_registry_aggregator(ctx)
     }
 
@@ -159,12 +160,16 @@ pub mod cushion {
         virtual_assets: u64,
         virtual_shares: u64,
     ) -> Result<()> {
-        init_vault_handler(ctx, min_deposit, deposit_cap, virtual_assets, virtual_shares)
+        init_vault_handler(
+            ctx,
+            min_deposit,
+            deposit_cap,
+            virtual_assets,
+            virtual_shares,
+        )
     }
 
-    pub fn init_collection(
-        ctx: Context<InitCollection>,
-    ) -> Result<()> {
+    pub fn init_collection(ctx: Context<InitCollection>) -> Result<()> {
         handlers::collection::init_collection(ctx)
     }
 
@@ -239,6 +244,8 @@ pub enum CushionError {
     MaxSharesBurnExceeded,
     #[msg("Invalid Kamino program account")]
     InvalidKaminoProgram,
+    #[msg("Invalid Kamino farms program account")]
+    InvalidKaminoFarmsProgram,
     #[msg("Invalid Kamino user metadata PDA")]
     InvalidKaminoUserMetadata,
     #[msg("Invalid Kamino obligation PDA")]

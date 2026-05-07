@@ -4,8 +4,11 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::{
     cpi::repay_klend::process_repay,
     handlers::obligation::position_auth::assert_position_nft_holder,
-    state::obligation::Obligation,
-    utils::{DebtRepaidEvent, POSITION_AUTHORITY_SEED},
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, obligation::Obligation,
+        ProtocolConfig,
+    },
+    utils::{DebtRepaidEvent, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED},
     CushionError,
 };
 
@@ -14,6 +17,14 @@ pub fn repay_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, RepayDebt<'info>>,
     amount: u64,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(amount > 0, CushionError::ZeroDebtAmount);
 
     assert_position_nft_holder(
@@ -112,7 +123,6 @@ pub struct RepayDebt<'info> {
     pub position_repay_account: Box<Account<'info, TokenAccount>>,
 
     // ── Oracle accounts (optional, required by refresh_reserve) ────────────
-
     /// CHECK: Optional Pyth oracle required by Kamino reserve config
     pub pyth_oracle: Option<UncheckedAccount<'info>>,
 
@@ -126,7 +136,6 @@ pub struct RepayDebt<'info> {
     pub scope_prices: Option<UncheckedAccount<'info>>,
 
     // ── Farms accounts (optional) ──────────────────────────────────────────
-
     /// CHECK: Optional farms user state for the obligation
     #[account(mut)]
     pub obligation_farm_user_state: Option<UncheckedAccount<'info>>,
@@ -139,9 +148,14 @@ pub struct RepayDebt<'info> {
     pub farms_program: AccountInfo<'info>,
 
     // ── Programs & sysvars ─────────────────────────────────────────────────
-
     /// CHECK: Kamino lend program
     pub klend_program: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// SPL token program used by Kamino CPI.
     pub token_program: Program<'info, Token>,

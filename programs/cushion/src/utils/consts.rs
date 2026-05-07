@@ -12,6 +12,10 @@ pub const LIQUIDATION_LTV_THRESHOLD_MULTIPLIER: u128 = 930_000_000_000_000_000;
 pub const LIQUIDATION_PROFIT_PERCENTAGE: u128 = 10_000_000_000_000_000;
 
 pub const KAMINO_PROGRAM_ID: Pubkey = pubkey!("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
+pub const FARMS_MAINNET_PROGRAM_ID: Pubkey =
+    pubkey!("FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr");
+
+pub const PROTOCOL_CONFIG_SEED: &[u8] = b"protocol_config_v1";
 
 
 /// PDA seed for the main vault state account derived per asset mint.

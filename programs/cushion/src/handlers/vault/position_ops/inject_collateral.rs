@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::{ 
     CushionError, cpi::{
         RefreshAccounts, deposit_klend::deposit_collateral_into_klend_from_vault, refresh_klend_state_for_current_slot
-    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
+    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, ProtocolConfig, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
 };
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -66,15 +66,14 @@ pub fn inject_collateral_handler<'info>(
     let vault_market_price = ctx.accounts.cushion_vault.market_price;
     require!(vault_market_price > 0, CushionError::ZeroPrice);
     let (price, decimals) = get_reserve_price_and_decimals(&ctx.accounts.klend_reserve)?;
-    let amount_to_inject = calculate_amount_to_inject(
-        deposit,
-        debt,
-        vault_market_price,
-        price,
-        decimals
-    ).ok_or(CushionError::InjectCalculationError)?;
+    let amount_to_inject =
+        calculate_amount_to_inject(deposit, debt, vault_market_price, price, decimals)
+            .ok_or(CushionError::InjectCalculationError)?;
 
-    require!((amount_to_inject as u128) < (ctx.accounts.cushion_vault.total_managed_assets), CushionError::InsufficientVaultLiquidity);
+    require!(
+        (amount_to_inject as u128) < (ctx.accounts.cushion_vault.total_managed_assets),
+        CushionError::InsufficientVaultLiquidity
+    );
     let position = &mut ctx.accounts.position;
     process_inject(position, amount_to_inject)?;
     deposit_collateral_into_klend_from_vault(&ctx, amount_to_inject)?;
@@ -211,4 +210,10 @@ pub struct InjectCollateral<'info>{
     /// CHECK: Valid reserve farm PDA
     #[account(mut)]
     pub reserve_farm_state: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 }

@@ -7,8 +7,13 @@ use crate::{
         position_auth::assert_position_nft_holder,
         reserve_guard::assert_no_matching_deposit_reserve,
     },
-    state::obligation::Obligation,
-    utils::{DebtIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED},
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, obligation::Obligation,
+        ProtocolConfig,
+    },
+    utils::{
+        DebtIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED,
+    },
     CushionError,
 };
 
@@ -16,6 +21,14 @@ pub fn borrow_asset_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, BorrowAsset<'info>>,
     amount: u64,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(amount > 0, CushionError::ZeroDebtAmount);
     assert_position_nft_holder(
         &ctx.accounts.user,
@@ -141,6 +154,12 @@ pub struct BorrowAsset<'info> {
 
     /// CHECK: Kamino lending program
     pub klend_program: UncheckedAccount<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// CHECK: Pyth price oracle
     pub pyth_oracle: Option<UncheckedAccount<'info>>,

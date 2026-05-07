@@ -7,11 +7,16 @@ use crate::{
         refresh_obligation_klend::{refresh_klend_state_for_current_slot, RefreshAccounts},
     },
     handlers::obligation::{
-        position_auth::assert_position_nft_holder,
-        reserve_guard::assert_no_matching_borrow_reserve,
+        position_auth::assert_position_nft_holder, reserve_guard::assert_no_matching_borrow_reserve,
     },
-    state::obligation::Obligation,
-    utils::{CollateralIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED},
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, obligation::Obligation,
+        ProtocolConfig,
+    },
+    utils::{
+        CollateralIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED,
+        PROTOCOL_CONFIG_SEED,
+    },
     CushionError,
 };
 
@@ -19,6 +24,14 @@ pub fn increase_collateral_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, IncreaseCollateral<'info>>,
     amount: u64,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(amount > 0, CushionError::ZeroCollateralAmount);
     assert_position_nft_holder(
         &ctx.accounts.user,
@@ -37,10 +50,26 @@ pub fn increase_collateral_handler<'info>(
         klend_obligation: ctx.accounts.klend_obligation.to_account_info(),
         klend_reserve: ctx.accounts.klend_reserve.to_account_info(),
         lending_market: ctx.accounts.lending_market.to_account_info(),
-        pyth_oracle: ctx.accounts.pyth_oracle.as_ref().map(|a| a.to_account_info()),
-        switchboard_price_oracle: ctx.accounts.switchboard_price_oracle.as_ref().map(|a| a.to_account_info()),
-        switchboard_twap_oracle: ctx.accounts.switchboard_twap_oracle.as_ref().map(|a| a.to_account_info()),
-        scope_prices: ctx.accounts.scope_prices.as_ref().map(|a| a.to_account_info()),
+        pyth_oracle: ctx
+            .accounts
+            .pyth_oracle
+            .as_ref()
+            .map(|a| a.to_account_info()),
+        switchboard_price_oracle: ctx
+            .accounts
+            .switchboard_price_oracle
+            .as_ref()
+            .map(|a| a.to_account_info()),
+        switchboard_twap_oracle: ctx
+            .accounts
+            .switchboard_twap_oracle
+            .as_ref()
+            .map(|a| a.to_account_info()),
+        scope_prices: ctx
+            .accounts
+            .scope_prices
+            .as_ref()
+            .map(|a| a.to_account_info()),
         remaining_accounts: ctx.remaining_accounts.to_vec(),
     })?;
 
@@ -139,6 +168,12 @@ pub struct IncreaseCollateral<'info> {
 
     /// CHECK: Kamino farms program
     pub farms_program: UncheckedAccount<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// CHECK: Pyth price oracle; omit when reserve does not use Pyth
     pub pyth_oracle: Option<UncheckedAccount<'info>>,
