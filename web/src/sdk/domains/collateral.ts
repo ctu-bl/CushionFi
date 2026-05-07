@@ -4,7 +4,11 @@ import type { CushionSdkContext } from "../core/context.ts";
 import { buildTransaction, sendBuiltTransaction, type BuiltTx } from "../core/anchor.ts";
 import { assertU64, toU64Bn } from "../core/amounts.ts";
 import { createKlendRefreshReserveInstructions } from "../core/klend.ts";
-import { derivePositionAddress, derivePositionAuthorityAddress } from "../core/pda.ts";
+import {
+  derivePositionAddress,
+  derivePositionAuthorityAddress,
+  deriveProtocolConfigAddress,
+} from "../core/pda.ts";
 import { ensureAtaInstruction } from "../core/token.ts";
 import { createPositionDomain } from "./position.ts";
 
@@ -93,6 +97,7 @@ export function createCollateralDomain(context: CushionSdkContext) {
 
     const position = derivePositionAddress(context.cushionProgramId, input.positionNftMint);
     const positionAuthority = derivePositionAuthorityAddress(context.cushionProgramId, input.positionNftMint);
+    const protocolConfig = deriveProtocolConfigAddress(context.cushionProgramId);
     const positionAccount = await program.account.obligation.fetch(position);
 
     const resolved = await context.klendResolver.resolveOperation({
@@ -166,6 +171,7 @@ export function createCollateralDomain(context: CushionSdkContext) {
         obligationFarmUserState: resolved.obligationFarmUserState,
         reserveFarmState: resolved.reserveFarmState,
         farmsProgram: context.config.farmsProgramId,
+        protocolConfig,
         pythOracle: resolved.selectedReserve.pythOracle,
         switchboardPriceOracle: resolved.selectedReserve.switchboardPriceOracle,
         switchboardTwapOracle: resolved.selectedReserve.switchboardTwapOracle,
@@ -196,6 +202,7 @@ export function createCollateralDomain(context: CushionSdkContext) {
 
     const position = derivePositionAddress(context.cushionProgramId, input.positionNftMint);
     const positionAuthority = derivePositionAuthorityAddress(context.cushionProgramId, input.positionNftMint);
+    const protocolConfig = deriveProtocolConfigAddress(context.cushionProgramId);
     const positionAccount = await program.account.obligation.fetch(position);
 
     const resolved = await context.klendResolver.resolveOperation({
@@ -269,6 +276,7 @@ export function createCollateralDomain(context: CushionSdkContext) {
         obligationFarmUserState: resolved.obligationFarmUserState,
         reserveFarmState: resolved.reserveFarmState,
         farmsProgram: context.config.farmsProgramId,
+        protocolConfig,
         pythOracle: resolved.selectedReserve.pythOracle,
         switchboardPriceOracle: resolved.selectedReserve.switchboardPriceOracle,
         switchboardTwapOracle: resolved.selectedReserve.switchboardTwapOracle,

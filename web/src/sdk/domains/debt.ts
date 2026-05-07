@@ -13,7 +13,11 @@ import type { CushionSdkContext, BorrowInstructionVariant } from "../core/contex
 import { buildTransaction, sendBuiltTransaction, type BuiltTx } from "../core/anchor.ts";
 import { assertU64, toU64Bn } from "../core/amounts.ts";
 import { createKlendRefreshReserveInstructions } from "../core/klend.ts";
-import { derivePositionAddress, derivePositionAuthorityAddress } from "../core/pda.ts";
+import {
+  derivePositionAddress,
+  derivePositionAuthorityAddress,
+  deriveProtocolConfigAddress,
+} from "../core/pda.ts";
 import { ensureAtaInstruction } from "../core/token.ts";
 import { createPositionDomain } from "./position.ts";
 
@@ -140,6 +144,7 @@ export function createDebtDomain(context: CushionSdkContext) {
     const amount = assertU64(input.amount, "amount");
     const position = derivePositionAddress(context.cushionProgramId, input.positionNftMint);
     const positionAuthority = derivePositionAuthorityAddress(context.cushionProgramId, input.positionNftMint);
+    const protocolConfig = deriveProtocolConfigAddress(context.cushionProgramId);
     const positionAccount = await program.account.obligation.fetch(position);
 
     const resolved = await context.klendResolver.resolveOperation({
@@ -209,6 +214,7 @@ export function createDebtDomain(context: CushionSdkContext) {
         reserveFarmState: resolved.reserveFarmState,
         farmsProgram: context.config.farmsProgramId,
         klendProgram: context.config.klendProgramId,
+        protocolConfig,
       })
       .remainingAccounts(
         resolved.remainingReserves.map((reserve) => ({
@@ -236,6 +242,7 @@ export function createDebtDomain(context: CushionSdkContext) {
 
     const position = derivePositionAddress(context.cushionProgramId, input.positionNftMint);
     const positionAuthority = derivePositionAuthorityAddress(context.cushionProgramId, input.positionNftMint);
+    const protocolConfig = deriveProtocolConfigAddress(context.cushionProgramId);
     const positionAccount = await program.account.obligation.fetch(position);
 
     const resolved = await context.klendResolver.resolveOperation({
@@ -297,6 +304,7 @@ export function createDebtDomain(context: CushionSdkContext) {
         reserveFarmState: resolved.reserveFarmState,
         farmsProgram: context.config.farmsProgramId,
         klendProgram: context.config.klendProgramId,
+        protocolConfig,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         systemProgram: SystemProgram.programId,
