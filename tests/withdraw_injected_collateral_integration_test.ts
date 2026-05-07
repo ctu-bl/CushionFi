@@ -1,7 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { Reserve as KlendReserveAccount } from "@kamino-finance/klend-sdk";
+import {
+  Obligation as KlendObligationAccount,
+  Reserve as KlendReserveAccount,
+} from "@kamino-finance/klend-sdk";
 import {
   getAccount,
   getOrCreateAssociatedTokenAccount,
@@ -26,6 +29,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   MPL_CORE_PROGRAM_ID,
@@ -52,6 +56,15 @@ const KLEND_REFRESH_RESERVE_DISCRIMINATOR = (() => {
   const { createHash } = require("crypto");
   return createHash("sha256").update("global:refresh_reserve").digest().slice(0, 8) as Buffer;
 })();
+const KLEND_REFRESH_OBLIGATION_DISCRIMINATOR = (() => {
+  const { createHash } = require("crypto");
+  return createHash("sha256").update("global:refresh_obligation").digest().slice(0, 8) as Buffer;
+})();
+const WAD_BN = new anchor.BN("1000000000000000000");
+const BORROW_LIQUIDATION_BUFFER_MULTIPLIER_BN = new anchor.BN("950000000000000000");
+const BORROW_AMOUNT_HEADROOM_BPS_BN = new anchor.BN(9900);
+const TEN_THOUSAND_BN = new anchor.BN(10000);
+const COLLATERAL_SETUP_LAMPORTS_BN = new anchor.BN(2_000_000);
 
 type Fixture = {
   nftMint: PublicKey;
@@ -202,11 +215,14 @@ describe("withdraw injected collateral", () => {
     )[0];
   }
 
-  function deriveObligationFarmUserState(klendObligation: PublicKey): PublicKey {
+  function deriveObligationFarmUserState(
+    reserveFarmState: PublicKey,
+    klendObligation: PublicKey
+  ): PublicKey {
     return PublicKey.findProgramAddressSync(
       [
         Buffer.from("user"),
-        RESERVE_FARM_STATE.toBuffer(),
+        reserveFarmState.toBuffer(),
         klendObligation.toBuffer(),
       ],
       FARMS_PROGRAM
@@ -295,7 +311,7 @@ describe("withdraw injected collateral", () => {
       feeVault,
       reserveFarmState,
       obligationFarmUserState: reserveFarmState
-        ? deriveObligationFarmUserState(klendObligation)
+        ? deriveObligationFarmUserState(reserveFarmState, klendObligation)
         : null,
       pythOracle,
       switchboardPriceOracle,
@@ -336,6 +352,26 @@ describe("withdraw injected collateral", () => {
     });
   }
 
+  function buildRefreshObligationInstruction(params: {
+    lendingMarket: PublicKey;
+    obligation: PublicKey;
+    reserves: PublicKey[];
+  }): TransactionInstruction {
+    return new TransactionInstruction({
+      programId: KLEND,
+      keys: [
+        { pubkey: params.lendingMarket, isSigner: false, isWritable: false },
+        { pubkey: params.obligation, isSigner: false, isWritable: true },
+        ...params.reserves.map((reserve) => ({
+          pubkey: reserve,
+          isSigner: false,
+          isWritable: true,
+        })),
+      ],
+      data: KLEND_REFRESH_OBLIGATION_DISCRIMINATOR,
+    });
+  }
+
   async function ensurePositionRegistryInitialized(positionRegistry: PublicKey): Promise<void> {
     const existing = await provider.connection.getAccountInfo(positionRegistry);
     if (existing) return;
@@ -358,7 +394,7 @@ describe("withdraw injected collateral", () => {
     vaultMarketPrice?: number;
     collateralAmount?: number;
   }): Promise<Fixture> {
-    const vaultLiquidity = options?.vaultLiquidity ?? 5_000_000; // Default 5M
+    const vaultLiquidity = options?.vaultLiquidity ?? 1_000_000_000; // 1 SOL in lamports
     const collateralAmount = options?.collateralAmount ?? 1_000_000; // Default 1M
 
     // Create NFT mint
@@ -376,6 +412,7 @@ describe("withdraw injected collateral", () => {
     const klendObligation = deriveKlendObligation(positionAuthority);
     const lendingMarketAuthority = deriveLendingMarketAuthority();
     const obligationFarmUserState = deriveObligationFarmUserState(
+      RESERVE_FARM_STATE,
       klendObligation
     );
     const reserveOracleAccounts = await deriveReserveOracleAccounts();
@@ -429,6 +466,7 @@ describe("withdraw injected collateral", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -520,7 +558,7 @@ describe("withdraw injected collateral", () => {
 
     try {
       await (program as any).methods
-        .deposit(new anchor.BN(vaultLiquidity), new anchor.BN(vaultLiquidity))
+        .deposit(new anchor.BN(vaultLiquidity), new anchor.BN(0))
         .accounts({
           user,
           assetMint: vaultAssetMint,
@@ -533,7 +571,7 @@ describe("withdraw injected collateral", () => {
         })
         .rpc();
     } catch (err: any) {
-      // Vault can be already fully deposited
+      // Vault can already be at cap or have changed share price from previous tests.
     }
 
     return {
@@ -575,14 +613,146 @@ describe("withdraw injected collateral", () => {
     }
   }
 
-  async function setupInjectionWithDebt(fixture: Fixture, borrowAmount: anchor.BN) {
+  async function computeUnsafeButBorrowableAmount(
+    obligation: PublicKey,
+    borrowReserve: PublicKey
+  ): Promise<anchor.BN> {
+    const [obligationBeforeRefresh, reserveAccount] = await Promise.all([
+      provider.connection.getAccountInfo(obligation, "confirmed"),
+      provider.connection.getAccountInfo(borrowReserve, "confirmed"),
+    ]);
+    if (!obligationBeforeRefresh) {
+      throw new Error(`Missing obligation account: ${obligation.toBase58()}`);
+    }
+    if (!reserveAccount) {
+      throw new Error(`Missing borrow reserve account: ${borrowReserve.toBase58()}`);
+    }
+
+    const obligationSnapshot = KlendObligationAccount.decode(
+      Buffer.from(obligationBeforeRefresh.data)
+    );
+    const activeReserves = new Set<string>();
+    for (const deposit of obligationSnapshot.deposits) {
+      const reserve = new PublicKey(deposit.depositReserve.toString());
+      if (!reserve.equals(PublicKey.default)) {
+        activeReserves.add(reserve.toBase58());
+      }
+    }
+    for (const borrow of obligationSnapshot.borrows) {
+      const reserve = new PublicKey(borrow.borrowReserve.toString());
+      if (!reserve.equals(PublicKey.default)) {
+        activeReserves.add(reserve.toBase58());
+      }
+    }
+    const reserveOracleAccounts = await deriveReserveOracleAccounts();
+    const borrowReserveOracleAccounts = await deriveBorrowReserveFixture(
+      borrowReserve,
+      obligation
+    );
+
+    let obligationData: KlendObligationAccount | null = null;
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
+      const reservesForRefresh = Array.from(activeReserves).map((k) => new PublicKey(k));
+      if (!reservesForRefresh.some((reserve) => reserve.equals(RESERVE))) {
+        reservesForRefresh.push(RESERVE);
+      }
+
+      await provider.sendAndConfirm(
+        new Transaction().add(
+          buildRefreshReserveInstruction({
+            reserve: RESERVE,
+            lendingMarket: MARKET,
+            pythOracle: reserveOracleAccounts.pythOracle,
+            switchboardPriceOracle: reserveOracleAccounts.switchboardPriceOracle,
+            switchboardTwapOracle: reserveOracleAccounts.switchboardTwapOracle,
+            scopePrices: reserveOracleAccounts.scopePrices,
+          }),
+          buildRefreshReserveInstruction({
+            reserve: borrowReserve,
+            lendingMarket: MARKET,
+            pythOracle: borrowReserveOracleAccounts.pythOracle,
+            switchboardPriceOracle: borrowReserveOracleAccounts.switchboardPriceOracle,
+            switchboardTwapOracle: borrowReserveOracleAccounts.switchboardTwapOracle,
+            scopePrices: borrowReserveOracleAccounts.scopePrices,
+          }),
+          buildRefreshObligationInstruction({
+            lendingMarket: MARKET,
+            obligation,
+            reserves: reservesForRefresh,
+          })
+        ),
+        []
+      );
+
+      const obligationAccount = await provider.connection.getAccountInfo(
+        obligation,
+        "confirmed"
+      );
+      if (!obligationAccount) {
+        throw new Error(`Missing obligation account: ${obligation.toBase58()}`);
+      }
+
+      obligationData = KlendObligationAccount.decode(Buffer.from(obligationAccount.data));
+      const depositedValueAttempt = new anchor.BN(obligationData.depositedValueSf.toString());
+      if (depositedValueAttempt.gt(new anchor.BN(0))) {
+        break;
+      }
+
+      if (attempt < 8) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+      }
+    }
+
+    if (!obligationData) {
+      throw new Error("Failed to decode obligation data while computing borrow amount");
+    }
+
+    const reserveData = KlendReserveAccount.decode(Buffer.from(reserveAccount.data));
+    const depositedValue = new anchor.BN(obligationData.depositedValueSf.toString());
+    const debtValue = new anchor.BN(
+      obligationData.borrowFactorAdjustedDebtValueSf.toString()
+    );
+    const unhealthyBorrowValue = new anchor.BN(
+      obligationData.unhealthyBorrowValueSf.toString()
+    );
+    if (depositedValue.lte(new anchor.BN(0))) {
+      throw new Error("Obligation has zero deposited value");
+    }
+
+    const liquidationLtv = unhealthyBorrowValue.mul(WAD_BN).div(depositedValue);
+    const maxSafeLtv = liquidationLtv
+      .mul(BORROW_LIQUIDATION_BUFFER_MULTIPLIER_BN)
+      .div(WAD_BN);
+    const maxSafeDebtValue = maxSafeLtv.mul(depositedValue).div(WAD_BN);
+    if (maxSafeDebtValue.lte(debtValue)) {
+      throw new Error("Obligation debt is already at or above max-safe debt");
+    }
+
+    const allowedDebtIncreaseValue = maxSafeDebtValue.sub(debtValue);
+    const borrowPrice = new anchor.BN(reserveData.liquidity.marketPriceSf.toString());
+    const mintDecimals = new anchor.BN(reserveData.liquidity.mintDecimals.toString());
+    const mintFactor = new anchor.BN(10).pow(mintDecimals);
+    if (borrowPrice.lte(new anchor.BN(0))) {
+      throw new Error("Borrow reserve market price is zero");
+    }
+
+    let amount = allowedDebtIncreaseValue.mul(mintFactor).div(borrowPrice);
+    amount = amount.mul(BORROW_AMOUNT_HEADROOM_BPS_BN).div(TEN_THOUSAND_BN);
+    if (amount.lte(new anchor.BN(0))) {
+      throw new Error("Computed borrow amount is zero");
+    }
+
+    return amount;
+  }
+
+  async function setupInjectionWithDebt(fixture: Fixture, borrowAmount?: anchor.BN) {
     const computeIxs = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
 
     // Increase collateral
-    const collateralAmount = new anchor.BN(1_000_000);
+    const collateralAmount = COLLATERAL_SETUP_LAMPORTS_BN;
     await (program as any).methods
       .increaseCollateral(collateralAmount)
       .preInstructions(computeIxs)
@@ -600,6 +770,7 @@ describe("withdraw injected collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -643,8 +814,12 @@ describe("withdraw injected collateral", () => {
       true
     );
 
+    const resolvedBorrowAmount =
+      borrowAmount ??
+      (await computeUnsafeButBorrowableAmount(fixture.klendObligation, USDC_RESERVE));
+
     await (program as any).methods
-      .borrowAsset(borrowAmount)
+      .borrowAsset(resolvedBorrowAmount)
       .preInstructions([
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
@@ -691,6 +866,7 @@ describe("withdraw injected collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
@@ -749,6 +925,7 @@ describe("withdraw injected collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
@@ -800,6 +977,7 @@ describe("withdraw injected collateral", () => {
         reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -834,9 +1012,9 @@ describe("withdraw injected collateral", () => {
   before(async () => {
     await waitForRpcReady();
 
-    fixture = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
-    fixtureForWithdraw = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
-    fixtureNotInjected = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
+    fixture = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixtureForWithdraw = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixtureNotInjected = await createFixture({ vaultLiquidity: 1_000_000_000 });
   });
 
   // =========================================================================
@@ -845,8 +1023,9 @@ describe("withdraw injected collateral", () => {
 
   it("should withdraw injected collateral successfully", async () => {
     // Setup: inject collateral first
-    const borrowAmount = new anchor.BN(55_800);
-    const { usdcReserve, userUsdcAta, positionUsdcAta } = await setupInjectionWithDebt(fixtureForWithdraw, borrowAmount);
+    const { usdcReserve, userUsdcAta, positionUsdcAta } = await setupInjectionWithDebt(
+      fixtureForWithdraw
+    );
 
     const positionBefore = await (program as any).account.obligation.fetch(fixtureForWithdraw.position);
     const vaultBefore = await (program as any).account.vault.fetch(fixtureForWithdraw.vault);
@@ -855,7 +1034,7 @@ describe("withdraw injected collateral", () => {
     expect(positionBefore.injected).to.be.true;
     expect(positionBefore.injectedAmount.toNumber()).to.be.greaterThan(0);
 
-    const collateralAmount = new anchor.BN(1_000_000);
+    const collateralAmount = COLLATERAL_SETUP_LAMPORTS_BN;
     await (program as any).methods
       .increaseCollateral(collateralAmount)
       .preInstructions([
@@ -892,6 +1071,7 @@ describe("withdraw injected collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixtureForWithdraw.pythOracle,
         switchboardPriceOracle: fixtureForWithdraw.switchboardPriceOracle,
@@ -950,6 +1130,7 @@ describe("withdraw injected collateral", () => {
         reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         lendingMarketAuthority: fixtureForWithdraw.lendingMarketAuthority,
         reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
@@ -1025,6 +1206,7 @@ describe("withdraw injected collateral", () => {
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           lendingMarketAuthority: fixtureNotInjected.lendingMarketAuthority,
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
@@ -1053,8 +1235,7 @@ describe("withdraw injected collateral", () => {
 
   it("should reject withdrawal when position would remain unsafe", async () => {
     // Setup with very high debt making position still unsafe after withdrawal
-    const highBorrowAmount = new anchor.BN(55_800);
-    const { usdcReserve } = await setupInjectionWithDebt(fixture, highBorrowAmount);
+    const { usdcReserve } = await setupInjectionWithDebt(fixture);
 
     const positionBefore = await (program as any).account.obligation.fetch(fixture.position);
     const vaultBalanceBefore = await getAccount(provider.connection, fixture.vaultTokenAccount);
@@ -1099,6 +1280,7 @@ describe("withdraw injected collateral", () => {
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           lendingMarketAuthority: fixture.lendingMarketAuthority,
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,

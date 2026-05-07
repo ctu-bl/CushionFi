@@ -15,6 +15,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   RESERVE,
@@ -215,6 +216,7 @@ describe("init position integration", () => {
           lendingMarketAuthority,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,

@@ -21,6 +21,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   MPL_CORE_PROGRAM_ID,
@@ -265,6 +266,7 @@ describe("same asset debt and collateral guard", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -343,6 +345,7 @@ describe("same asset debt and collateral guard", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -396,6 +399,7 @@ describe("same asset debt and collateral guard", () => {
           obligationFarmUserState: fixture.obligationFarmUserState,
           reserveFarmState: RESERVE_FARM_STATE,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
         })
         .rpc(),
