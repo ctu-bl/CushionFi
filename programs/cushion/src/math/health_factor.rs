@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{handlers::debt, utils::{INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow}};
+use crate::{handlers::debt, utils::{LIQUIDATION_LTV_THRESHOLD_MULTIPLIER, INSURING_LTV_THRESHOLD_MULTIPLIER, WAD, WITHDRAWING_LTV_THRESHOLD_MULTIPLIER, ten_pow}};
 
 pub fn compute_potential_ltv(
     collateral_delta: Delta,
@@ -39,12 +39,24 @@ pub fn get_market_value_from_reserve(amount: u64, price: u128, decimals: u64) ->
         .checked_div(mint_factor as u128)
 }
 
-pub fn get_amount_from_market_value_from_reserve(market_value: u128, price: u128, decimals: u64) -> Option<u128> {
+/*pub fn get_amount_from_market_value(market_value: u128, price: u128, decimals: u64) -> Option<u64> {
     let mint_factor = ten_pow(usize::try_from(decimals).ok()?);
 
-    (market_value as u128)
+    let amount_u128 = (market_value)
         .checked_mul(mint_factor as u128)?
-        .checked_div(price)
+        .checked_div(price)?;
+    
+    amount_u128.try_into().ok()
+}*/
+
+pub fn get_amount_from_market_value_from_reserve(market_value: u128, price: u128, decimals: u64) -> Option<u64> {
+    let mint_factor = ten_pow(usize::try_from(decimals).ok()?);
+
+    let amount_u128 = (market_value as u128)
+        .checked_mul(mint_factor as u128)?
+        .checked_div(price)?;
+
+    amount_u128.try_into().ok()
 }
 
 pub fn get_insuring_ltv_threshold(
@@ -75,7 +87,8 @@ pub fn get_withdrawing_ltv_threshold(
 }
 
 pub fn get_liquidation_ltv_threshold(unhealthy_borrow_value: u128, deposit_sum: u128) -> Option<u128> {
-    unhealthy_borrow_value.checked_mul(WAD)?.checked_div(deposit_sum)
+    unhealthy_borrow_value.checked_mul(WAD)?.checked_div(deposit_sum)?
+        .checked_mul(LIQUIDATION_LTV_THRESHOLD_MULTIPLIER)?.checked_div(WAD)
 }
 
 pub fn apply_ltv_buffer(threshold: u128, multiplier: u128) -> Option<u128> {
@@ -183,7 +196,7 @@ mod tests {
     #[test]
     fn test_liquidation_ltv_threshold() {
         let result = get_liquidation_ltv_threshold(900, 1200);
-        assert_eq!(result, Some((900 * WAD) / 1200));
+        assert_eq!(result, Some((900 * WAD) / 1200 * LIQUIDATION_LTV_THRESHOLD_MULTIPLIER / WAD));
     }
 
     #[test]
@@ -462,5 +475,261 @@ mod tests {
     fn get_insuring_ltv_threshold_overflow_on_multiply() {
         let result = get_insuring_ltv_threshold(0, u128::MAX, 100);
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_zero_market_value() {
+        // Zero market value should return zero amount
+        let market_value = 0u128;
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 6u64; // USDC has 6 decimals
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(0));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_zero_price() {
+        // Zero price should cause division by zero
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let price = 0u128;
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_zero_decimals() {
+        // Token with 0 decimals (atomic units = 1)
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 0u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_standard_usdc() {
+        // Standard case: USDC (6 decimals) priced at 1 USD
+        let market_value = 1_000_000_000_000_000_000u128; // $1 value
+        let price = 1_000_000_000_000_000_000u128; // $1 per unit
+        let decimals = 6u64; // USDC has 6 decimals
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1_000_000)); // 1 USDC = 1,000,000 (in atomic units)
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_standard_sol() {
+        // Standard case: SOL (9 decimals) priced at $150 USD
+        let market_value = 150_000_000_000_000_000_000u128; // $150 value
+        let price = 150_000_000_000_000_000_000u128; // $150 per SOL
+        let decimals = 9u64; // SOL has 9 decimals
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1_000_000_000)); // 1 SOL = 1,000,000,000 lamports
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_fractional_amount() {
+        // When market_value / price results in fractional amount
+        let market_value = 1_500_000_000_000_000_000u128; // 1.5 WAD
+        let price = 3_000_000_000_000_000_000u128; // 3 WAD per unit
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount_u128 = (1.5 * 10^6) / 3 = 0.5 * 10^6 = 500_000
+        assert_eq!(result, Some(500_000));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_price_greater_than_wad() {
+        // Price multiplier greater than 1 (token worth more)
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let price = 2_000_000_000_000_000_000u128; // 2 WAD per unit
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount_u128 = (1 * 10^6) / 2 = 0.5 * 10^6 = 500_000
+        assert_eq!(result, Some(500_000));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_price_less_than_wad() {
+        // Price multiplier less than 1 (token worth less)
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let price = 500_000_000_000_000_000u128; // 0.5 WAD per unit
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount_u128 = (1 * 10^6) / 0.5 = 2 * 10^6 = 2_000_000
+        assert_eq!(result, Some(2_000_000));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_high_decimals() {
+        // Token with high decimals (like some ERC-18 tokens)
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 18u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1_000_000_000_000_000_000)); // 1 full unit
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_one_decimal() {
+        // Token with 1 decimal
+        let market_value = 100_000_000_000_000_000u128; // 0.1 WAD
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 1u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1)); // 0.1 WAD * 10 / 1 WAD = 1
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_overflow_on_multiply() {
+        // market_value * 10^decimals causes overflow
+        let market_value = u128::MAX / 2;
+        let price = 1_000_000_000_000_000_000u128;
+        let decimals = 18u64; // 10^18 will cause overflow
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, None); // Overflow on checked_mul
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_very_small_amount() {
+        // Very small market value that rounds to zero
+        let market_value = 1u128; // Minimal value
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount_u128 = (1 * 10^6) / WAD = 0 (rounds down)
+        assert_eq!(result, Some(0));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_very_large_market_value() {
+        // Very large market value
+        let market_value = u128::MAX / 1_000; // Large but safe
+        let price = 1_000_000_000_000_000_000u128; // 1 WAD
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_one_unit_conversion() {
+        // Simple 1-to-1 conversion scenario
+        let market_value = 1_000_000_000_000_000_000u128; // 1 WAD = 1 USD
+        let price = 1_000_000_000_000_000_000u128; // Price is 1 WAD = 1 USD per token
+        let decimals = 6u64; // USDC
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(1_000_000));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_precision_loss_division() {
+        // Division causes precision loss
+        let market_value = 1_000_000_000_000_000_001u128; // Just over 1 WAD
+        let price = 3_000_000_000_000_000_000u128; // 3 WAD
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount_u128 = (1.000...001 * 10^6) / 3
+        // = 1_000_000 / 3 = 333_333 (with truncation)
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        assert!(amount >= 333_333 && amount <= 333_334);
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_realistic_usdc_price_fluctuation() {
+        // Realistic scenario: USDC market value with price = 0.9999 USD
+        let market_value = 100_000_000u128; // $100 worth
+        let price = 999_900u128; // $0.9999 per USDC
+        let decimals = 6u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        // Should be slightly more than 100 USDC million
+        msg!("amount: {}", amount);
+        assert!(amount > 100_000_000);
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_realistic_sol_liquidation() {
+        // Realistic liquidation scenario: 5 SOL at $150/SOL
+        let market_value = 750_000_000_000_000_000_000u128; // $750
+        let price = 150_000_000_000_000_000_000u128; // $150 per SOL
+        let decimals = 9u64; // SOL decimals
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(5_000_000_000)); // 5 SOL
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_conversion_u64_overflow() {
+        // Result too large to fit in u64
+        let market_value = (u64::MAX as u128) * 2;
+        let price = 1u128; // Very small price to avoid overflow on multiply
+        let decimals = 0u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, None); // try_into() fails
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_max_u64_result() {
+        // Result exactly at u64::MAX
+        let market_value = u64::MAX as u128;
+        let price = 1u128;
+        let decimals = 0u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, Some(u64::MAX));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_max_u64_just_over() {
+        // Result just over u64::MAX
+        let market_value = (u64::MAX as u128) + 1;
+        let price = 1u128;
+        let decimals = 0u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert_eq!(result, None); // try_into() fails
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_mid_price_volatility() {
+        // Price significantly different from WAD (token worth 2x)
+        let market_value = 100_000_000_000_000_000u128; // 0.1 WAD
+        let price = 2_000_000_000_000_000_000u128; // 2 WAD (token worth double)
+        let decimals = 18u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        // amount = (0.1 * 10^18) / 2 = 0.05 * 10^18
+        assert_eq!(result, Some(50_000_000_000_000_000));
+    }
+
+    #[test]
+    fn test_get_amount_from_market_value_boundary_19_decimals() {
+        // Test at the boundary of supported decimals (19)
+        let market_value = 1_000_000_000_000_000_000u128;
+        let price = 1_000_000_000_000_000_000u128;
+        let decimals = 19u64;
+        let result = get_amount_from_market_value_from_reserve(market_value, price, decimals);
+        
+        assert!(result.is_some());
+        assert_eq!(result.unwrap() as u128, 10_000_000_000_000_000_000_000_000_000_000_000_000u128 / 1_000_000_000_000_000_000u128);
     }
 }

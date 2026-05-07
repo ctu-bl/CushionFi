@@ -10,7 +10,7 @@ pub fn process_inject(position: &mut Box<Account<Obligation>>, amount_to_inject:
     Ok(())
 }
 
-pub fn process_withdraw_after_inject(
+pub fn process_withdraw_after_inject_or_liquidate(
     position: &mut Box<Account<Obligation>>,
 ) -> Result<()> {
     position.injected = false;

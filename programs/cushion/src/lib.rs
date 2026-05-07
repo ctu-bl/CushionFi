@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
+declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
 
 pub mod cpi;
 pub mod handlers;
@@ -120,8 +120,26 @@ pub mod cushion {
         withdraw_injected_collateral_handler(ctx)
     }
 
-    pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
-        Ok(())
+    /// Transaction 1: swap vault WSOL → USDC to cover the position's debt
+    pub fn liquidate_swap<'info>(
+        ctx: Context<'_, '_, '_, 'info, LiquidateSwap<'info>>,
+    ) -> Result<()> {
+        liquidate_swap_handler(ctx)
+    }
+
+    /// Admin version of Transaction 1: same as liquidate_swap but skips the LTV check
+    /// and marks position as injected. Requires caller to be vault authority.
+    pub fn admin_liquidate_swap<'info>(
+        ctx: Context<'_, '_, '_, 'info, AdminLiquidateSwap<'info>>,
+    ) -> Result<()> {
+        admin_liquidate_swap_handler(ctx)
+    }
+
+    /// Transaction 2: repay USDC debt to Kamino and withdraw WSOL collateral
+    pub fn liquidate<'info>(
+        ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
+    ) -> Result<()> {
+        liquidate_handler(ctx)
     }
 
     // -------------------------
@@ -273,4 +291,24 @@ pub enum CushionError {
     WithdrawAmountIsZero,
     #[msg("Calculation of withdraw value failed")]
     WithdrawValueError,
+    #[msg("Liquidation amount cannot be zero")]
+    ZeroLiquidationAmount,
+    #[msg("Invalid Orca Whirlpool program account")]
+    InvalidOrcaProgram,
+    #[msg("Invalid Orca Whirlpool pool address")]
+    InvalidWhirlpoolPool,
+    #[msg("Invalid Orca tick array address")]
+    InvalidTickArray,
+    #[msg("Invalid Orca oracle account")]
+    InvalidOracleAccount,
+    #[msg("Failed to compute liquidation LTV threshold")]
+    LiquidationLtvCalculationError,
+    #[msg("Position has not reached the liquidation LTV threshold")]
+    NotLiquidable,
+    #[msg("Calculation of amount from market value failed")]
+    AmountFromMarketValueError,
+    #[msg("Calculation of WSOL amount failed")]
+    WsolAmountCalculationError,
+    #[msg("Amount to transfer is zero")]
+    ZeroAmountToSend,
 }
