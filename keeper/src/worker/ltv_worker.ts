@@ -7,6 +7,7 @@ import type { ComputeJob, ExecuteJob } from "../types.ts";
 
 const WAD = 1_000_000_000_000_000_000n;
 const WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD = 743_333_333_333_333_333n;
+const LIQUIDATION_LTV_THRESHOLD_MULTIPLIER_WAD = 930_000_000_000_000_000n;
 
 export class LtvWorker {
   private readonly name: string;
@@ -154,6 +155,16 @@ export class LtvWorker {
             WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD) /
           WAD;
     const withdrawEligible = positionRecord.injected && ltv <= withdrawThreshold;
+    const liquidateLtvThresholdWad =
+      risk.depositedValueSf === 0n
+        ? null
+        : (((risk.unhealthyBorrowValueSf * WAD) / risk.depositedValueSf) *
+            LIQUIDATION_LTV_THRESHOLD_MULTIPLIER_WAD) /
+          WAD;
+    const liquidateEligible =
+      positionRecord.injected &&
+      liquidateLtvThresholdWad !== null &&
+      ltv >= liquidateLtvThresholdWad;
     risk.withdrawThresholdWad = withdrawThreshold;
     risk.withdrawEligible = withdrawEligible;
     await this.repository.saveRiskSnapshot(risk);
@@ -172,8 +183,20 @@ export class LtvWorker {
       withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
       withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
       withdrawEligible: risk.withdrawEligible ?? false,
-      slot,
-    });
+        slot,
+      });
+
+    if (liquidateEligible) {
+      const dedupeKey = `action:liquidate:${position}`;
+      const ltvPct = wadToPercentString(ltv);
+      this.executeQueue.enqueue(dedupeKey, {
+        kind: "liquidate",
+        position,
+        reason: `ltv=${ltv.toString()} (${ltvPct}) threshold=${liquidateLtvThresholdWad?.toString() ?? "null"} source=${reason}`,
+        dedupeKey,
+      });
+      return;
+    }
 
     if (!positionRecord.injected && ltv > injectThreshold) {
       const dedupeKey = `action:inject:${position}`;

@@ -93,7 +93,6 @@ export const SOL_USD_FEED_ID: Buffer = Buffer.from(
 export const PYTH_SOL_USD_PRICE_UPDATE = new PublicKey(
   "7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE"
 );
-<<<<<<< HEAD
 
 // -------------------------
 // Orca Whirlpools
@@ -123,5 +122,3 @@ export const  WSOL_USDC_POOL_2 = new PublicKey(
 export const WHIRLPOOL_WSOL_USDC_ORACLE = new PublicKey(
   "FoKYKtRpD25TKzBMndysKpgPqbj8AdLXjfpYHXn9PGTX"
 );
-=======
->>>>>>> 0e2e5d7 (update test)

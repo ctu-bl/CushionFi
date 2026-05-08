@@ -18,7 +18,7 @@ export type ComputeJob =
     };
 
 export type ExecuteJob = {
-  kind: "inject" | "withdraw";
+  kind: "inject" | "withdraw" | "liquidate";
   position: string;
   reason: string;
   dedupeKey: string;

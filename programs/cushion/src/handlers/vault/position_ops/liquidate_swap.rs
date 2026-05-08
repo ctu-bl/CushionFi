@@ -9,9 +9,9 @@ use crate::{
         refresh_klend_state_for_current_slot,
     },
     math::{compute_current_ltv, get_amount_from_market_value_from_reserve, get_liquidation_ltv_threshold},
-    state::{Obligation, Vault},
+    state::{assert_klend_program_matches, Obligation, ProtocolConfig, Vault},
     utils::{
-        ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL,
+        ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED, WSOL_USDC_POOL,
         get_obligation_data_for_ltv, get_obligation_unhealthy_borrow_value, get_reserve_price_and_decimals,
     },
 };
@@ -36,6 +36,10 @@ use crate::{
 pub fn liquidate_swap_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, LiquidateSwap<'info>>,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
     // Step 0: Only positions with vault-injected collateral can be liquidated via this path
     require!(ctx.accounts.position.injected == true, CushionError::NotInjected);
 
@@ -173,6 +177,14 @@ pub struct LiquidateSwap<'info> {
     /// Kamino program
     /// CHECK: Valid Kamino program
     pub klend_program: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+        constraint = protocol_config.klend_program_id == klend_program.key()
+            @ CushionError::InvalidKaminoProgram,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// CHECK: Optional oracle for the WSOL reserve
     pub pyth_oracle: Option<UncheckedAccount<'info>>,

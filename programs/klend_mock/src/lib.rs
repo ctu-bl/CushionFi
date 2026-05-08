@@ -478,6 +478,117 @@ pub mod klend_mock {
 
         write_zero_copy_account::<KaminoObligation>(&ctx.accounts.obligation.to_account_info(), &obligation)
     }
+
+    pub fn repay_and_withdraw_and_redeem(
+        ctx: Context<RepayAndWithdrawAndRedeem>,
+        repay_amount: u64,
+        withdraw_collateral_amount: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.repay_owner.is_signer,
+            MockKlendError::MissingOwnerSignature
+        );
+        require!(
+            ctx.accounts.withdraw_owner.is_signer,
+            MockKlendError::MissingOwnerSignature
+        );
+
+        // 1) Repay leg: transfer debt tokens from user_source_liquidity to reserve_destination_liquidity.
+        let available_repay = ctx.accounts.user_source_liquidity.amount;
+        let actual_repay_amount = if repay_amount == u64::MAX {
+            available_repay
+        } else {
+            repay_amount
+        };
+        if actual_repay_amount > 0 {
+            token::transfer(
+                CpiContext::new(
+                    ctx.accounts.repay_token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.user_source_liquidity.to_account_info(),
+                        to: ctx
+                            .accounts
+                            .reserve_destination_liquidity
+                            .to_account_info(),
+                        authority: ctx.accounts.repay_owner.to_account_info(),
+                    },
+                ),
+                actual_repay_amount,
+            )?;
+        }
+
+        // Keep reserve liquidity bookkeeping in sync with token transfer.
+        let mut repay_reserve =
+            read_zero_copy_account::<KaminoReserve>(&ctx.accounts.repay_reserve.to_account_info())?;
+        repay_reserve.liquidity.available_amount = repay_reserve
+            .liquidity
+            .available_amount
+            .saturating_add(actual_repay_amount);
+        write_zero_copy_account::<KaminoReserve>(
+            &ctx.accounts.repay_reserve.to_account_info(),
+            &repay_reserve,
+        )?;
+
+        // 2) Obligation debt state update.
+        let mut obligation =
+            read_zero_copy_account::<KaminoObligation>(&ctx.accounts.repay_obligation.to_account_info())?;
+        apply_repay(
+            &mut obligation,
+            ctx.accounts.repay_reserve.key(),
+            actual_repay_amount,
+            repay_reserve.liquidity.market_price_sf,
+            repay_reserve.liquidity.mint_decimals as u8,
+        );
+        write_zero_copy_account::<KaminoObligation>(
+            &ctx.accounts.repay_obligation.to_account_info(),
+            &obligation,
+        )?;
+
+        // 3) Withdraw leg: transfer collateral out of reserve liquidity supply.
+        let market = ctx.accounts.withdraw_lending_market.key();
+        let bump = lma_bump(market);
+        let bump_arr = [bump];
+        let signer = &[&[b"lma", market.as_ref(), &bump_arr][..]];
+
+        if withdraw_collateral_amount > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.withdraw_liquidity_token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.reserve_liquidity_supply.to_account_info(),
+                        to: ctx.accounts.user_destination_liquidity.to_account_info(),
+                        authority: ctx.accounts.lending_market_authority.to_account_info(),
+                    },
+                    signer,
+                ),
+                withdraw_collateral_amount,
+            )?;
+        }
+
+        let mut withdraw_reserve = read_zero_copy_account::<KaminoReserve>(
+            &ctx.accounts.withdraw_reserve.to_account_info(),
+        )?;
+        withdraw_reserve.liquidity.available_amount = withdraw_reserve
+            .liquidity
+            .available_amount
+            .saturating_sub(withdraw_collateral_amount);
+        write_zero_copy_account::<KaminoReserve>(
+            &ctx.accounts.withdraw_reserve.to_account_info(),
+            &withdraw_reserve,
+        )?;
+
+        // 4) Obligation collateral state update for withdrawn reserve.
+        update_obligation_deposit(
+            ctx.accounts.withdraw_obligation.to_account_info(),
+            ctx.accounts.withdraw_reserve.key(),
+            withdraw_collateral_amount,
+            withdraw_reserve.liquidity.market_price_sf,
+            withdraw_reserve.liquidity.mint_decimals as u8,
+            withdraw_reserve.config.loan_to_value_pct,
+            withdraw_reserve.config.liquidation_threshold_pct,
+            false,
+        )
+    }
 }
 
 #[account]
@@ -853,6 +964,77 @@ pub struct RepayObligationLiquidityV2<'info> {
     pub reserve_farm_state: UncheckedAccount<'info>,
     /// CHECK: unused.
     pub lending_market_authority: UncheckedAccount<'info>,
+    /// CHECK: unused.
+    pub farms_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RepayAndWithdrawAndRedeem<'info> {
+    // repay_accounts
+    /// CHECK: signer propagated through CPI.
+    pub repay_owner: UncheckedAccount<'info>,
+    /// CHECK: obligation account.
+    #[account(mut)]
+    pub repay_obligation: UncheckedAccount<'info>,
+    /// CHECK: market key.
+    pub repay_lending_market: UncheckedAccount<'info>,
+    /// CHECK: reserve account.
+    #[account(mut)]
+    pub repay_reserve: UncheckedAccount<'info>,
+    pub reserve_liquidity_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub reserve_destination_liquidity: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_source_liquidity: Account<'info, TokenAccount>,
+    pub repay_token_program: Program<'info, Token>,
+    /// CHECK: unused.
+    pub repay_instruction_sysvar_account: UncheckedAccount<'info>,
+
+    // withdraw_accounts
+    /// CHECK: signer propagated through CPI.
+    #[account(mut)]
+    pub withdraw_owner: UncheckedAccount<'info>,
+    /// CHECK: obligation account.
+    #[account(mut)]
+    pub withdraw_obligation: UncheckedAccount<'info>,
+    /// CHECK: market key.
+    pub withdraw_lending_market: UncheckedAccount<'info>,
+    /// CHECK: PDA ["lma", lending_market].
+    pub lending_market_authority: UncheckedAccount<'info>,
+    /// CHECK: reserve account.
+    #[account(mut)]
+    pub withdraw_reserve: UncheckedAccount<'info>,
+    pub withdraw_reserve_liquidity_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub reserve_source_collateral: Account<'info, TokenAccount>,
+    pub reserve_collateral_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub reserve_liquidity_supply: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_destination_liquidity: Account<'info, TokenAccount>,
+    /// CHECK: unused.
+    pub placeholder_user_destination_collateral: Option<UncheckedAccount<'info>>,
+    pub collateral_token_program: Program<'info, Token>,
+    pub withdraw_liquidity_token_program: Program<'info, Token>,
+    /// CHECK: unused.
+    pub withdraw_instruction_sysvar_account: UncheckedAccount<'info>,
+
+    // collateral_farms_accounts (optional)
+    /// CHECK: unused.
+    #[account(mut)]
+    pub collateral_obligation_farm_user_state: Option<UncheckedAccount<'info>>,
+    /// CHECK: unused.
+    #[account(mut)]
+    pub collateral_reserve_farm_state: Option<UncheckedAccount<'info>>,
+
+    // debt_farms_accounts (optional)
+    /// CHECK: unused.
+    #[account(mut)]
+    pub debt_obligation_farm_user_state: Option<UncheckedAccount<'info>>,
+    /// CHECK: unused.
+    #[account(mut)]
+    pub debt_reserve_farm_state: Option<UncheckedAccount<'info>>,
+
     /// CHECK: unused.
     pub farms_program: UncheckedAccount<'info>,
 }

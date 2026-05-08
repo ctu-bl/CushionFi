@@ -1,5 +1,11 @@
 import { Obligation, Reserve } from "@kamino-finance/klend-sdk";
-import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import crypto from "node:crypto";
 
 import type { PositionRiskSnapshot, ReservePriceSnapshot } from "../types.ts";
@@ -36,7 +42,10 @@ function pickFirst<T>(obj: Record<string, unknown>, keys: string[]): T {
   throw new Error(`Missing expected keys: ${keys.join(", ")}`);
 }
 
-function pickFirstOptional<T>(obj: Record<string, unknown>, keys: string[]): T | undefined {
+function pickFirstOptional<T>(
+  obj: Record<string, unknown>,
+  keys: string[]
+): T | undefined {
   for (const key of keys) {
     if (key in obj) {
       return obj[key] as T;
@@ -69,6 +78,7 @@ export type KlendReserveContext = {
   reserveCollateralMint: PublicKey;
   reserveDestinationDepositCollateral: PublicKey;
   reserveFarmCollateralState: PublicKey | null;
+  reserveFarmDebtState: PublicKey | null;
   pythOracle: PublicKey | null;
   switchboardPriceOracle: PublicKey | null;
   switchboardTwapOracle: PublicKey | null;
@@ -79,6 +89,7 @@ export type KlendObligationContext = {
   lendingMarket: PublicKey;
   activeReserves: PublicKey[];
   activeDepositReserves: PublicKey[];
+  activeBorrowReserves: PublicKey[];
 };
 
 export class KlendChainClient {
@@ -86,7 +97,11 @@ export class KlendChainClient {
   private readonly payer: Keypair;
   private readonly klendProgramId: PublicKey;
 
-  constructor(connection: Connection, payer: Keypair, klendProgramId: PublicKey) {
+  constructor(
+    connection: Connection,
+    payer: Keypair,
+    klendProgramId: PublicKey
+  ) {
     this.connection = connection;
     this.payer = payer;
     this.klendProgramId = klendProgramId;
@@ -96,29 +111,54 @@ export class KlendChainClient {
     return this.klendProgramId;
   }
 
-  async fetchReservePrice(reserve: PublicKey, slot: number): Promise<ReservePriceSnapshot> {
+  async fetchReservePrice(
+    reserve: PublicKey,
+    slot: number
+  ): Promise<ReservePriceSnapshot> {
     const account = await this.connection.getAccountInfo(reserve, "confirmed");
     if (!account) {
       throw new Error(`Missing reserve account ${reserve.toBase58()}`);
     }
 
-    const decoded = Reserve.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
-    const liquidity = pickFirst<Record<string, unknown>>(decoded, ["liquidity"]);
+    const decoded = Reserve.decode(
+      Buffer.from(account.data)
+    ) as unknown as Record<string, unknown>;
+    const liquidity = pickFirst<Record<string, unknown>>(decoded, [
+      "liquidity",
+    ]);
     const config = pickFirst<Record<string, unknown>>(decoded, ["config"]);
-    const tokenInfo = pickFirst<Record<string, unknown>>(config, ["tokenInfo", "token_info"]);
+    const tokenInfo = pickFirst<Record<string, unknown>>(config, [
+      "tokenInfo",
+      "token_info",
+    ]);
 
-    const pythConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["pythConfiguration", "pyth_configuration"]);
+    const pythConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
+      "pythConfiguration",
+      "pyth_configuration",
+    ]);
     const switchboardConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
       "switchboardConfiguration",
       "switchboard_configuration",
     ]);
-    const scopeConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["scopeConfiguration", "scope_configuration"]);
+    const scopeConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
+      "scopeConfiguration",
+      "scope_configuration",
+    ]);
 
     return {
       reserve: reserve.toBase58(),
-      marketPriceSf: asBigInt(pickFirst(liquidity, ["marketPriceSf", "market_price_sf"])),
-      mintDecimals: Number(pickFirst(liquidity, ["mintDecimals", "mint_decimals"])),
-      lastUpdatedTs: asBigInt(pickFirst(liquidity, ["marketPriceLastUpdatedTs", "market_price_last_updated_ts"])),
+      marketPriceSf: asBigInt(
+        pickFirst(liquidity, ["marketPriceSf", "market_price_sf"])
+      ),
+      mintDecimals: Number(
+        pickFirst(liquidity, ["mintDecimals", "mint_decimals"])
+      ),
+      lastUpdatedTs: asBigInt(
+        pickFirst(liquidity, [
+          "marketPriceLastUpdatedTs",
+          "market_price_last_updated_ts",
+        ])
+      ),
       pythOracle: toOptionalOracle(pickFirst(pythConfig, ["price"])),
       switchboardPriceOracle: toOptionalOracle(
         pickFirst(switchboardConfig, ["priceAggregator", "price_aggregator"])
@@ -126,7 +166,9 @@ export class KlendChainClient {
       switchboardTwapOracle: toOptionalOracle(
         pickFirst(switchboardConfig, ["twapAggregator", "twap_aggregator"])
       ),
-      scopePrices: toOptionalOracle(pickFirst(scopeConfig, ["priceFeed", "price_feed"])),
+      scopePrices: toOptionalOracle(
+        pickFirst(scopeConfig, ["priceFeed", "price_feed"])
+      ),
       slot,
     };
   }
@@ -137,33 +179,59 @@ export class KlendChainClient {
       throw new Error(`Missing reserve account ${reserve.toBase58()}`);
     }
 
-    const decoded = Reserve.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
-    const liquidity = pickFirst<Record<string, unknown>>(decoded, ["liquidity"]);
-    const collateral = pickFirst<Record<string, unknown>>(decoded, ["collateral"]);
+    const decoded = Reserve.decode(
+      Buffer.from(account.data)
+    ) as unknown as Record<string, unknown>;
+    const liquidity = pickFirst<Record<string, unknown>>(decoded, [
+      "liquidity",
+    ]);
+    const collateral = pickFirst<Record<string, unknown>>(decoded, [
+      "collateral",
+    ]);
     const config = pickFirst<Record<string, unknown>>(decoded, ["config"]);
-    const tokenInfo = pickFirst<Record<string, unknown>>(config, ["tokenInfo", "token_info"]);
+    const tokenInfo = pickFirst<Record<string, unknown>>(config, [
+      "tokenInfo",
+      "token_info",
+    ]);
 
-    const pythConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["pythConfiguration", "pyth_configuration"]);
+    const pythConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
+      "pythConfiguration",
+      "pyth_configuration",
+    ]);
     const switchboardConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
       "switchboardConfiguration",
       "switchboard_configuration",
     ]);
-    const scopeConfig = pickFirst<Record<string, unknown>>(tokenInfo, ["scopeConfiguration", "scope_configuration"]);
+    const scopeConfig = pickFirst<Record<string, unknown>>(tokenInfo, [
+      "scopeConfiguration",
+      "scope_configuration",
+    ]);
 
     return {
       reserve,
-      lendingMarket: toPublicKey(pickFirst(decoded, ["lendingMarket", "lending_market"])),
-      reserveLiquidityMint: toPublicKey(pickFirst(liquidity, ["mintPubkey", "mint_pubkey"])),
-      reserveLiquiditySupply: toPublicKey(pickFirst(liquidity, ["supplyVault", "supply_vault"])),
+      lendingMarket: toPublicKey(
+        pickFirst(decoded, ["lendingMarket", "lending_market"])
+      ),
+      reserveLiquidityMint: toPublicKey(
+        pickFirst(liquidity, ["mintPubkey", "mint_pubkey"])
+      ),
+      reserveLiquiditySupply: toPublicKey(
+        pickFirst(liquidity, ["supplyVault", "supply_vault"])
+      ),
       reserveLiquidityTokenProgram: toPublicKey(
         pickFirst(liquidity, ["tokenProgram", "token_program"])
       ),
-      reserveCollateralMint: toPublicKey(pickFirst(collateral, ["mintPubkey", "mint_pubkey"])),
+      reserveCollateralMint: toPublicKey(
+        pickFirst(collateral, ["mintPubkey", "mint_pubkey"])
+      ),
       reserveDestinationDepositCollateral: toPublicKey(
         pickFirst(collateral, ["supplyVault", "supply_vault"])
       ),
       reserveFarmCollateralState: toOptionalPublicKey(
         pickFirst(decoded, ["farmCollateral", "farm_collateral"])
+      ),
+      reserveFarmDebtState: toOptionalPublicKey(
+        pickFirst(decoded, ["farmDebt", "farm_debt"])
       ),
       pythOracle: toOptionalPublicKey(pickFirst(pythConfig, ["price"])),
       switchboardPriceOracle: toOptionalPublicKey(
@@ -172,31 +240,50 @@ export class KlendChainClient {
       switchboardTwapOracle: toOptionalPublicKey(
         pickFirst(switchboardConfig, ["twapAggregator", "twap_aggregator"])
       ),
-      scopePrices: toOptionalPublicKey(pickFirst(scopeConfig, ["priceFeed", "price_feed"])),
+      scopePrices: toOptionalPublicKey(
+        pickFirst(scopeConfig, ["priceFeed", "price_feed"])
+      ),
     };
   }
 
-  async fetchObligationContext(protocolObligation: string): Promise<KlendObligationContext> {
-    const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
+  async fetchObligationContext(
+    protocolObligation: string
+  ): Promise<KlendObligationContext> {
+    const account = await this.connection.getAccountInfo(
+      new PublicKey(protocolObligation),
+      "confirmed"
+    );
     if (!account) {
       throw new Error(`Missing protocol obligation ${protocolObligation}`);
     }
 
-    const decoded = Obligation.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    const decoded = Obligation.decode(
+      Buffer.from(account.data)
+    ) as unknown as Record<string, unknown>;
     return {
-      lendingMarket: toPublicKey(pickFirst(decoded, ["lendingMarket", "lending_market"])),
+      lendingMarket: toPublicKey(
+        pickFirst(decoded, ["lendingMarket", "lending_market"])
+      ),
       activeReserves: await this.extractActiveReserves(decoded),
       activeDepositReserves: this.extractActiveDepositReserves(decoded),
+      activeBorrowReserves: this.extractActiveBorrowReserves(decoded),
     };
   }
 
-  async fetchObligationUserStateDigest(protocolObligation: string): Promise<string> {
-    const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
+  async fetchObligationUserStateDigest(
+    protocolObligation: string
+  ): Promise<string> {
+    const account = await this.connection.getAccountInfo(
+      new PublicKey(protocolObligation),
+      "confirmed"
+    );
     if (!account) {
       throw new Error(`Missing protocol obligation ${protocolObligation}`);
     }
 
-    const decoded = Obligation.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    const decoded = Obligation.decode(
+      Buffer.from(account.data)
+    ) as unknown as Record<string, unknown>;
     const deposits = pickFirstOptional<unknown[]>(decoded, ["deposits"]) ?? [];
     const borrows = pickFirstOptional<unknown[]>(decoded, ["borrows"]) ?? [];
 
@@ -204,7 +291,10 @@ export class KlendChainClient {
     for (const entry of deposits) {
       if (!entry || typeof entry !== "object") continue;
       const record = entry as Record<string, unknown>;
-      const reserveRaw = pickFirstOptional(record, ["depositReserve", "deposit_reserve"]);
+      const reserveRaw = pickFirstOptional(record, [
+        "depositReserve",
+        "deposit_reserve",
+      ]);
       if (reserveRaw === undefined || reserveRaw === null) continue;
       const reserve = String(reserveRaw);
       if (reserve === PublicKey.default.toBase58()) continue;
@@ -218,7 +308,9 @@ export class KlendChainClient {
         ]) ?? 0;
       const depositedAmount = asBigInt(depositedAmountRaw);
       const elevationDebt = asBigInt(elevationDebtRaw);
-      depositParts.push(`${reserve}:${depositedAmount.toString()}:${elevationDebt.toString()}`);
+      depositParts.push(
+        `${reserve}:${depositedAmount.toString()}:${elevationDebt.toString()}`
+      );
     }
     depositParts.sort();
 
@@ -226,7 +318,10 @@ export class KlendChainClient {
     for (const entry of borrows) {
       if (!entry || typeof entry !== "object") continue;
       const record = entry as Record<string, unknown>;
-      const reserveRaw = pickFirstOptional(record, ["borrowReserve", "borrow_reserve"]);
+      const reserveRaw = pickFirstOptional(record, [
+        "borrowReserve",
+        "borrow_reserve",
+      ]);
       if (reserveRaw === undefined || reserveRaw === null) continue;
       const reserve = String(reserveRaw);
       if (reserve === PublicKey.default.toBase58()) continue;
@@ -241,34 +336,53 @@ export class KlendChainClient {
     }
     borrowParts.sort();
 
-    return `deposits=${depositParts.join("|")};borrows=${borrowParts.join("|")}`;
+    return `deposits=${depositParts.join("|")};borrows=${borrowParts.join(
+      "|"
+    )}`;
   }
 
-  async fetchPositionRiskSnapshot(position: string, protocolObligation: string, slot: number): Promise<PositionRiskSnapshot> {
-    const account = await this.connection.getAccountInfo(new PublicKey(protocolObligation), "confirmed");
+  async fetchPositionRiskSnapshot(
+    position: string,
+    protocolObligation: string,
+    slot: number
+  ): Promise<PositionRiskSnapshot> {
+    const account = await this.connection.getAccountInfo(
+      new PublicKey(protocolObligation),
+      "confirmed"
+    );
     if (!account) {
       throw new Error(`Missing protocol obligation ${protocolObligation}`);
     }
 
-    const decoded = Obligation.decode(Buffer.from(account.data)) as unknown as Record<string, unknown>;
+    const decoded = Obligation.decode(
+      Buffer.from(account.data)
+    ) as unknown as Record<string, unknown>;
 
     const depositedValueSf = asBigInt(
       pickFirst(decoded, ["depositedValueSf", "deposited_value_sf"])
     );
     const debtValueSf = asBigInt(
-      pickFirst(decoded, ["borrowFactorAdjustedDebtValueSf", "borrow_factor_adjusted_debt_value_sf"])
+      pickFirst(decoded, [
+        "borrowFactorAdjustedDebtValueSf",
+        "borrow_factor_adjusted_debt_value_sf",
+      ])
     );
     const unhealthyBorrowValueSf = asBigInt(
-      pickFirst(decoded, ["unhealthyBorrowValueSf", "unhealthy_borrow_value_sf"])
+      pickFirst(decoded, [
+        "unhealthyBorrowValueSf",
+        "unhealthy_borrow_value_sf",
+      ])
     );
     const allowedBorrowValueSf = asBigInt(
       pickFirst(decoded, ["allowedBorrowValueSf", "allowed_borrow_value_sf"])
     );
-    const ltvWad = depositedValueSf === 0n ? null : (debtValueSf * WAD) / depositedValueSf;
+    const ltvWad =
+      depositedValueSf === 0n ? null : (debtValueSf * WAD) / depositedValueSf;
     const maxSafeLtvWad =
       depositedValueSf === 0n
         ? null
-        : ((allowedBorrowValueSf * WAD) / depositedValueSf * INSURING_LTV_THRESHOLD_MULTIPLIER_WAD) /
+        : (((allowedBorrowValueSf * WAD) / depositedValueSf) *
+            INSURING_LTV_THRESHOLD_MULTIPLIER_WAD) /
           WAD;
 
     return {
@@ -292,25 +406,49 @@ export class KlendChainClient {
   ): Promise<PositionRiskSnapshot> {
     await this.refreshObligationState(protocolObligation);
     const refreshedSlot = await this.connection.getSlot("confirmed");
-    return this.fetchPositionRiskSnapshot(position, protocolObligation, refreshedSlot || slot);
+    return this.fetchPositionRiskSnapshot(
+      position,
+      protocolObligation,
+      refreshedSlot || slot
+    );
+  }
+
+  async getChainUnixTimestamp(slotHint?: number): Promise<bigint | null> {
+    const slot = slotHint ?? (await this.connection.getSlot("confirmed"));
+    try {
+      const blockTime = await this.connection.getBlockTime(slot);
+      if (blockTime === null) return null;
+      return BigInt(blockTime);
+    } catch {
+      return null;
+    }
   }
 
   private isAlreadyProcessedError(error: unknown): boolean {
-    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    const message = (
+      error instanceof Error ? error.message : String(error)
+    ).toLowerCase();
     return (
       message.includes("already been processed") ||
       message.includes("alreadyprocessed")
     );
   }
 
-  private async refreshObligationState(protocolObligation: string): Promise<void> {
+  private async refreshObligationState(
+    protocolObligation: string
+  ): Promise<void> {
     const obligationPk = new PublicKey(protocolObligation);
-    const obligationAccount = await this.connection.getAccountInfo(obligationPk, "confirmed");
+    const obligationAccount = await this.connection.getAccountInfo(
+      obligationPk,
+      "confirmed"
+    );
     if (!obligationAccount) {
       throw new Error(`Missing protocol obligation ${protocolObligation}`);
     }
 
-    const obligation = Obligation.decode(Buffer.from(obligationAccount.data)) as unknown as Record<string, unknown>;
+    const obligation = Obligation.decode(
+      Buffer.from(obligationAccount.data)
+    ) as unknown as Record<string, unknown>;
     const lendingMarket = new PublicKey(
       String(pickFirst(obligation, ["lendingMarket", "lending_market"]))
     );
@@ -325,10 +463,34 @@ export class KlendChainClient {
           keys: [
             { pubkey: reserve, isSigner: false, isWritable: true },
             { pubkey: lendingMarket, isSigner: false, isWritable: false },
-            { pubkey: reserveSnapshot.pythOracle ? new PublicKey(reserveSnapshot.pythOracle) : this.klendProgramId, isSigner: false, isWritable: false },
-            { pubkey: reserveSnapshot.switchboardPriceOracle ? new PublicKey(reserveSnapshot.switchboardPriceOracle) : this.klendProgramId, isSigner: false, isWritable: false },
-            { pubkey: reserveSnapshot.switchboardTwapOracle ? new PublicKey(reserveSnapshot.switchboardTwapOracle) : this.klendProgramId, isSigner: false, isWritable: false },
-            { pubkey: reserveSnapshot.scopePrices ? new PublicKey(reserveSnapshot.scopePrices) : this.klendProgramId, isSigner: false, isWritable: false },
+            {
+              pubkey: reserveSnapshot.pythOracle
+                ? new PublicKey(reserveSnapshot.pythOracle)
+                : this.klendProgramId,
+              isSigner: false,
+              isWritable: false,
+            },
+            {
+              pubkey: reserveSnapshot.switchboardPriceOracle
+                ? new PublicKey(reserveSnapshot.switchboardPriceOracle)
+                : this.klendProgramId,
+              isSigner: false,
+              isWritable: false,
+            },
+            {
+              pubkey: reserveSnapshot.switchboardTwapOracle
+                ? new PublicKey(reserveSnapshot.switchboardTwapOracle)
+                : this.klendProgramId,
+              isSigner: false,
+              isWritable: false,
+            },
+            {
+              pubkey: reserveSnapshot.scopePrices
+                ? new PublicKey(reserveSnapshot.scopePrices)
+                : this.klendProgramId,
+              isSigner: false,
+              isWritable: false,
+            },
           ],
           data: REFRESH_RESERVE_IX,
         })
@@ -366,7 +528,9 @@ export class KlendChainClient {
     }
   }
 
-  private async extractActiveReserves(decodedObligation: Record<string, unknown>): Promise<PublicKey[]> {
+  private async extractActiveReserves(
+    decodedObligation: Record<string, unknown>
+  ): Promise<PublicKey[]> {
     const set = new Set<string>();
     const addIfValid = (value: unknown) => {
       try {
@@ -379,30 +543,68 @@ export class KlendChainClient {
       }
     };
 
-    const deposits = pickFirstOptional<unknown[]>(decodedObligation, ["deposits"]) ?? [];
+    const deposits =
+      pickFirstOptional<unknown[]>(decodedObligation, ["deposits"]) ?? [];
     for (const entry of deposits) {
       if (!entry || typeof entry !== "object") continue;
       const record = entry as Record<string, unknown>;
-      addIfValid(pickFirstOptional(record, ["depositReserve", "deposit_reserve"]));
+      addIfValid(
+        pickFirstOptional(record, ["depositReserve", "deposit_reserve"])
+      );
     }
 
-    const borrows = pickFirstOptional<unknown[]>(decodedObligation, ["borrows"]) ?? [];
+    const borrows =
+      pickFirstOptional<unknown[]>(decodedObligation, ["borrows"]) ?? [];
     for (const entry of borrows) {
       if (!entry || typeof entry !== "object") continue;
       const record = entry as Record<string, unknown>;
-      addIfValid(pickFirstOptional(record, ["borrowReserve", "borrow_reserve"]));
+      addIfValid(
+        pickFirstOptional(record, ["borrowReserve", "borrow_reserve"])
+      );
     }
 
     return Array.from(set).map((value) => new PublicKey(value));
   }
 
-  private extractActiveDepositReserves(decodedObligation: Record<string, unknown>): PublicKey[] {
+  private extractActiveDepositReserves(
+    decodedObligation: Record<string, unknown>
+  ): PublicKey[] {
     const set = new Set<string>();
-    const deposits = pickFirstOptional<unknown[]>(decodedObligation, ["deposits"]) ?? [];
+    const deposits =
+      pickFirstOptional<unknown[]>(decodedObligation, ["deposits"]) ?? [];
     for (const entry of deposits) {
       if (!entry || typeof entry !== "object") continue;
       const record = entry as Record<string, unknown>;
-      const maybeReserve = pickFirstOptional(record, ["depositReserve", "deposit_reserve"]);
+      const maybeReserve = pickFirstOptional(record, [
+        "depositReserve",
+        "deposit_reserve",
+      ]);
+      if (!maybeReserve) continue;
+      try {
+        const key = new PublicKey(String(maybeReserve));
+        if (!key.equals(PublicKey.default)) {
+          set.add(key.toBase58());
+        }
+      } catch {
+        // ignore non-pubkeys
+      }
+    }
+    return Array.from(set).map((value) => new PublicKey(value));
+  }
+
+  private extractActiveBorrowReserves(
+    decodedObligation: Record<string, unknown>
+  ): PublicKey[] {
+    const set = new Set<string>();
+    const borrows =
+      pickFirstOptional<unknown[]>(decodedObligation, ["borrows"]) ?? [];
+    for (const entry of borrows) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const maybeReserve = pickFirstOptional(record, [
+        "borrowReserve",
+        "borrow_reserve",
+      ]);
       if (!maybeReserve) continue;
       try {
         const key = new PublicKey(String(maybeReserve));

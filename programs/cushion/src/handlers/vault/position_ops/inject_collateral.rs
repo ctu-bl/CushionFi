@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::{ 
     CushionError, cpi::{
         RefreshAccounts, deposit_klend::deposit_collateral_into_klend_from_vault, refresh_klend_state_for_current_slot
-    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ Obligation, ProtocolConfig, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
+    }, managers::process_inject, math::{ calculate_amount_to_inject, compute_current_ltv, get_insuring_ltv_threshold }, state::{ assert_farms_program_matches, assert_klend_program_matches, Obligation, ProtocolConfig, Vault }, utils::{ InjectEvent, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED, get_obligation_data_for_ltv, get_reserve_price_and_decimals }
 };
 
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -31,6 +31,14 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 pub fn inject_collateral_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, InjectCollateral<'info>>,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(ctx.accounts.position.injected != true, CushionError::AlreadyInjected);
     msg!("Here");
     let refresh_acc = RefreshAccounts {
@@ -214,6 +222,10 @@ pub struct InjectCollateral<'info>{
     #[account(
         seeds = [PROTOCOL_CONFIG_SEED],
         bump = protocol_config.bump,
+        constraint = protocol_config.klend_program_id == klend_program.key()
+            @ CushionError::InvalidKaminoProgram,
+        constraint = protocol_config.farms_program_id == farms_program.key()
+            @ CushionError::InvalidKaminoFarmsProgram,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 }

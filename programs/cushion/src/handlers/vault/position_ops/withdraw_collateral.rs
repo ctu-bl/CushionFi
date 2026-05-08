@@ -4,11 +4,7 @@ use crate::{
         RefreshAccounts, 
         refresh_klend_state_for_current_slot, transfer_collateral_to_vault,
         withdraw_collateral_to_vault_from_klend
-<<<<<<< HEAD
-    }, managers::process_withdraw_after_inject_or_liquidate, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, Vault },
-=======
-    }, managers::process_withdraw_after_inject, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ Obligation, ProtocolConfig, Vault },
->>>>>>> dbe4ad9 (add protocol config)
+    }, managers::process_withdraw_after_inject_or_liquidate, math::{ Delta, get_withdrawing_ltv_threshold, calculate_accumulated_interest, calculate_amount_to_withdraw, compute_potential_ltv, to_decrease, get_market_value_from_reserve }, state::{ assert_farms_program_matches, assert_klend_program_matches, Obligation, ProtocolConfig, Vault },
     utils:: {
         POSITION_AUTHORITY_SEED, VAULT_STATE_SEED, POSITION_ACCOUNT_SEED, PROTOCOL_CONFIG_SEED, WithdrawInjectedEvent, get_obligation_data_for_ltv,
         get_reserve_price_and_decimals
@@ -20,6 +16,14 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 pub fn withdraw_injected_collateral_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, WithdrawInjected<'info>>,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(ctx.accounts.position.injected == true, CushionError::NotInjected);
     let refresh_acc = RefreshAccounts {
         klend_program: ctx.accounts.klend_program.to_account_info(),
@@ -220,6 +224,10 @@ pub struct WithdrawInjected<'info>{
     #[account(
         seeds = [PROTOCOL_CONFIG_SEED],
         bump = protocol_config.bump,
+        constraint = protocol_config.klend_program_id == klend_program.key()
+            @ CushionError::InvalidKaminoProgram,
+        constraint = protocol_config.farms_program_id == farms_program.key()
+            @ CushionError::InvalidKaminoFarmsProgram,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 }

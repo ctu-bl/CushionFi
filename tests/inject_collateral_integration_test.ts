@@ -62,9 +62,9 @@ const KLEND_REFRESH_OBLIGATION_DISCRIMINATOR = (() => {
 })();
 const WAD_BN = new anchor.BN("1000000000000000000");
 const BORROW_LIQUIDATION_BUFFER_MULTIPLIER_BN = new anchor.BN("950000000000000000");
-const BORROW_AMOUNT_HEADROOM_BPS_BN = new anchor.BN(9900);
+const BORROW_AMOUNT_HEADROOM_BPS_BN = new anchor.BN(9000);
 const TEN_THOUSAND_BN = new anchor.BN(10000);
-const COLLATERAL_SETUP_LAMPORTS_BN = new anchor.BN(2_000_000);
+const COLLATERAL_SETUP_LAMPORTS_BN = new anchor.BN(200_000);
 
 type Fixture = {
   nftMint: PublicKey;
@@ -527,7 +527,7 @@ describe("inject collateral", () => {
     vaultMarketPrice?: number;
     collateralAmount?: number;
   }): Promise<Fixture> {
-    const vaultLiquidity = options?.vaultLiquidity ?? 1_000_000_000; // 1 SOL in lamports
+    const vaultLiquidity = options?.vaultLiquidity ?? 5_000_000; // Default 5M
     const collateralAmount = options?.collateralAmount ?? 1_000_000; // Default 1M
 
     // Create NFT mint
@@ -670,16 +670,6 @@ describe("inject collateral", () => {
     // Vault might already exist
   } 
 
-    // Deposit specified liquidity to vault
-    const vaultOwnerTokenAccount = (
-      await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        provider.wallet.payer,
-        vaultAssetMint,
-        user
-      )
-    ).address;
-
     // Create user's ATA for share tokens
     const vaultOwnerShareAccount = (
       await getOrCreateAssociatedTokenAccount(
@@ -690,23 +680,62 @@ describe("inject collateral", () => {
       )
     ).address;
 
-  try {
-    await (program as any).methods
-      .deposit(new anchor.BN(vaultLiquidity), new anchor.BN(0))
-      .accounts({
-        user,
-        assetMint: vaultAssetMint,
-        vault,
-        shareMint,
-        userAssetAccount: ownerWsolAta,
-        userShareAccount: vaultOwnerShareAccount,
-        vaultTokenAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc();
+    const requestedVaultLiquidityBn = new anchor.BN(vaultLiquidity);
+    const vaultStateBeforeDeposit = await (program as any).account.vault.fetch(vault);
+    const vaultDepositCapBn = new anchor.BN(vaultStateBeforeDeposit.depositCap.toString());
+    const vaultManagedAssetsBn = new anchor.BN(
+      vaultStateBeforeDeposit.totalManagedAssets.toString()
+    );
+    const vaultRemainingCapBn = vaultDepositCapBn.gt(vaultManagedAssetsBn)
+      ? vaultDepositCapBn.sub(vaultManagedAssetsBn)
+      : new anchor.BN(0);
+    const ownerWsolBalance = await getAccount(provider.connection, ownerWsolAta);
+    const ownerWsolBalanceBn = new anchor.BN(ownerWsolBalance.amount.toString());
+    const collateralReserveBn = new anchor.BN(Math.max(collateralAmount * 10, 10_000_000));
+    const maxDepositableBn = ownerWsolBalanceBn.gt(collateralReserveBn)
+      ? ownerWsolBalanceBn.sub(collateralReserveBn)
+      : new anchor.BN(0);
+    const requestedWithCapBn = requestedVaultLiquidityBn.lt(vaultRemainingCapBn)
+      ? requestedVaultLiquidityBn
+      : vaultRemainingCapBn;
+    const liquidityToDepositBn = requestedWithCapBn.lt(maxDepositableBn)
+      ? requestedWithCapBn
+      : maxDepositableBn;
 
-    } catch (err: any) {
-      // Vault can already be at cap or have changed share price from previous tests.
+    let depositErr: any = null;
+    if (liquidityToDepositBn.gt(new anchor.BN(0))) {
+      try {
+        await (program as any).methods
+          .deposit(liquidityToDepositBn, new anchor.BN(0))
+          .accounts({
+            user,
+            assetMint: vaultAssetMint,
+            vault,
+            shareMint,
+            userAssetAccount: ownerWsolAta,
+            userShareAccount: vaultOwnerShareAccount,
+            vaultTokenAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+      } catch (err: any) {
+        depositErr = err;
+      }
+    }
+
+    const vaultTokenBalance = await getAccount(provider.connection, vaultTokenAccount);
+    const vaultBalanceBn = new anchor.BN(vaultTokenBalance.amount.toString());
+    const minimumExpectedVaultBalanceBn = vaultLiquidity <= 1_000
+      ? new anchor.BN(0)
+      : new anchor.BN(1);
+    if (vaultBalanceBn.lt(minimumExpectedVaultBalanceBn)) {
+      const depositLogs = Array.isArray(depositErr?.logs) ? depositErr.logs.join("\n") : "";
+      throw new Error(
+        `Vault funding is too low for test fixture. requested=${requestedVaultLiquidityBn.toString()} ` +
+          `depositable=${liquidityToDepositBn.toString()} cap=${vaultDepositCapBn.toString()} ` +
+          `managed=${vaultManagedAssetsBn.toString()} remaining_cap=${vaultRemainingCapBn.toString()} ` +
+          `vault_balance=${vaultBalanceBn.toString()}.\n${depositLogs}`
+      );
     }
     return {
       nftMint,
@@ -766,19 +795,19 @@ describe("inject collateral", () => {
     await waitForRpcReady();
 
     // Create primary fixture with normal liquidity (5M tokens)
-    fixture = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixture = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
 
     // Create fixture with zero market price vault (will be initialized with price = 0)
     // This vault starts with market_price = 0 by default
-    fixtureZeroPrice = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixtureZeroPrice = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
 
-    fixtureDoubleInject = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixtureDoubleInject = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
 
     // Create fixture with minimal liquidity (only 100 tokens, can't satisfy large injections)
     fixtureMinimalLiquidity = await createFixture({ vaultLiquidity: 100 });
 
     // Create fixture for unsafe position - will have debt created
-    fixtureUnsafePosition = await createFixture({ vaultLiquidity: 1_000_000_000 });
+    fixtureUnsafePosition = await createFixture({ vaultLiquidity: 5_000_000_000_000_000 });
   });
 
   it("should inject when the position is unsafe", async () => {

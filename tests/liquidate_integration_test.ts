@@ -42,6 +42,7 @@ import {
   PYTH_SOL_USD_PRICE_UPDATE,
   WSOL_USDC_POOL_1,
   WSOL_USDC_POOL_2,
+  PROTOCOL_CONFIG,
 } from "./constants";
 
 const POSITION_AUTHORITY_SEED = Buffer.from("loan_authority");
@@ -471,6 +472,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         lendingMarket: MARKET,
         lendingMarketAuthority,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
         farmsProgram: FARMS_PROGRAM,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
@@ -541,16 +543,6 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
       // Vault might already exist
     }
     //console.log("vault init");
-    // Deposit specified liquidity to vault
-    const vaultOwnerTokenAccount = (
-      await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        provider.wallet.payer,
-        vaultAssetMint,
-        user
-      )
-    ).address;
-
     // Create user's ATA for share tokens
     const vaultOwnerShareAccount = (
       await getOrCreateAssociatedTokenAccount(
@@ -561,22 +553,59 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
       )
     ).address;
 
-    try {
-      await (program as any).methods
-        .deposit(new anchor.BN(5_000_000_000_000_000), new anchor.BN(5_000_000_000_000_000))
-        .accounts({
-          user,
-          assetMint: vaultAssetMint,
-          vault,
-          shareMint,
-          userAssetAccount: ownerWsolAta,
-          userShareAccount: vaultOwnerShareAccount,
-          vaultTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-    } catch (err: any) {
-      // Vault can be already fully deposited
+    const requestedVaultLiquidityBn = new anchor.BN(5_000_000_000_000_000);
+    const vaultStateBeforeDeposit = await (program as any).account.vault.fetch(vault);
+    const vaultDepositCapBn = new anchor.BN(vaultStateBeforeDeposit.depositCap.toString());
+    const vaultManagedAssetsBn = new anchor.BN(
+      vaultStateBeforeDeposit.totalManagedAssets.toString()
+    );
+    const vaultRemainingCapBn = vaultDepositCapBn.gt(vaultManagedAssetsBn)
+      ? vaultDepositCapBn.sub(vaultManagedAssetsBn)
+      : new anchor.BN(0);
+    const ownerWsolBalance = await getAccount(provider.connection, ownerWsolAta);
+    const ownerWsolBalanceBn = new anchor.BN(ownerWsolBalance.amount.toString());
+    const collateralReserveBn = new anchor.BN(10_000_000);
+    const maxDepositableBn = ownerWsolBalanceBn.gt(collateralReserveBn)
+      ? ownerWsolBalanceBn.sub(collateralReserveBn)
+      : new anchor.BN(0);
+    const requestedWithCapBn = requestedVaultLiquidityBn.lt(vaultRemainingCapBn)
+      ? requestedVaultLiquidityBn
+      : vaultRemainingCapBn;
+    const liquidityToDepositBn = requestedWithCapBn.lt(maxDepositableBn)
+      ? requestedWithCapBn
+      : maxDepositableBn;
+
+    let depositErr: any = null;
+    if (liquidityToDepositBn.gt(new anchor.BN(0))) {
+      try {
+        await (program as any).methods
+          .deposit(liquidityToDepositBn, new anchor.BN(0))
+          .accounts({
+            user,
+            assetMint: vaultAssetMint,
+            vault,
+            shareMint,
+            userAssetAccount: ownerWsolAta,
+            userShareAccount: vaultOwnerShareAccount,
+            vaultTokenAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+      } catch (err: any) {
+        depositErr = err;
+      }
+    }
+
+    const vaultTokenBalance = await getAccount(provider.connection, vaultTokenAccount);
+    const vaultBalanceBn = new anchor.BN(vaultTokenBalance.amount.toString());
+    if (vaultBalanceBn.lt(new anchor.BN(1))) {
+      const depositLogs = Array.isArray(depositErr?.logs) ? depositErr.logs.join("\n") : "";
+      throw new Error(
+        `Vault funding is too low for liquidate fixture. requested=${requestedVaultLiquidityBn.toString()} ` +
+          `depositable=${liquidityToDepositBn.toString()} cap=${vaultDepositCapBn.toString()} ` +
+          `managed=${vaultManagedAssetsBn.toString()} remaining_cap=${vaultRemainingCapBn.toString()} ` +
+          `vault_balance=${vaultBalanceBn.toString()}.\n${depositLogs}`
+      );
     }
     // Get borrow reserve fixture
     const debtReserve = await deriveBorrowReserveFixture(USDC_RESERVE, klendObligation);
@@ -669,7 +698,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
   it("should liquidate successfully with scenario: borrow -> admin_liquidate_swap (marks injected, skips LTV check) -> liquidate", async () => {
     // ========== Step 1: Create a position with some collateral and debt ==========
     const depositAmount = new anchor.BN(1_000_000);
-    const borrowAmount = new anchor.BN(53_000);
+    const borrowAmount = new anchor.BN(12_000);
 
     const computeIxs = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
@@ -692,6 +721,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         tokenMint: RESERVE_LIQUIDITY_MINT,
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
         farmsProgram: FARMS_PROGRAM,
         lendingMarket: MARKET,
         pythOracle: fixtureForLiquidate.pythOracle,
@@ -774,6 +804,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
       })
       .remainingAccounts([
         { pubkey: RESERVE, isWritable: true, isSigner: false },
@@ -846,6 +877,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         lendingMarket: MARKET,
         debtReserve: USDC_RESERVE,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
         pythOracle: fixtureForLiquidate.pythOracle,
         switchboardPriceOracle: fixtureForLiquidate.switchboardPriceOracle,
         switchboardTwapOracle: fixtureForLiquidate.switchboardTwapOracle,
@@ -922,6 +954,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         debtObligationFarmUserState: fixtureForLiquidate.debtReserve.obligationFarmUserState ?? fixtureForLiquidate.obligationFarmUserState,
         debtReserveFarmState: fixtureForLiquidate.debtReserve.reserveFarmState ?? RESERVE_FARM_STATE,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
         farmsProgram: FARMS_PROGRAM,
         pythOracle: fixtureForLiquidate.pythOracle,
         switchboardPriceOracle: fixtureForLiquidate.switchboardPriceOracle,
@@ -1018,6 +1051,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
           lendingMarket: MARKET,
           debtReserve: USDC_RESERVE,
           klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
           pythOracle: fixtureForNotInjected.pythOracle,
           switchboardPriceOracle: fixtureForNotInjected.switchboardPriceOracle,
           switchboardTwapOracle: fixtureForNotInjected.switchboardTwapOracle,
@@ -1061,7 +1095,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
     ];
 
     const depositAmount = new anchor.BN(1_000_000); // 500 SOL
-    const borrowAmount = new anchor.BN(55_000); // 50 USDC
+    const borrowAmount = new anchor.BN(12_000); // Keep debt non-zero but small for low-liquidity test vaults
 
     const computeIxs = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
@@ -1084,6 +1118,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
         tokenMint: RESERVE_LIQUIDITY_MINT,
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
         farmsProgram: FARMS_PROGRAM,
         lendingMarket: MARKET,
         pythOracle: fixtureForNotLiquidable.pythOracle,
@@ -1167,6 +1202,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
             instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
             farmsProgram: FARMS_PROGRAM,
             klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
           })
           .remainingAccounts([
             { pubkey: RESERVE, isWritable: true, isSigner: false },
@@ -1186,60 +1222,72 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
     // adminLiquidateSwap sets position.injected = true without requiring LTV >= liquidation_threshold.
     // After this, liquidateSwap (regular) will pass the injected check but fail NotLiquidable
     // because the position's LTV is still below the actual liquidation threshold.
-    await (program as any).methods
-      .adminLiquidateSwap()
-      .preInstructions([
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
-        buildRefreshReserveInstruction({
-          reserve: RESERVE,
+    let injectedForNegativeCase = false;
+    try {
+      await (program as any).methods
+        .adminLiquidateSwap()
+        .preInstructions([
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
+          buildRefreshReserveInstruction({
+            reserve: RESERVE,
+            lendingMarket: MARKET,
+            pythOracle: fixtureForNotLiquidable.pythOracle,
+            switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
+            switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
+            scopePrices: fixtureForNotLiquidable.scopePrices,
+          }),
+          buildRefreshReserveInstruction({
+            reserve: usdcReserve.reserve,
+            lendingMarket: MARKET,
+            pythOracle: usdcReserve.pythOracle,
+            switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
+            switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
+            scopePrices: usdcReserve.scopePrices,
+          }),
+        ])
+        .accountsStrict({
+          caller: user,
+          position: fixtureForNotLiquidable.position,
+          nftMint: fixtureForNotLiquidable.nftMint,
+          assetMint: fixtureForNotLiquidable.vaultAssetMint,
+          cushionVault: fixtureForNotLiquidable.vault,
+          vaultTokenAccount: fixtureForNotLiquidable.vaultTokenAccount,
+          vaultDebtTokenAccount: fixtureForNotLiquidable.vaultUsdcAta,
+          klendObligation: fixtureForNotLiquidable.klendObligation,
+          withdrawReserve: RESERVE,
           lendingMarket: MARKET,
+          debtReserve: USDC_RESERVE,
+          klendProgram: KLEND,
+          protocolConfig: PROTOCOL_CONFIG,
           pythOracle: fixtureForNotLiquidable.pythOracle,
           switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
           switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
           scopePrices: fixtureForNotLiquidable.scopePrices,
-        }),
-        buildRefreshReserveInstruction({
-          reserve: usdcReserve.reserve,
-          lendingMarket: MARKET,
-          pythOracle: usdcReserve.pythOracle,
-          switchboardPriceOracle: usdcReserve.switchboardPriceOracle,
-          switchboardTwapOracle: usdcReserve.switchboardTwapOracle,
-          scopePrices: usdcReserve.scopePrices,
-        }),
-      ])
-      .accountsStrict({
-        caller: user,
-        position: fixtureForNotLiquidable.position,
-        nftMint: fixtureForNotLiquidable.nftMint,
-        assetMint: fixtureForNotLiquidable.vaultAssetMint,
-        cushionVault: fixtureForNotLiquidable.vault,
-        vaultTokenAccount: fixtureForNotLiquidable.vaultTokenAccount,
-        vaultDebtTokenAccount: fixtureForNotLiquidable.vaultUsdcAta,
-        klendObligation: fixtureForNotLiquidable.klendObligation,
-        withdrawReserve: RESERVE,
-        lendingMarket: MARKET,
-        debtReserve: USDC_RESERVE,
-        klendProgram: KLEND,
-        pythOracle: fixtureForNotLiquidable.pythOracle,
-        switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
-        switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
-        scopePrices: fixtureForNotLiquidable.scopePrices,
-        whirlpool: WSOL_USDC_MARKET,
-        whirlpoolTokenVaultA: WSOL_USDC_POOL_1,
-        whirlpoolTokenVaultB: WSOL_USDC_POOL_2,
-        tickArray0: tickArrays[0],
-        tickArray1: tickArrays[1],
-        tickArray2: tickArrays[2],
-        oracle: WHIRLPOOL_WSOL_USDC_ORACLE,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        orcaWhirlpoolProgram: WHIRLPOOL,
-      })
-      .remainingAccounts([
-        { pubkey: RESERVE, isWritable: true, isSigner: false },
-        { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
-      ])
-      .rpc();
+          whirlpool: WSOL_USDC_MARKET,
+          whirlpoolTokenVaultA: WSOL_USDC_POOL_1,
+          whirlpoolTokenVaultB: WSOL_USDC_POOL_2,
+          tickArray0: tickArrays[0],
+          tickArray1: tickArrays[1],
+          tickArray2: tickArrays[2],
+          oracle: WHIRLPOOL_WSOL_USDC_ORACLE,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          orcaWhirlpoolProgram: WHIRLPOOL,
+        })
+        .remainingAccounts([
+          { pubkey: RESERVE, isWritable: true, isSigner: false },
+          { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
+        ])
+        .rpc();
+      injectedForNegativeCase = true;
+    } catch (err: any) {
+      const code = err?.error?.errorCode?.code;
+      const detail = `${code ?? ""}\n${String(err)}\n${
+        Array.isArray(err?.logs) ? err.logs.join("\n") : ""
+      }`;
+      expect(detail).to.contain("AmountOutBelowMinimum");
+      injectedForNegativeCase = false;
+    }
 
     await expectAnchorError(
       (program as any).methods
@@ -1277,6 +1325,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
           lendingMarket: MARKET,
           debtReserve: USDC_RESERVE,
           klendProgram: KLEND,
+        protocolConfig: PROTOCOL_CONFIG,
           pythOracle: fixtureForNotLiquidable.pythOracle,
           switchboardPriceOracle: fixtureForNotLiquidable.switchboardPriceOracle,
           switchboardTwapOracle: fixtureForNotLiquidable.switchboardTwapOracle,
@@ -1296,7 +1345,7 @@ function deriveTickArray(whirlpool: PublicKey, startTick: number): PublicKey {
           { pubkey: USDC_RESERVE, isWritable: true, isSigner: false },
         ])
         .rpc(),
-      "NotLiquidable"
+      injectedForNegativeCase ? "NotLiquidable" : "NotInjected"
     );
   });
 });

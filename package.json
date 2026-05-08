@@ -52,7 +52,10 @@
     "sync:idl": "bash scripts/idl-sync.sh",
     "sdk:web:gen": "anchor build && yarn --cwd web sdk:regen",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "mock:sol-cycle": "node --env-file .env --experimental-strip-types sdk/scripts/simulateMockPriceCycle.ts",
+    "mock:sol-cycle:local": "env APP_ENV=local node --env-file .env --experimental-strip-types sdk/scripts/simulateMockPriceCycle.ts",
+    "mock:sol-cycle:devnet": "env APP_ENV=devnet node --env-file .env --experimental-strip-types sdk/scripts/simulateMockPriceCycle.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",

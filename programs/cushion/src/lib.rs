@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd");
+declare_id!("H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W");
 
 pub mod cpi;
 pub mod handlers;
@@ -318,4 +318,10 @@ pub enum CushionError {
     WsolAmountCalculationError,
     #[msg("Amount to transfer is zero")]
     ZeroAmountToSend,
+    #[msg("Invalid protocol mode config")]
+    InvalidProtocolModeConfig,
+    #[msg("Ivalid protocol mode")]
+    InvalidProtocolMode,
+    #[msg("Protocol config is frozen")]
+    ProtocolConfigFrozen,
 }
