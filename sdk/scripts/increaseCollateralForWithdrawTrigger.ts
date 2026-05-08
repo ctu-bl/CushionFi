@@ -20,13 +20,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { getRuntimeConfig, loadKeypair } from "./_common.ts";
+import { getRuntimeConfig, getScopedEnvValue, loadKeypair } from "./_common.ts";
 
 const { BN } = anchor;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const WAD = 1_000_000_000_000_000_000n;
 const INSURING_LTV_THRESHOLD_MULTIPLIER_WAD = 850_000_000_000_000_000n;
+const PROTOCOL_CONFIG_SEED = Buffer.from("protocol_config_v1");
+const MAINNET_KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
+const MAINNET_FARMS_PROGRAM = "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr";
 const KLEND_REFRESH_RESERVE_DISCRIMINATOR = createHash("sha256")
   .update("global:refresh_reserve")
   .digest()
@@ -70,8 +73,8 @@ function pickFirstOptional<T>(obj: Record<string, unknown>, keys: string[]): T |
   return undefined;
 }
 
-function envPubkey(name: string, fallback: string): PublicKey {
-  return new PublicKey(process.env[name]?.trim() || fallback);
+function envPubkey(name: string, fallback: string, appEnv: string): PublicKey {
+  return new PublicKey(getScopedEnvValue(process.env, name, appEnv) || fallback);
 }
 
 function maybeOracle(pubkey: PublicKey): PublicKey | null {
@@ -80,6 +83,10 @@ function maybeOracle(pubkey: PublicKey): PublicKey | null {
 
 function deriveLendingMarketAuthority(market: PublicKey, klendProgramId: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync([Buffer.from("lma"), market.toBuffer()], klendProgramId)[0];
+}
+
+function deriveProtocolConfig(cushionProgramId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([PROTOCOL_CONFIG_SEED], cushionProgramId)[0];
 }
 
 function deriveObligationFarmUserState(
@@ -271,7 +278,10 @@ async function pickTargetPosition(program: anchor.Program, owner: PublicKey): Pr
 async function main() {
   const runtimeConfig = getRuntimeConfig(process.env);
   const wallet = loadKeypair(runtimeConfig.solanaKeypairPath);
-  const connection = new anchor.web3.Connection(runtimeConfig.solanaRpcUrl, "confirmed");
+  const connection = new anchor.web3.Connection(runtimeConfig.solanaRpcUrl, {
+    commitment: "confirmed",
+    wsEndpoint: runtimeConfig.solanaWsUrl,
+  });
   const provider = new anchor.AnchorProvider(
     connection,
     new anchor.Wallet(wallet),
@@ -284,9 +294,14 @@ async function main() {
 
   const user = provider.wallet.publicKey;
   const payer = wallet;
+  const appEnv = runtimeConfig.appEnv;
 
-  const klendProgramId = envPubkey("KLEND_PROGRAM_ID", "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
-  const farmsProgramId = envPubkey("KLEND_FARMS_PROGRAM", "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr");
+  const klendProgramId = envPubkey("KLEND_PROGRAM_ID", MAINNET_KLEND_PROGRAM, appEnv);
+  const defaultFarmsProgram =
+    klendProgramId.toBase58() === MAINNET_KLEND_PROGRAM
+      ? MAINNET_FARMS_PROGRAM
+      : klendProgramId.toBase58();
+  const farmsProgramId = envPubkey("KLEND_FARMS_PROGRAM", defaultFarmsProgram, appEnv);
 
   const increaseCollateralLamports = BigInt(process.env.INCREASE_COLLATERAL_LAMPORTS ?? "200000000");
   if (increaseCollateralLamports <= 0n) {
@@ -311,6 +326,7 @@ async function main() {
   }
 
   const position = await pickTargetPosition(program, user);
+  const protocolConfig = deriveProtocolConfig(program.programId);
   const positionAccount = (await (program as any).account.obligation.fetch(position)) as Record<string, unknown>;
 
   const nftMint = pickFirst<PublicKey>(positionAccount, ["nftMint", "nft_mint"]);
@@ -481,6 +497,7 @@ async function main() {
       instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
       obligationFarmUserState,
       reserveFarmState,
+      protocolConfig,
     })
     .remainingAccounts(remainingAccounts)
     .rpc();

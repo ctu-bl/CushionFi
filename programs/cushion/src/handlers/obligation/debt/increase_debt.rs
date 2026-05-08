@@ -7,8 +7,13 @@ use crate::{
         position_auth::assert_position_nft_holder,
         reserve_guard::assert_no_matching_deposit_reserve,
     },
-    state::obligation::Obligation,
-    utils::{DebtIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED},
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, obligation::Obligation,
+        ProtocolConfig,
+    },
+    utils::{
+        DebtIncreasedEvent, POSITION_ACCOUNT_SEED, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED,
+    },
     CushionError,
 };
  
@@ -16,6 +21,14 @@ pub fn increase_debt_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, IncreaseDebt<'info>>,
     amount: u64,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
     require!(amount > 0, CushionError::ZeroDebtAmount);
     assert_position_nft_holder(
         &ctx.accounts.user,
@@ -48,8 +61,6 @@ pub fn increase_debt_handler<'info>(
  
     Ok(())
 }
-
-
 
 // -------------------------
 // CONTEXT STRUCTS
@@ -174,4 +185,10 @@ pub struct IncreaseDebt<'info> {
 
     /// CHECK: Kamino lend program
     pub klend_program: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 }

@@ -41,7 +41,6 @@ Use `.env` (root) or export vars directly:
 - `KEEPER_FARMS_PROGRAM_ID=FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr`
 - `KEEPER_RESERVE_ADDRESSES=<reserve1>,<reserve2>`
 - `KEEPER_POLL_INTERVAL_MS=8000`
-- `KEEPER_WITHDRAW_LTV_BPS=8500`
 - `KEEPER_COMPUTE_CONCURRENCY=2`
 - `KEEPER_EXECUTOR_CONCURRENCY=1`
 - `KEEPER_AUTO_UPDATE_VAULT_PRICE=true`
@@ -64,6 +63,11 @@ yarn keeper:docker:up
 ```bash
 yarn anchor:deploy:local
 ```
+or
+```bash
+yarn anchor:deploy:local:mock
+```
+Note: `yarn mock:sol-price:local ...` requires the mock flow (`anchor:deploy:local:mock`), because it updates `klend_mock` reserve price.
 
 3. Initialize position registry.
 
@@ -115,6 +119,16 @@ yarn keeper:start
 ```bash
 yarn position:borrow-usdc:risky:local
 ```
+
+Alternative: you can also trigger keeper behavior by manipulating mock SOL reserve price:
+
+```bash
+yarn mock:sol-price:local increase 10
+# or
+yarn mock:sol-price:local decrease 10
+```
+
+If `KEEPER_MODE=localnet_static`, restart keeper after price change. If `KEEPER_MODE=dynamic`, keeper picks up changes without restart.
 
 9. Confirm inject in keeper logs.
 

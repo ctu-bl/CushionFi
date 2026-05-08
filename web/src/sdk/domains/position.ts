@@ -13,6 +13,7 @@ import {
   derivePositionAuthorityAddress,
   derivePositionRegistryAddress,
   derivePositionRegistryEntryAddress,
+  deriveProtocolConfigAddress,
 } from "../core/pda.ts";
 
 const POSITION_REGISTRY_ENTRY_SIZE = 8 + 32 + 32 + 32 + 32 + 8 + 1;
@@ -199,6 +200,7 @@ export function createPositionDomain(context: CushionSdkContext) {
     const positionAuthority = derivePositionAuthorityAddress(context.cushionProgramId, nftMint);
     const positionRegistry = derivePositionRegistryAddress(context.cushionProgramId);
     const positionRegistryEntry = derivePositionRegistryEntryAddress(context.cushionProgramId, nftMint);
+    const protocolConfig = deriveProtocolConfigAddress(context.cushionProgramId);
 
     const klendUserMetadata = deriveKlendUserMetadataAddress(
       context.config.klendProgramId,
@@ -239,6 +241,7 @@ export function createPositionDomain(context: CushionSdkContext) {
       lendingMarketAuthority,
       klendProgram: context.config.klendProgramId,
       farmsProgram: context.config.farmsProgramId,
+      protocolConfig,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
       rent: SYSVAR_RENT_PUBKEY,

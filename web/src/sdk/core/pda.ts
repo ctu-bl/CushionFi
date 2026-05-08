@@ -8,6 +8,7 @@ export const POSITION_SEED = Buffer.from("loan_position");
 export const POSITION_AUTHORITY_SEED = Buffer.from("loan_authority");
 export const POSITION_REGISTRY_SEED = Buffer.from("position_registry");
 export const POSITION_REGISTRY_ENTRY_SEED = Buffer.from("position_registry_entry");
+export const PROTOCOL_CONFIG_SEED = Buffer.from("protocol_config_v1");
 
 export function deriveVaultAddress(programId: PublicKey, assetMint: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync([VAULT_STATE_SEED, assetMint.toBuffer()], programId)[0];
@@ -39,6 +40,10 @@ export function derivePositionRegistryAddress(programId: PublicKey): PublicKey {
 
 export function derivePositionRegistryEntryAddress(programId: PublicKey, nftMint: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync([POSITION_REGISTRY_ENTRY_SEED, nftMint.toBuffer()], programId)[0];
+}
+
+export function deriveProtocolConfigAddress(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([PROTOCOL_CONFIG_SEED], programId)[0];
 }
 
 export function deriveKlendUserMetadataAddress(

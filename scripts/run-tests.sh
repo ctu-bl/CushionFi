@@ -4,6 +4,46 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV=${APP_ENV:-local}
 NAME=${1:-}
+ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+# Normalize RPC/wallet env for AnchorProvider.env() used by TS tests.
+case "$ENV" in
+  local)
+    RPC_URL="${SOLANA_RPC_URL_LOCAL:-${SOLANA_RPC_URL:-http://127.0.0.1:8899}}"
+    WS_URL="${SOLANA_WS_URL_LOCAL:-${SOLANA_WS_URL:-}}"
+    ;;
+  devnet)
+    RPC_URL="${ANCHOR_PROVIDER_URL:-${SOLANA_RPC_URL_DEVNET:-${SOLANA_RPC_URL_TEST:-${SOLANA_RPC_URL:-https://api.devnet.solana.com}}}}"
+    WS_URL="${ANCHOR_WS_URL:-${SOLANA_WS_URL_DEVNET:-${SOLANA_WS_URL_TEST:-${SOLANA_WS_URL:-}}}}"
+    ;;
+  *)
+    RPC_URL="${ANCHOR_PROVIDER_URL:-${SOLANA_RPC_URL:-}}"
+    WS_URL="${ANCHOR_WS_URL:-${SOLANA_WS_URL:-}}"
+    ;;
+esac
+
+if [[ -n "${RPC_URL:-}" ]]; then
+  export ANCHOR_PROVIDER_URL="$RPC_URL"
+fi
+
+if [[ -n "${WS_URL:-}" ]]; then
+  export ANCHOR_WS_URL="$WS_URL"
+fi
+
+if [[ -n "${SOLANA_KEYPAIR:-}" && -z "${ANCHOR_WALLET:-}" ]]; then
+  export ANCHOR_WALLET="$SOLANA_KEYPAIR"
+fi
+
+echo "Anchor RPC: ${ANCHOR_PROVIDER_URL:-<unset>}"
+echo "Anchor WS: ${ANCHOR_WS_URL:-<auto-derived>}"
+echo "Anchor wallet: ${ANCHOR_WALLET:-<unset>}"
 
 echo "Syncing Anchor program IDs..."
 anchor keys sync
@@ -22,7 +62,11 @@ fi
 
 ANCHOR_FLAGS="--skip-local-validator"
 if [ "$ENV" = "devnet" ]; then
-  ANCHOR_FLAGS="$ANCHOR_FLAGS --provider.cluster devnet"
+  CLUSTER_FLAG_VALUE="${ANCHOR_PROVIDER_URL:-devnet}"
+  ANCHOR_FLAGS="$ANCHOR_FLAGS --provider.cluster ${CLUSTER_FLAG_VALUE} --skip-deploy"
+fi
+if [[ "${SKIP_DEPLOY:-false}" == "true" ]]; then
+  ANCHOR_FLAGS="$ANCHOR_FLAGS --skip-deploy"
 fi
 
 if [ -z "$NAME" ]; then

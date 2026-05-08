@@ -23,6 +23,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   MPL_CORE_PROGRAM_ID,
@@ -777,6 +778,7 @@ describe("borrow asset integration against usdc", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -863,6 +865,7 @@ describe("borrow asset integration against usdc", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.solPythOracle,
           switchboardPriceOracle: fixture.solSwitchboardPriceOracle,
@@ -979,6 +982,7 @@ describe("borrow asset integration against usdc", () => {
           rent: SYSVAR_RENT_PUBKEY,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
         })
         .remainingAccounts([
@@ -1086,6 +1090,7 @@ describe("borrow asset integration against usdc", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.solPythOracle,
           switchboardPriceOracle: fixture.solSwitchboardPriceOracle,
@@ -1187,6 +1192,7 @@ describe("borrow asset integration against usdc", () => {
           rent: SYSVAR_RENT_PUBKEY,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
         })
         .remainingAccounts([

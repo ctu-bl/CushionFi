@@ -249,7 +249,10 @@ async function main() {
   const runtime = getScriptEnvironmentConfig(process.env);
   const wallet = readKeypair(runtime.solanaKeypairPath);
   const provider = new anchor.AnchorProvider(
-    new anchor.web3.Connection(runtime.solanaRpcUrl, "confirmed"),
+    new anchor.web3.Connection(runtime.solanaRpcUrl, {
+      commitment: "confirmed",
+      wsEndpoint: runtime.solanaWsUrl,
+    }),
     new anchor.Wallet(wallet),
     { commitment: "confirmed", preflightCommitment: "confirmed" }
   );

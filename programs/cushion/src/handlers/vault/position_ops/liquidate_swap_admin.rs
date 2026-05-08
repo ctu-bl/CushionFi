@@ -9,9 +9,9 @@ use crate::{
         refresh_klend_state_for_current_slot,
     },
     math::{get_amount_from_market_value_from_reserve},
-    state::{Obligation, Vault},
+    state::{assert_klend_program_matches, Obligation, ProtocolConfig, Vault},
     utils::{
-        ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, VAULT_STATE_SEED, WSOL_USDC_POOL,
+        ORCA_WHIRLPOOL_PROGRAM_ID, ORCA_WSOL_USDC_ORACLE, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED, WSOL_USDC_POOL,
         get_obligation_data_for_ltv, get_reserve_price_and_decimals,
     },
 };
@@ -33,6 +33,10 @@ use crate::{
 pub fn admin_liquidate_swap_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, AdminLiquidateSwap<'info>>,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
     // Only vault authority can bypass the safety checks
     require!(
         ctx.accounts.caller.key() == ctx.accounts.cushion_vault.authority,
@@ -166,6 +170,14 @@ pub struct AdminLiquidateSwap<'info> {
 
     /// CHECK: Valid Kamino program
     pub klend_program: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+        constraint = protocol_config.klend_program_id == klend_program.key()
+            @ CushionError::InvalidKaminoProgram,
+    )]
+    pub protocol_config: Account<'info, ProtocolConfig>,
 
     /// CHECK: Optional oracle for the WSOL reserve
     pub pyth_oracle: Option<UncheckedAccount<'info>>,

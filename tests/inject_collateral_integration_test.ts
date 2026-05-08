@@ -1,7 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { Reserve as KlendReserveAccount } from "@kamino-finance/klend-sdk";
+import {
+  Obligation as KlendObligationAccount,
+  Reserve as KlendReserveAccount,
+} from "@kamino-finance/klend-sdk";
 import {
   getAccount,
   getOrCreateAssociatedTokenAccount,
@@ -26,6 +29,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   MPL_CORE_PROGRAM_ID,
@@ -52,6 +56,15 @@ const KLEND_REFRESH_RESERVE_DISCRIMINATOR = (() => {
   const { createHash } = require("crypto");
   return createHash("sha256").update("global:refresh_reserve").digest().slice(0, 8) as Buffer;
 })();
+const KLEND_REFRESH_OBLIGATION_DISCRIMINATOR = (() => {
+  const { createHash } = require("crypto");
+  return createHash("sha256").update("global:refresh_obligation").digest().slice(0, 8) as Buffer;
+})();
+const WAD_BN = new anchor.BN("1000000000000000000");
+const BORROW_LIQUIDATION_BUFFER_MULTIPLIER_BN = new anchor.BN("950000000000000000");
+const BORROW_AMOUNT_HEADROOM_BPS_BN = new anchor.BN(9000);
+const TEN_THOUSAND_BN = new anchor.BN(10000);
+const COLLATERAL_SETUP_LAMPORTS_BN = new anchor.BN(200_000);
 
 type Fixture = {
   nftMint: PublicKey;
@@ -203,11 +216,14 @@ describe("inject collateral", () => {
     )[0];
   }
 
-  function deriveObligationFarmUserState(klendObligation: PublicKey): PublicKey {
+  function deriveObligationFarmUserState(
+    reserveFarmState: PublicKey,
+    klendObligation: PublicKey
+  ): PublicKey {
     return PublicKey.findProgramAddressSync(
       [
         Buffer.from("user"),
-        RESERVE_FARM_STATE.toBuffer(),
+        reserveFarmState.toBuffer(),
         klendObligation.toBuffer(),
       ],
       FARMS_PROGRAM
@@ -296,13 +312,145 @@ describe("inject collateral", () => {
       feeVault,
       reserveFarmState,
       obligationFarmUserState: reserveFarmState
-        ? deriveObligationFarmUserState(klendObligation)
+        ? deriveObligationFarmUserState(reserveFarmState, klendObligation)
         : null,
       pythOracle,
       switchboardPriceOracle,
       switchboardTwapOracle,
       scopePrices,
     };
+  }
+
+  async function computeUnsafeButBorrowableAmount(
+    obligation: PublicKey,
+    borrowReserve: PublicKey
+  ): Promise<anchor.BN> {
+    const [obligationBeforeRefresh, reserveAccount] = await Promise.all([
+      provider.connection.getAccountInfo(obligation, "confirmed"),
+      provider.connection.getAccountInfo(borrowReserve, "confirmed"),
+    ]);
+    if (!obligationBeforeRefresh) {
+      throw new Error(`Missing obligation account: ${obligation.toBase58()}`);
+    }
+    if (!reserveAccount) {
+      throw new Error(`Missing borrow reserve account: ${borrowReserve.toBase58()}`);
+    }
+
+    const obligationSnapshot = KlendObligationAccount.decode(
+      Buffer.from(obligationBeforeRefresh.data)
+    );
+    const activeReserves = new Set<string>();
+    for (const deposit of obligationSnapshot.deposits) {
+      const reserve = new PublicKey(deposit.depositReserve.toString());
+      if (!reserve.equals(PublicKey.default)) {
+        activeReserves.add(reserve.toBase58());
+      }
+    }
+    for (const borrow of obligationSnapshot.borrows) {
+      const reserve = new PublicKey(borrow.borrowReserve.toString());
+      if (!reserve.equals(PublicKey.default)) {
+        activeReserves.add(reserve.toBase58());
+      }
+    }
+    const reserveOracleAccounts = await deriveReserveOracleAccounts();
+    const borrowReserveOracleAccounts = await deriveBorrowReserveFixture(
+      borrowReserve,
+      obligation
+    );
+
+    let obligationData: KlendObligationAccount | null = null;
+    for (let attempt = 1; attempt <= 8; attempt += 1) {
+      const reservesForRefresh = Array.from(activeReserves).map((k) => new PublicKey(k));
+      if (!reservesForRefresh.some((reserve) => reserve.equals(RESERVE))) {
+        reservesForRefresh.push(RESERVE);
+      }
+
+      await provider.sendAndConfirm(
+        new Transaction().add(
+          buildRefreshReserveInstruction({
+            reserve: RESERVE,
+            lendingMarket: MARKET,
+            pythOracle: reserveOracleAccounts.pythOracle,
+            switchboardPriceOracle: reserveOracleAccounts.switchboardPriceOracle,
+            switchboardTwapOracle: reserveOracleAccounts.switchboardTwapOracle,
+            scopePrices: reserveOracleAccounts.scopePrices,
+          }),
+          buildRefreshReserveInstruction({
+            reserve: borrowReserve,
+            lendingMarket: MARKET,
+            pythOracle: borrowReserveOracleAccounts.pythOracle,
+            switchboardPriceOracle: borrowReserveOracleAccounts.switchboardPriceOracle,
+            switchboardTwapOracle: borrowReserveOracleAccounts.switchboardTwapOracle,
+            scopePrices: borrowReserveOracleAccounts.scopePrices,
+          }),
+          buildRefreshObligationInstruction({
+            lendingMarket: MARKET,
+            obligation,
+            reserves: reservesForRefresh,
+          })
+        ),
+        []
+      );
+
+      const obligationAccount = await provider.connection.getAccountInfo(
+        obligation,
+        "confirmed"
+      );
+      if (!obligationAccount) {
+        throw new Error(`Missing obligation account: ${obligation.toBase58()}`);
+      }
+
+      obligationData = KlendObligationAccount.decode(Buffer.from(obligationAccount.data));
+      const depositedValueAttempt = new anchor.BN(obligationData.depositedValueSf.toString());
+      if (depositedValueAttempt.gt(new anchor.BN(0))) {
+        break;
+      }
+
+      if (attempt < 8) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+      }
+    }
+
+    if (!obligationData) {
+      throw new Error("Failed to decode obligation data while computing borrow amount");
+    }
+
+    const reserveData = KlendReserveAccount.decode(Buffer.from(reserveAccount.data));
+    const depositedValue = new anchor.BN(obligationData.depositedValueSf.toString());
+    const debtValue = new anchor.BN(
+      obligationData.borrowFactorAdjustedDebtValueSf.toString()
+    );
+    const unhealthyBorrowValue = new anchor.BN(
+      obligationData.unhealthyBorrowValueSf.toString()
+    );
+    if (depositedValue.lte(new anchor.BN(0))) {
+      throw new Error("Obligation has zero deposited value");
+    }
+
+    const liquidationLtv = unhealthyBorrowValue.mul(WAD_BN).div(depositedValue);
+    const maxSafeLtv = liquidationLtv
+      .mul(BORROW_LIQUIDATION_BUFFER_MULTIPLIER_BN)
+      .div(WAD_BN);
+    const maxSafeDebtValue = maxSafeLtv.mul(depositedValue).div(WAD_BN);
+    if (maxSafeDebtValue.lte(debtValue)) {
+      throw new Error("Obligation debt is already at or above max-safe debt");
+    }
+
+    const allowedDebtIncreaseValue = maxSafeDebtValue.sub(debtValue);
+    const borrowPrice = new anchor.BN(reserveData.liquidity.marketPriceSf.toString());
+    const mintDecimals = new anchor.BN(reserveData.liquidity.mintDecimals.toString());
+    const mintFactor = new anchor.BN(10).pow(mintDecimals);
+    if (borrowPrice.lte(new anchor.BN(0))) {
+      throw new Error("Borrow reserve market price is zero");
+    }
+
+    let amount = allowedDebtIncreaseValue.mul(mintFactor).div(borrowPrice);
+    amount = amount.mul(BORROW_AMOUNT_HEADROOM_BPS_BN).div(TEN_THOUSAND_BN);
+    if (amount.lte(new anchor.BN(0))) {
+      throw new Error("Computed borrow amount is zero");
+    }
+
+    return amount;
   }
 
   function maybeOracle(pubkey: PublicKey): PublicKey | null {
@@ -334,6 +482,26 @@ describe("inject collateral", () => {
         optionalAccount(params.scopePrices),
       ],
       data: KLEND_REFRESH_RESERVE_DISCRIMINATOR,
+    });
+  }
+
+  function buildRefreshObligationInstruction(params: {
+    lendingMarket: PublicKey;
+    obligation: PublicKey;
+    reserves: PublicKey[];
+  }): TransactionInstruction {
+    return new TransactionInstruction({
+      programId: KLEND,
+      keys: [
+        { pubkey: params.lendingMarket, isSigner: false, isWritable: false },
+        { pubkey: params.obligation, isSigner: false, isWritable: true },
+        ...params.reserves.map((reserve) => ({
+          pubkey: reserve,
+          isSigner: false,
+          isWritable: true,
+        })),
+      ],
+      data: KLEND_REFRESH_OBLIGATION_DISCRIMINATOR,
     });
   }
 
@@ -377,6 +545,7 @@ describe("inject collateral", () => {
     const klendObligation = deriveKlendObligation(positionAuthority);
     const lendingMarketAuthority = deriveLendingMarketAuthority();
     const obligationFarmUserState = deriveObligationFarmUserState(
+      RESERVE_FARM_STATE,
       klendObligation
     );
     const reserveOracleAccounts = await deriveReserveOracleAccounts();
@@ -430,6 +599,7 @@ describe("inject collateral", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -500,16 +670,6 @@ describe("inject collateral", () => {
     // Vault might already exist
   } 
 
-    // Deposit specified liquidity to vault
-    const vaultOwnerTokenAccount = (
-      await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        provider.wallet.payer,
-        vaultAssetMint,
-        user
-      )
-    ).address;
-
     // Create user's ATA for share tokens
     const vaultOwnerShareAccount = (
       await getOrCreateAssociatedTokenAccount(
@@ -520,23 +680,62 @@ describe("inject collateral", () => {
       )
     ).address;
 
-  try {
-    await (program as any).methods
-      .deposit(new anchor.BN(vaultLiquidity), new anchor.BN(vaultLiquidity))
-      .accounts({
-        user,
-        assetMint: vaultAssetMint,
-        vault,
-        shareMint,
-        userAssetAccount: ownerWsolAta,
-        userShareAccount: vaultOwnerShareAccount,
-        vaultTokenAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc();
+    const requestedVaultLiquidityBn = new anchor.BN(vaultLiquidity);
+    const vaultStateBeforeDeposit = await (program as any).account.vault.fetch(vault);
+    const vaultDepositCapBn = new anchor.BN(vaultStateBeforeDeposit.depositCap.toString());
+    const vaultManagedAssetsBn = new anchor.BN(
+      vaultStateBeforeDeposit.totalManagedAssets.toString()
+    );
+    const vaultRemainingCapBn = vaultDepositCapBn.gt(vaultManagedAssetsBn)
+      ? vaultDepositCapBn.sub(vaultManagedAssetsBn)
+      : new anchor.BN(0);
+    const ownerWsolBalance = await getAccount(provider.connection, ownerWsolAta);
+    const ownerWsolBalanceBn = new anchor.BN(ownerWsolBalance.amount.toString());
+    const collateralReserveBn = new anchor.BN(Math.max(collateralAmount * 10, 10_000_000));
+    const maxDepositableBn = ownerWsolBalanceBn.gt(collateralReserveBn)
+      ? ownerWsolBalanceBn.sub(collateralReserveBn)
+      : new anchor.BN(0);
+    const requestedWithCapBn = requestedVaultLiquidityBn.lt(vaultRemainingCapBn)
+      ? requestedVaultLiquidityBn
+      : vaultRemainingCapBn;
+    const liquidityToDepositBn = requestedWithCapBn.lt(maxDepositableBn)
+      ? requestedWithCapBn
+      : maxDepositableBn;
 
-    } catch (err: any) {
-      // Vault can be already fully deposited
+    let depositErr: any = null;
+    if (liquidityToDepositBn.gt(new anchor.BN(0))) {
+      try {
+        await (program as any).methods
+          .deposit(liquidityToDepositBn, new anchor.BN(0))
+          .accounts({
+            user,
+            assetMint: vaultAssetMint,
+            vault,
+            shareMint,
+            userAssetAccount: ownerWsolAta,
+            userShareAccount: vaultOwnerShareAccount,
+            vaultTokenAccount,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+      } catch (err: any) {
+        depositErr = err;
+      }
+    }
+
+    const vaultTokenBalance = await getAccount(provider.connection, vaultTokenAccount);
+    const vaultBalanceBn = new anchor.BN(vaultTokenBalance.amount.toString());
+    const minimumExpectedVaultBalanceBn = vaultLiquidity <= 1_000
+      ? new anchor.BN(0)
+      : new anchor.BN(1);
+    if (vaultBalanceBn.lt(minimumExpectedVaultBalanceBn)) {
+      const depositLogs = Array.isArray(depositErr?.logs) ? depositErr.logs.join("\n") : "";
+      throw new Error(
+        `Vault funding is too low for test fixture. requested=${requestedVaultLiquidityBn.toString()} ` +
+          `depositable=${liquidityToDepositBn.toString()} cap=${vaultDepositCapBn.toString()} ` +
+          `managed=${vaultManagedAssetsBn.toString()} remaining_cap=${vaultRemainingCapBn.toString()} ` +
+          `vault_balance=${vaultBalanceBn.toString()}.\n${depositLogs}`
+      );
     }
     return {
       nftMint,
@@ -618,7 +817,7 @@ describe("inject collateral", () => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
-    const amount = new anchor.BN(1_000_000);
+    const amount = COLLATERAL_SETUP_LAMPORTS_BN;
 
     await (program as any).methods
       .increaseCollateral(amount)
@@ -637,6 +836,7 @@ describe("inject collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixtureUnsafePosition.pythOracle,
         switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
@@ -680,8 +880,10 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(55_800); // Borrow 10 USDC (6 decimals)
-    try {
+    const borrowAmount = await computeUnsafeButBorrowableAmount(
+      fixtureUnsafePosition.klendObligation,
+      USDC_RESERVE
+    );
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -730,18 +932,14 @@ describe("inject collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
         { pubkey: RESERVE, isWritable: true, isSigner: false },
       ])
       .rpc();
-    } catch (err: any) {
-      console.log(err.getLogs);
-      const err2 = err as anchor.AnchorError;
-      console.log(err2.logs); 
-    }
-
+    
     const vaultBefore = await (program as any).account.vault.fetch(fixtureUnsafePosition.vault);
     const vaultBalanceBefore = await getAccount(provider.connection, fixtureUnsafePosition.vaultTokenAccount);
     const positionBefore = await (program as any).account.obligation.fetch(fixtureUnsafePosition.position);
@@ -789,6 +987,7 @@ describe("inject collateral", () => {
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixtureUnsafePosition.pythOracle,
           switchboardPriceOracle: fixtureUnsafePosition.switchboardPriceOracle,
@@ -868,7 +1067,7 @@ describe("inject collateral", () => {
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
 
-    const amount = new anchor.BN(1_000_000);
+    const amount = COLLATERAL_SETUP_LAMPORTS_BN;
 
     await (program as any).methods
       .increaseCollateral(amount)
@@ -887,6 +1086,7 @@ describe("inject collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -942,6 +1142,7 @@ describe("inject collateral", () => {
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.pythOracle,
           switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -971,7 +1172,7 @@ describe("inject collateral", () => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
-    const amount = new anchor.BN(1_000_000);
+    const amount = COLLATERAL_SETUP_LAMPORTS_BN;
 
     await (program as any).methods
       .increaseCollateral(amount)
@@ -990,6 +1191,7 @@ describe("inject collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixtureDoubleInject.pythOracle,
         switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
@@ -1027,7 +1229,10 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(55_800);
+    const borrowAmount = await computeUnsafeButBorrowableAmount(
+      fixtureDoubleInject.klendObligation,
+      USDC_RESERVE
+    );
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1076,6 +1281,7 @@ describe("inject collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
@@ -1127,6 +1333,7 @@ describe("inject collateral", () => {
           klendReserve: RESERVE,
           tokenProgram: TOKEN_PROGRAM_ID,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
@@ -1191,6 +1398,7 @@ describe("inject collateral", () => {
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixtureDoubleInject.pythOracle,
           switchboardPriceOracle: fixtureDoubleInject.switchboardPriceOracle,
@@ -1223,7 +1431,7 @@ describe("inject collateral", () => {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
-    const amount = new anchor.BN(1_000_000);
+    const amount = COLLATERAL_SETUP_LAMPORTS_BN;
 
     await (program as any).methods
       .increaseCollateral(amount)
@@ -1242,6 +1450,7 @@ describe("inject collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixtureZeroPrice.pythOracle,
         switchboardPriceOracle: fixtureZeroPrice.switchboardPriceOracle,
@@ -1259,7 +1468,10 @@ describe("inject collateral", () => {
       })
       .rpc();
 
-    const usdcReserve = await deriveBorrowReserveFixture(USDC_RESERVE, fixture.klendObligation);
+    const usdcReserve = await deriveBorrowReserveFixture(
+      USDC_RESERVE,
+      fixtureZeroPrice.klendObligation
+    );
     const userUsdcAta = await getOrCreateAssociatedTokenAccount(
       provider.connection,
       provider.wallet.payer,
@@ -1274,7 +1486,10 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(55_800);
+    const borrowAmount = await computeUnsafeButBorrowableAmount(
+      fixtureZeroPrice.klendObligation,
+      USDC_RESERVE
+    );
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1323,6 +1538,7 @@ describe("inject collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
@@ -1367,6 +1583,7 @@ describe("inject collateral", () => {
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixtureZeroPrice.pythOracle,
           switchboardPriceOracle: fixtureZeroPrice.switchboardPriceOracle,
@@ -1398,7 +1615,7 @@ describe("inject collateral", () => {
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 }),
     ];
 
-    const amount = new anchor.BN(1_000_000);
+    const amount = COLLATERAL_SETUP_LAMPORTS_BN;
 
     await (program as any).methods
       .increaseCollateral(amount)
@@ -1417,6 +1634,7 @@ describe("inject collateral", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixtureMinimalLiquidity.pythOracle,
         switchboardPriceOracle: fixtureMinimalLiquidity.switchboardPriceOracle,
@@ -1449,7 +1667,10 @@ describe("inject collateral", () => {
       true
     );
 
-    const borrowAmount = new anchor.BN(55_800);
+    const borrowAmount = await computeUnsafeButBorrowableAmount(
+      fixtureMinimalLiquidity.klendObligation,
+      USDC_RESERVE
+    );
     await (program as any).methods
       .borrowAsset(borrowAmount)
       .preInstructions([
@@ -1498,6 +1719,7 @@ describe("inject collateral", () => {
         rent: SYSVAR_RENT_PUBKEY,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
       })
       .remainingAccounts([
@@ -1552,6 +1774,7 @@ describe("inject collateral", () => {
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixtureMinimalLiquidity.pythOracle,
           switchboardPriceOracle: fixtureMinimalLiquidity.switchboardPriceOracle,

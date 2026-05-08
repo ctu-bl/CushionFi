@@ -10,9 +10,12 @@ use crate::{
     },
     managers::process_withdraw_after_inject_or_liquidate,
     math::calculate_amount_to_withdraw_after_repay,
-    state::{Obligation, Vault},
+    state::{
+        assert_farms_program_matches, assert_klend_program_matches, Obligation, ProtocolConfig,
+        Vault,
+    },
     utils::{
-        LiquidateEvent, POSITION_AUTHORITY_SEED, VAULT_STATE_SEED,
+        LiquidateEvent, POSITION_AUTHORITY_SEED, PROTOCOL_CONFIG_SEED, VAULT_STATE_SEED,
         get_obligation_data_for_ltv,
     },
 };
@@ -37,6 +40,18 @@ use crate::{
 pub fn liquidate_handler<'info>(
     ctx: Context<'_, '_, '_, 'info, Liquidate<'info>>,
 ) -> Result<()> {
+    assert_klend_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.klend_program.key(),
+    )?;
+    assert_farms_program_matches(
+        &ctx.accounts.protocol_config,
+        ctx.accounts.farms_program.key(),
+    )?;
+    require!(
+        ctx.accounts.vault_debt_token_account.owner == ctx.accounts.cushion_vault.key(),
+        CushionError::InvalidVaultTokenAccount
+    );
     // Step 0: Only positions with vault-injected collateral can be liquidated via this path
     require!(ctx.accounts.position.injected == true, CushionError::NotInjected);
 
@@ -136,10 +151,7 @@ pub struct Liquidate<'info> {
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Vault's USDC token account — source of USDC placed by liquidate_swap_handler
-    #[account(
-        mut,
-        constraint = vault_debt_token_account.owner == cushion_vault.key() @ CushionError::InvalidVaultTokenAccount,
-    )]
+    #[account(mut)]
     pub vault_debt_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Intermediate USDC token account owned by position_authority.
@@ -229,6 +241,12 @@ pub struct Liquidate<'info> {
 
     /// CHECK: Valid farms program
     pub farms_program: AccountInfo<'info>,
+
+    #[account(
+        seeds = [PROTOCOL_CONFIG_SEED],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CHECK: Optional oracle for the WSOL reserve
     pub pyth_oracle: Option<UncheckedAccount<'info>>,

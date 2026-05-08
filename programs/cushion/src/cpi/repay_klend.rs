@@ -41,8 +41,8 @@ pub fn process_repay<'info>(
     refresh_obligation_farm_state_for_repay(ctx)?;
     // Move tokens from user → position_repay_account so Kamino can pull from an account
     // owned by position_authority.
-    transfer_repay_liquidity_from_user(ctx, amount)?;
-    repay_obligation_liquidity(ctx, amount)
+    let repay_amount = transfer_repay_liquidity_from_user(ctx, amount)?;
+    repay_obligation_liquidity(ctx, repay_amount)
 }
 
 fn refresh_reserve_for_repay<'info>(
@@ -242,7 +242,7 @@ fn repay_obligation_liquidity<'info>(
             ctx.accounts.instruction_sysvar_account.to_account_info(),
         ];
 
-        // farms_accounts (optional, writable — pass readonly placeholder when absent)
+        // farms_accounts (optional, writable — pass readonly program-id placeholder when absent)
         push_optional(
             &mut metas,
             &mut infos,
@@ -276,7 +276,7 @@ fn repay_obligation_liquidity<'info>(
 fn transfer_repay_liquidity_from_user<'info>(
     ctx: &Context<'_, '_, '_, 'info, RepayDebt<'info>>,
     amount: u64,
-) -> Result<()> {
+) -> Result<u64> {
     // u64::MAX is a "repay-all" sentinel — cap at the actual balance.
     // For any specific amount, reject if the user is short.
     let user_balance = ctx.accounts.user_source_liquidity.amount;
@@ -302,7 +302,8 @@ fn transfer_repay_liquidity_from_user<'info>(
         ),
         transfer_amount,
         ctx.accounts.repay_reserve_liquidity_mint.decimals,
-    )
+    )?;
+    Ok(transfer_amount)
 }
 
 fn push_optional<'info>(
@@ -322,6 +323,8 @@ fn push_optional<'info>(
             infos.push(account);
         }
         None => {
+            // For Anchor optional accounts, `None` is represented by passing program id placeholder.
+            // Keep it readonly to avoid writable privilege escalation on CPI.
             metas.push(AccountMeta::new_readonly(fallback.key(), false));
             infos.push(fallback.clone());
         }

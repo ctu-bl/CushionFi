@@ -7,6 +7,7 @@ export interface EnvironmentProfile {
   appEnv: AppEnv;
   solanaCluster: SolanaCluster;
   solanaRpcUrl: string;
+  solanaWsUrl: string;
   evmChainId: number | undefined;
   evmRpcUrl: string | undefined;
   kaminoNetwork: KaminoNetwork;
@@ -22,6 +23,7 @@ export interface ScriptEnvironmentConfig {
   appEnv: AppEnv;
   solanaCluster: SolanaCluster;
   solanaRpcUrl: string;
+  solanaWsUrl: string;
   solanaKeypairPath: string;
   cushionProgramId: string;
   kaminoNetwork: KaminoNetwork;
@@ -34,6 +36,7 @@ export const DEFAULT_CUSHION_PROGRAM_ID_BY_APP_ENV: Record<AppEnv, string>;
 export const DEFAULT_SOLANA_CLUSTER_BY_APP_ENV: Record<AppEnv, SolanaCluster>;
 export const DEFAULT_SOLANA_KEYPAIR_PATH: string;
 export const DEFAULT_SOLANA_RPC_URL_BY_APP_ENV: Record<AppEnv, string>;
+export const DEFAULT_SOLANA_WS_URL_BY_APP_ENV: Record<AppEnv, string>;
 
 export function normalizeAppEnv(value: string | undefined): AppEnv | undefined;
 export function normalizeSolanaCluster(

@@ -26,6 +26,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   RESERVE,
@@ -543,6 +544,7 @@ describe("decrease collateral nft auth", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -642,6 +644,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -686,6 +689,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -742,6 +746,7 @@ describe("decrease collateral nft auth", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.pythOracle,
           switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -793,6 +798,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -846,6 +852,7 @@ describe("decrease collateral nft auth", () => {
           klendReserve: RESERVE,
           tokenProgram: TOKEN_PROGRAM_ID,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           reserveLiquiditySupply: RESERVE_LIQUIDITY_SUPPLY,
           klendProgram: KLEND,
           reserveLiquidityMint: RESERVE_LIQUIDITY_MINT,
@@ -889,6 +896,7 @@ describe("decrease collateral nft auth", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.pythOracle,
           switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -919,7 +927,7 @@ describe("decrease collateral nft auth", () => {
 
     const depositAmount = new anchor.BN(2_000_000);
     const borrowAmount = new anchor.BN(100_000);
-    const largeDecreaseAmount = new anchor.BN(500_000);
+    const largeDecreaseAmount = new anchor.BN(1_500_000);
 
     const computeIxs = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
@@ -945,6 +953,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -1034,6 +1043,7 @@ describe("decrease collateral nft auth", () => {
           rent: SYSVAR_RENT_PUBKEY,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
         })
         .remainingAccounts([
@@ -1096,6 +1106,7 @@ describe("decrease collateral nft auth", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.pythOracle,
           switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -1162,6 +1173,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -1226,6 +1238,7 @@ describe("decrease collateral nft auth", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           klendProgram: KLEND,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           lendingMarket: MARKET,
           pythOracle: fixture.pythOracle,
           switchboardPriceOracle: fixture.switchboardPriceOracle,
@@ -1267,6 +1280,7 @@ describe("decrease collateral nft auth", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: fixture.pythOracle,
         switchboardPriceOracle: fixture.switchboardPriceOracle,

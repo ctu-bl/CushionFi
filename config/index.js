@@ -12,6 +12,12 @@ const DEFAULT_SOLANA_RPC_URL_BY_APP_ENV = {
   prod: "https://api.mainnet-beta.solana.com",
 };
 
+const DEFAULT_SOLANA_WS_URL_BY_APP_ENV = {
+  local: "ws://127.0.0.1:8900",
+  devnet: "wss://api.devnet.solana.com",
+  prod: "wss://api.mainnet-beta.solana.com",
+};
+
 const DEFAULT_EVM_CHAIN_ID_BY_APP_ENV = {
   local: undefined,
   devnet: 11155111,
@@ -194,6 +200,7 @@ function getEnvironmentProfile(appEnv = "local") {
     appEnv,
     solanaCluster: DEFAULT_SOLANA_CLUSTER_BY_APP_ENV[appEnv],
     solanaRpcUrl: DEFAULT_SOLANA_RPC_URL_BY_APP_ENV[appEnv],
+    solanaWsUrl: DEFAULT_SOLANA_WS_URL_BY_APP_ENV[appEnv],
     evmChainId: DEFAULT_EVM_CHAIN_ID_BY_APP_ENV[appEnv],
     evmRpcUrl: DEFAULT_EVM_RPC_URL_BY_APP_ENV[appEnv],
     kaminoNetwork: DEFAULT_KAMINO_NETWORK_BY_APP_ENV[appEnv],
@@ -215,6 +222,9 @@ function getPublicEnvironmentConfig(env = process.env) {
     solanaRpcUrl:
       getScopedEnvValue(env, "NEXT_PUBLIC_SOLANA_RPC_URL", appEnv) ??
       profile.solanaRpcUrl,
+    solanaWsUrl:
+      getScopedEnvValue(env, "NEXT_PUBLIC_SOLANA_WS_URL", appEnv) ??
+      profile.solanaWsUrl,
     evmChainId:
       parseOptionalNumber(
         getScopedEnvValue(env, "NEXT_PUBLIC_EVM_CHAIN_ID", appEnv)
@@ -255,9 +265,12 @@ function getScriptEnvironmentConfig(env = process.env) {
     appEnv,
     solanaCluster,
     solanaRpcUrl:
-      getScopedEnvValue(env, "SOLANA_RPC_URL", appEnv) ??
       normalizeString(env.ANCHOR_PROVIDER_URL) ??
+      getScopedEnvValue(env, "SOLANA_RPC_URL", appEnv) ??
       DEFAULT_SOLANA_RPC_URL_BY_APP_ENV[appEnv],
+    solanaWsUrl:
+      getScopedEnvValue(env, "SOLANA_WS_URL", appEnv) ??
+      DEFAULT_SOLANA_WS_URL_BY_APP_ENV[appEnv],
     solanaKeypairPath:
       getScopedEnvValue(env, "SOLANA_KEYPAIR", appEnv) ??
       normalizeString(env.ANCHOR_WALLET) ??
@@ -286,6 +299,7 @@ export {
   DEFAULT_SOLANA_CLUSTER_BY_APP_ENV,
   DEFAULT_SOLANA_KEYPAIR_PATH,
   DEFAULT_SOLANA_RPC_URL_BY_APP_ENV,
+  DEFAULT_SOLANA_WS_URL_BY_APP_ENV,
   getAppEnvFromProcess,
   getPublicAppEnvFromProcess,
   getEnvironmentProfile,

@@ -15,7 +15,6 @@ export type KeeperConfig = {
   authority: Keypair;
   reserveAddresses: PublicKey[];
   pollIntervalMs: number;
-  withdrawLtvBps: number;
   computeConcurrency: number;
   executorConcurrency: number;
   autoUpdateVaultPrice: boolean;
@@ -120,7 +119,6 @@ export function loadConfigFromEnv(): KeeperConfig {
   const reserveAddresses = parsePublicKeys(process.env.KEEPER_RESERVE_ADDRESSES);
 
   const pollIntervalMs = parseNumber("KEEPER_POLL_INTERVAL_MS", 8_000);
-  const withdrawLtvBps = parseNumber("KEEPER_WITHDRAW_LTV_BPS", 8500);
 
   const computeConcurrency = Math.max(1, parseNumber("KEEPER_COMPUTE_CONCURRENCY", 2));
   const executorConcurrency = Math.max(1, parseNumber("KEEPER_EXECUTOR_CONCURRENCY", 1));
@@ -145,7 +143,6 @@ export function loadConfigFromEnv(): KeeperConfig {
     authority,
     reserveAddresses,
     pollIntervalMs,
-    withdrawLtvBps,
     computeConcurrency,
     executorConcurrency,
     autoUpdateVaultPrice,

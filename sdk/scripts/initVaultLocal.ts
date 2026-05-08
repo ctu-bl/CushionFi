@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import {
   getRuntimeConfig,
+  getScopedEnvValue,
   loadKeypair,
 } from "./_common.ts";
 
@@ -39,14 +40,17 @@ export async function main() {
   const appEnv = runtimeConfig.appEnv;
   const clusterName = runtimeConfig.solanaCluster;
   const rpcUrl = runtimeConfig.solanaRpcUrl;
-  const configuredAssetMint = process.env.ASSET_MINT?.trim();
+  const configuredAssetMint = getScopedEnvValue(process.env, "ASSET_MINT", appEnv);
   const assetMint =
     configuredAssetMint ??
     DEFAULT_SOL_ASSET_MINT;
   const usingDefaultWsolMint = !configuredAssetMint;
 
   const payer = loadKeypair(runtimeConfig.solanaKeypairPath);
-  const connection = new Connection(rpcUrl, "confirmed");
+  const connection = new Connection(rpcUrl, {
+    commitment: "confirmed",
+    wsEndpoint: runtimeConfig.solanaWsUrl,
+  });
   const wallet = new Wallet(payer);
   const provider = new AnchorProvider(connection, wallet, {
     commitment: "confirmed",

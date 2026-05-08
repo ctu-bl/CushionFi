@@ -23,6 +23,7 @@ import { createHash } from "node:crypto";
 
 import {
   getRuntimeConfig,
+  getScopedEnvValue,
   loadKeypair,
 } from "./_common.ts";
 
@@ -33,7 +34,10 @@ const POSITION_AUTHORITY_SEED = Buffer.from("loan_authority");
 const POSITION_SEED = Buffer.from("loan_position");
 const POSITION_REGISTRY_SEED = Buffer.from("position_registry");
 const POSITION_REGISTRY_ENTRY_SEED = Buffer.from("position_registry_entry");
+const PROTOCOL_CONFIG_SEED = Buffer.from("protocol_config_v1");
 const WAD = 1_000_000_000_000_000_000n;
+const MAINNET_KLEND_PROGRAM = "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD";
+const MAINNET_FARMS_PROGRAM = "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr";
 const KLEND_REFRESH_RESERVE_DISCRIMINATOR = createHash("sha256")
   .update("global:refresh_reserve")
   .digest()
@@ -68,8 +72,18 @@ function pickFirst<T>(obj: Record<string, unknown>, keys: string[]): T {
   throw new Error(`Missing expected keys: ${keys.join(", ")}`);
 }
 
-function envPubkey(name: string, fallback: string): PublicKey {
-  return new PublicKey(process.env[name]?.trim() || fallback);
+function envPubkey(name: string, fallback: string, appEnv: string): PublicKey {
+  return new PublicKey(getScopedEnvValue(process.env, name, appEnv) || fallback);
+}
+
+function requireEnvPubkey(name: string, appEnv: string): PublicKey {
+  const value = getScopedEnvValue(process.env, name, appEnv);
+  if (!value) {
+    throw new Error(
+      `Missing required ${name} for env=${appEnv}. Run deploy/bootstrap first so ${name}_${appEnv.toUpperCase()} is populated.`
+    );
+  }
+  return new PublicKey(value);
 }
 
 function maybeOracle(pubkey: PublicKey): PublicKey | null {
@@ -102,6 +116,10 @@ function derivePositionRegistryEntry(nftMint: PublicKey, cushionProgramId: Publi
     [POSITION_REGISTRY_ENTRY_SEED, nftMint.toBuffer()],
     cushionProgramId
   )[0];
+}
+
+function deriveProtocolConfig(cushionProgramId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([PROTOCOL_CONFIG_SEED], cushionProgramId)[0];
 }
 
 function deriveKlendUserMetadata(positionAuthority: PublicKey, klendProgramId: PublicKey): PublicKey {
@@ -299,7 +317,10 @@ async function wrapSol(
 async function main() {
   const runtimeConfig = getRuntimeConfig(process.env);
   const wallet = loadKeypair(runtimeConfig.solanaKeypairPath);
-  const connection = new anchor.web3.Connection(runtimeConfig.solanaRpcUrl, "confirmed");
+  const connection = new anchor.web3.Connection(runtimeConfig.solanaRpcUrl, {
+    commitment: "confirmed",
+    wsEndpoint: runtimeConfig.solanaWsUrl,
+  });
   const provider = new anchor.AnchorProvider(
     connection,
     new anchor.Wallet(wallet),
@@ -313,20 +334,22 @@ async function main() {
   const payer = wallet;
 
   const cushionProgramId = program.programId;
-  const klendProgramId = envPubkey("KLEND_PROGRAM_ID", "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
-  const market = envPubkey("KLEND_MARKET", "7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF");
-  const solReserve = envPubkey("KLEND_SOL_RESERVE", "d4A2prbA2whesmvHaL88BH6Ewn5N4bTSU2Ze8P6Bc4Q");
-  const usdcReserve = envPubkey("KLEND_USDC_RESERVE", "D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59");
-  const reserveLiquiditySupply = envPubkey("KLEND_SOL_RESERVE_LIQ_SUPPLY", "GafNuUXj9rxGLn4y79dPu6MHSuPWeJR6UtTWuexpGh3U");
-  const reserveLiquidityMint = envPubkey("KLEND_SOL_RESERVE_LIQ_MINT", "So11111111111111111111111111111111111111112");
-  const reserveCollateralMint = envPubkey("KLEND_SOL_RESERVE_COLL_MINT", "2UywZrUdyqs5vDchy7fKQJKau2RVyuzBev2XKGPDSiX1");
-  const reserveDestinationCollateral = envPubkey(
-    "KLEND_SOL_RESERVE_DEST_COLL",
-    "8NXMyRD91p3nof61BTkJvrfpGTASHygz1cUvc3HvwyGS"
-  );
-  const reserveFarmState = envPubkey("KLEND_SOL_RESERVE_FARM_STATE", "955xWFhSDcDiUgUr4sBRtCpTLiMd4H5uZLAmgtP3R3sX");
-  const farmsProgramId = envPubkey("KLEND_FARMS_PROGRAM", "FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr");
-  const mplCoreProgramId = envPubkey("MPL_CORE_PROGRAM_ID", "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
+  const appEnv = runtimeConfig.appEnv;
+  const klendProgramId = envPubkey("KLEND_PROGRAM_ID", MAINNET_KLEND_PROGRAM, appEnv);
+  const defaultFarmsProgram =
+    klendProgramId.toBase58() === MAINNET_KLEND_PROGRAM
+      ? MAINNET_FARMS_PROGRAM
+      : klendProgramId.toBase58();
+  const market = requireEnvPubkey("KLEND_MARKET", appEnv);
+  const solReserve = requireEnvPubkey("KLEND_SOL_RESERVE", appEnv);
+  const usdcReserve = requireEnvPubkey("KLEND_USDC_RESERVE", appEnv);
+  const reserveLiquiditySupply = requireEnvPubkey("KLEND_SOL_RESERVE_LIQ_SUPPLY", appEnv);
+  const reserveLiquidityMint = requireEnvPubkey("KLEND_SOL_RESERVE_LIQ_MINT", appEnv);
+  const reserveCollateralMint = requireEnvPubkey("KLEND_SOL_RESERVE_COLL_MINT", appEnv);
+  const reserveDestinationCollateral = requireEnvPubkey("KLEND_SOL_RESERVE_DEST_COLL", appEnv);
+  const reserveFarmState = requireEnvPubkey("KLEND_SOL_RESERVE_FARM_STATE", appEnv);
+  const farmsProgramId = envPubkey("KLEND_FARMS_PROGRAM", defaultFarmsProgram, appEnv);
+  const mplCoreProgramId = envPubkey("MPL_CORE_PROGRAM_ID", "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d", appEnv);
 
   const collateralLamports = BigInt(process.env.COLLATERAL_LAMPORTS ?? "2000000");
   const borrowAmountUsdcRawOverride = process.env.BORROW_USDC_RAW?.trim();
@@ -354,6 +377,7 @@ async function main() {
   const position = derivePosition(nftMint, cushionProgramId);
   const positionRegistry = derivePositionRegistry(cushionProgramId);
   const positionRegistryEntry = derivePositionRegistryEntry(nftMint, cushionProgramId);
+  const protocolConfig = deriveProtocolConfig(cushionProgramId);
   const klendUserMetadata = deriveKlendUserMetadata(positionAuthority, klendProgramId);
   const klendObligation = deriveKlendObligation(positionAuthority, market, klendProgramId);
   const lendingMarketAuthority = deriveLendingMarketAuthority(market, klendProgramId);
@@ -368,7 +392,10 @@ async function main() {
     throw new Error(`Missing SOL reserve account: ${solReserve.toBase58()}`);
   }
   const solReserveData = KlendReserveAccount.decode(Buffer.from(solReserveAccount.data));
-  const solPythOracle = maybeOracle(new PublicKey(solReserveData.config.tokenInfo.pythConfiguration.price));
+  const solPythOracleEnv = getScopedEnvValue(process.env, "KLEND_SOL_PYTH_ORACLE", appEnv);
+  const solPythOracle = solPythOracleEnv
+    ? new PublicKey(solPythOracleEnv)
+    : maybeOracle(new PublicKey(solReserveData.config.tokenInfo.pythConfiguration.price));
   const solSwitchboardPriceOracle = maybeOracle(
     new PublicKey(solReserveData.config.tokenInfo.switchboardConfiguration.priceAggregator)
   );
@@ -393,7 +420,10 @@ async function main() {
   const usdcObligationFarmUserState = usdcReserveFarmState
     ? deriveObligationFarmUserState(usdcReserveFarmState, klendObligation, farmsProgramId)
     : null;
-  const usdcPythOracle = maybeOracle(new PublicKey(usdcReserveData.config.tokenInfo.pythConfiguration.price));
+  const usdcPythOracleEnv = getScopedEnvValue(process.env, "KLEND_USDC_PYTH_ORACLE", appEnv);
+  const usdcPythOracle = usdcPythOracleEnv
+    ? new PublicKey(usdcPythOracleEnv)
+    : maybeOracle(new PublicKey(usdcReserveData.config.tokenInfo.pythConfiguration.price));
   const usdcSwitchboardPriceOracle = maybeOracle(
     new PublicKey(usdcReserveData.config.tokenInfo.switchboardConfiguration.priceAggregator)
   );
@@ -428,6 +458,7 @@ async function main() {
       lendingMarketAuthority,
       klendProgram: klendProgramId,
       farmsProgram: farmsProgramId,
+      protocolConfig,
       tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
       rent: SYSVAR_RENT_PUBKEY,
@@ -499,6 +530,7 @@ async function main() {
       instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
       obligationFarmUserState,
       reserveFarmState,
+      protocolConfig,
     })
     .rpc();
 
@@ -643,6 +675,7 @@ async function main() {
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
           farmsProgram: farmsProgramId,
           klendProgram: klendProgramId,
+          protocolConfig,
         })
         .remainingAccounts([
           {

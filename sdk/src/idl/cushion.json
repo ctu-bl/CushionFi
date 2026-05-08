@@ -158,6 +158,36 @@
           "name": "klend_program"
         },
         {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "pyth_oracle",
           "optional": true
         },
@@ -331,6 +361,36 @@
           "name": "farms_program"
         },
         {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "pyth_oracle",
           "optional": true
         },
@@ -446,6 +506,60 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "freeze_protocol_config",
+      "discriminator": [
+        192,
+        173,
+        152,
+        193,
+        240,
+        178,
+        200,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "protocol_config"
+          ]
+        },
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
     },
     {
       "name": "increase_collateral",
@@ -596,6 +710,36 @@
         },
         {
           "name": "farms_program"
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "pyth_oracle",
@@ -785,6 +929,36 @@
         },
         {
           "name": "klend_program"
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
         }
       ],
       "args": [
@@ -1059,6 +1233,36 @@
           "name": "farms_program"
         },
         {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -1131,6 +1335,79 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "init_protocol_config",
+      "discriminator": [
+        91,
+        97,
+        211,
+        137,
+        96,
+        222,
+        139,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "klend_program_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "farms_program_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "mode",
+          "type": {
+            "defined": {
+              "name": "ProtocolMode"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "init_vault",
@@ -1524,6 +1801,36 @@
         {
           "name": "reserve_farm_state",
           "writable": true
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -1894,6 +2201,36 @@
           "name": "klend_program"
         },
         {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "token_program",
           "docs": [
             "SPL token program used by Kamino CPI."
@@ -1980,6 +2317,77 @@
               "u8",
               32
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_protocol_config",
+      "discriminator": [
+        197,
+        97,
+        123,
+        54,
+        221,
+        168,
+        11,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "protocol_config"
+          ]
+        },
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "klend_program_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "farms_program_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "mode",
+          "type": {
+            "defined": {
+              "name": "ProtocolMode"
+            }
           }
         }
       ]
@@ -2289,6 +2697,36 @@
         {
           "name": "scope_prices",
           "optional": true
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  118,
+                  49
+                ]
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -2345,6 +2783,19 @@
         126,
         244,
         205
+      ]
+    },
+    {
+      "name": "ProtocolConfig",
+      "discriminator": [
+        207,
+        91,
+        250,
+        28,
+        152,
+        179,
+        215,
+        209
       ]
     },
     {
@@ -2708,133 +3159,153 @@
     },
     {
       "code": 6032,
+      "name": "InvalidKaminoFarmsProgram",
+      "msg": "Invalid Kamino farms program account"
+    },
+    {
+      "code": 6033,
       "name": "InvalidKaminoUserMetadata",
       "msg": "Invalid Kamino user metadata PDA"
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "InvalidKaminoObligation",
       "msg": "Invalid Kamino obligation PDA"
     },
     {
-      "code": 6034,
+      "code": 6035,
       "name": "InvalidKaminoLendingMarketAuthority",
       "msg": "Invalid Kamino lending market authority PDA"
     },
     {
-      "code": 6035,
+      "code": 6036,
       "name": "InvalidKaminoFarmUserState",
       "msg": "Invalid Kamino farm user state PDA"
     },
     {
-      "code": 6036,
+      "code": 6037,
       "name": "InvalidPositionNftMint",
       "msg": "Invalid NFT token account mint for Cushion position"
     },
     {
-      "code": 6037,
+      "code": 6038,
       "name": "InvalidPositionNftOwner",
       "msg": "NFT token account owner must match signer"
     },
     {
-      "code": 6038,
+      "code": 6039,
       "name": "ReserveAlreadyUsedOnOtherSide",
       "msg": "Reserve is already used as a borrow on this obligation"
     },
     {
-      "code": 6039,
+      "code": 6040,
       "name": "MissingKaminoRefreshReserve",
       "msg": "A required Kamino reserve account is missing from remaining accounts"
     },
     {
-      "code": 6040,
+      "code": 6041,
       "name": "InjectedCollateral",
       "msg": "Position has injected collateral and cannot be decreased"
     },
     {
-      "code": 6041,
+      "code": 6042,
       "name": "MarketValueError",
       "msg": "Failed to compute market value from reserve data"
     },
     {
-      "code": 6042,
+      "code": 6043,
       "name": "LtvComputationError",
       "msg": "Failed to compute potential LTV"
     },
     {
-      "code": 6043,
+      "code": 6044,
       "name": "UnsafeDecreaseCollateral",
       "msg": "Collateral decrease would put position below safe LTV threshold"
     },
     {
-      "code": 6044,
+      "code": 6045,
       "name": "DeserializationError",
       "msg": "Failed to deserialize account data"
     },
     {
-      "code": 6045,
+      "code": 6046,
       "name": "AlreadyInjected",
       "msg": "Position already has injected collateral"
     },
     {
-      "code": 6046,
+      "code": 6047,
       "name": "NotUnsafePosition",
       "msg": "Position is not unsafe, injection failed"
     },
     {
-      "code": 6047,
+      "code": 6048,
       "name": "InjectCalculationError",
       "msg": "Amount to inject calculation failed"
     },
     {
-      "code": 6048,
+      "code": 6049,
       "name": "LtvCalculationError",
       "msg": "Calculation of current LTV failed"
     },
     {
-      "code": 6049,
+      "code": 6050,
       "name": "ZeroPrice",
       "msg": "Price of the asset in vault is zero"
     },
     {
-      "code": 6050,
+      "code": 6051,
       "name": "InsuringThresholdError",
       "msg": "Computation of insuring LTV threshold failed"
     },
     {
-      "code": 6051,
+      "code": 6052,
       "name": "NotInjected",
       "msg": "Position doesn't have any injected collateral"
     },
     {
-      "code": 6052,
+      "code": 6053,
       "name": "WithdrawingThresholdError",
       "msg": "Computation of withdrawing LTV threshold failed"
     },
     {
-      "code": 6053,
+      "code": 6054,
       "name": "NotYetSafePosition",
       "msg": "Position is not safe enough, withdrawal failed"
     },
     {
-      "code": 6054,
+      "code": 6055,
       "name": "WithdrawAmountCalculationError",
       "msg": "Computation of amount to withdraw failed"
     },
     {
-      "code": 6055,
+      "code": 6056,
       "name": "InterestCalculationError",
       "msg": "Computation of accumulated interest failed"
     },
     {
-      "code": 6056,
+      "code": 6057,
       "name": "WithdrawAmountIsZero",
       "msg": "Withdraw amount cannot be zero"
     },
     {
-      "code": 6057,
+      "code": 6058,
       "name": "WithdrawValueError",
       "msg": "Calculation of withdraw value failed"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidProtocolMode",
+      "msg": "Invalid protocol mode value"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidProtocolModeConfig",
+      "msg": "Invalid protocol mode/program-id configuration"
+    },
+    {
+      "code": 6061,
+      "name": "ProtocolConfigFrozen",
+      "msg": "Protocol config is frozen"
     }
   ],
   "types": [
@@ -3254,6 +3725,56 @@
           {
             "name": "posted_slot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "klend_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "farms_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "mode",
+            "type": "u8"
+          },
+          {
+            "name": "is_frozen",
+            "type": "bool"
+          },
+          {
+            "name": "version",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Mainnet"
+          },
+          {
+            "name": "DevnetMock"
           }
         ]
       }

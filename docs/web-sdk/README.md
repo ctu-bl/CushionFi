@@ -36,17 +36,28 @@ The SDK wraps Anchor and IDL details so UI developers do not need to handle:
 ## 2) Creating the SDK instance
 
 ```ts
-import { createCushionSdk, WalletAdapterTxSender } from "@/src/sdk";
+import { createCushionSdkFromEnv, WalletAdapterTxSender } from "@/src/sdk";
 
-const sdk = createCushionSdk({
+const sdk = createCushionSdkFromEnv({
   provider, // AnchorProvider
-  klendProgramId,
-  farmsProgramId,
-  mplCoreProgramId, // optional, default is CoREENx...
-  borrowInstructionVariant: "increaseDebt", // default
   sender: new WalletAdapterTxSender(provider, wallet), // optional
+  borrowInstructionVariant: "increaseDebt", // default
 });
 ```
+
+`createCushionSdkFromEnv` resolves KLend/Farms programs from env with scoped overrides:
+
+- `NEXT_PUBLIC_KLEND_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]`
+- `NEXT_PUBLIC_FARMS_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]`
+- `NEXT_PUBLIC_KLEND_FARMS_PROGRAM[_LOCAL|_DEVNET|_PROD]` (fallback alias)
+- `NEXT_PUBLIC_MPL_CORE_PROGRAM_ID[_LOCAL|_DEVNET|_PROD]` (optional)
+
+Defaults by env profile:
+
+- `devnet` -> devnet-fork/mock (`FHqW...`)
+- `local` / `prod` -> mainnet programs (`KLend2...`, `FarmsP...`)
+
+You can still use `createCushionSdk(...)` when you want to pass explicit program IDs manually.
 
 If `sender` is omitted, SDK uses `AnchorProviderTxSender`.
 
@@ -154,6 +165,7 @@ Source: `web/src/sdk/domains/position.ts`
 - `positionRegistry`, `positionRegistryEntry`
 - KLend PDAs: `klendUserMetadata`, `klendObligation`, `lendingMarketAuthority`
 - farm PDA: `obligationFarmUserState`
+- `protocolConfig` PDA (`protocol_config_v1`)
 
 ### Common on-chain errors
 
@@ -204,6 +216,7 @@ Important note for `"max"`:
 - refresh reserve pre-instructions for active obligation reserves
 - oracle and remaining accounts
 - farm state selection in `debt` mode (`farmKind: "debt"`)
+- `protocolConfig` PDA (`protocol_config_v1`)
 
 ### Common on-chain errors
 
@@ -250,6 +263,7 @@ Returns:
 - KLend reserve/oracle/remaining accounts
 - refresh reserve pre-instructions
 - farm state selection in `collateral` mode (`farmKind: "collateral"`)
+- `protocolConfig` PDA (`protocol_config_v1`)
 
 ### Common on-chain errors
 

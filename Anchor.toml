@@ -6,7 +6,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cushion = "4k2CBCavaxpvLU3hnsmwT9zd5KNZGUhiaNxdqHUqMZLd"
+cushion = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W"
+klend_mock = "FHqW31mKXKPQqrHYYmGKcUGM5q8EF8SPeU3axkNG6bxe"
+
+[programs.devnet]
+cushion = "H8BhL28KxwHPyNyCNRQWb5MVVadqesiam9HQ9jPfmd8W"
+klend_mock = "FHqW31mKXKPQqrHYYmGKcUGM5q8EF8SPeU3axkNG6bxe"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,4 +21,4 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+test = "yarn run ts-mocha --file tests/setup.ts -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""

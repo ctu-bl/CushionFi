@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   getRuntimeConfig,
+  getScopedEnvValue,
   loadKeypair,
 } from "./_common.ts";
 
@@ -37,7 +38,7 @@ export async function main() {
   const runtimeConfig = getRuntimeConfig(process.env);
   const appEnv = runtimeConfig.appEnv;
   const rpcUrl = runtimeConfig.solanaRpcUrl;
-  const configuredAssetMint = process.env.ASSET_MINT?.trim();
+  const configuredAssetMint = getScopedEnvValue(process.env, "ASSET_MINT", appEnv);
 
   const assetMint =
     configuredAssetMint ??
@@ -54,7 +55,10 @@ export async function main() {
   }
 
   const payer = loadKeypair(runtimeConfig.solanaKeypairPath);
-  const connection = new Connection(rpcUrl, "confirmed");
+  const connection = new Connection(rpcUrl, {
+    commitment: "confirmed",
+    wsEndpoint: runtimeConfig.solanaWsUrl,
+  });
   const wallet = new Wallet(payer);
   const provider = new AnchorProvider(connection, wallet, {
     commitment: "confirmed",

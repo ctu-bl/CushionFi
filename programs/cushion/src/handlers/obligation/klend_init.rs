@@ -17,10 +17,7 @@ use kamino_lend::{
 };
 
 use super::position_auth::with_position_authority_signer;
-use crate::{
-    utils::KAMINO_PROGRAM_ID,
-    CushionError,
-};
+use crate::CushionError;
 
 /// Flat account bundle used to validate and initialize Kamino-side PDAs for a position.
 ///
@@ -30,6 +27,8 @@ pub struct KlendInitAndCheckAccounts<'info> {
     pub position_authority: AccountInfo<'info>,
     pub klend_program: AccountInfo<'info>,
     pub farms_program: AccountInfo<'info>,
+    pub expected_klend_program_id: Pubkey,
+    pub expected_farms_program_id: Pubkey,
     pub lending_market: AccountInfo<'info>,
     pub lending_market_authority: AccountInfo<'info>,
     pub klend_reserve: AccountInfo<'info>,
@@ -82,8 +81,13 @@ fn validate_klend_account_derivations<'info>(
 ) -> Result<()> {
     require_keys_eq!(
         accounts.klend_program.key(),
-        KAMINO_PROGRAM_ID,
+        accounts.expected_klend_program_id,
         CushionError::InvalidKaminoProgram
+    );
+    require_keys_eq!(
+        accounts.farms_program.key(),
+        accounts.expected_farms_program_id,
+        CushionError::InvalidKaminoFarmsProgram
     );
 
     let position_authority_key = accounts.position_authority.key();
@@ -243,8 +247,6 @@ fn refresh_obligation_for_current_slot<'info>(
     } else {
         cpi::refresh_obligation(cpi_ctx)?;
     }
-
-
 
     Ok(())
 }

@@ -25,6 +25,7 @@ import {
 import { Cushion } from "../target/types/cushion";
 import {
   FARMS_PROGRAM,
+  PROTOCOL_CONFIG,
   KLEND,
   MARKET,
   RESERVE,
@@ -408,6 +409,7 @@ describe("repay debt", () => {
         lendingMarketAuthority,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -468,6 +470,7 @@ describe("repay debt", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         klendProgram: KLEND,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         lendingMarket: MARKET,
         pythOracle: solAccounts.pythOracle,
         switchboardPriceOracle: solAccounts.switchboardPriceOracle,
@@ -527,6 +530,7 @@ describe("repay debt", () => {
           obligationFarmUserState: debtReserve.obligationFarmUserState,
           reserveFarmState: debtReserve.reserveFarmState,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
         })
         .remainingAccounts([{ pubkey: RESERVE, isWritable: true, isSigner: false }])
@@ -623,6 +627,7 @@ describe("repay debt", () => {
           obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
           reserveFarmState: fixture.debtReserve.reserveFarmState,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -632,6 +637,16 @@ describe("repay debt", () => {
         .remainingAccounts([{ pubkey: RESERVE, isWritable: true, isSigner: false }])
         .rpc(),
       "InsufficientRepayLiquidity"
+    );
+
+    // Restore fixture balance so follow-up repay tests stay independent.
+    await transfer(
+      provider.connection,
+      provider.wallet.payer!,
+      tempAccountKeypair.publicKey,
+      fixture.ownerUsdcAta,
+      provider.wallet.payer!,
+      100_000,
     );
   });
 
@@ -673,6 +688,7 @@ describe("repay debt", () => {
         obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
         reserveFarmState: fixture.debtReserve.reserveFarmState,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -725,6 +741,7 @@ describe("repay debt", () => {
         obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
         reserveFarmState: fixture.debtReserve.reserveFarmState,
         farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
         klendProgram: KLEND,
         tokenProgram: TOKEN_PROGRAM_ID,
         instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -764,6 +781,7 @@ describe("repay debt", () => {
           obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
           reserveFarmState: fixture.debtReserve.reserveFarmState,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -800,6 +818,7 @@ describe("repay debt", () => {
           obligationFarmUserState: fixture.debtReserve.obligationFarmUserState,
           reserveFarmState: fixture.debtReserve.reserveFarmState,
           farmsProgram: FARMS_PROGRAM,
+          protocolConfig: PROTOCOL_CONFIG,
           klendProgram: KLEND,
           tokenProgram: TOKEN_PROGRAM_ID,
           instructionSysvarAccount: SYSVAR_INSTRUCTIONS_PUBKEY,

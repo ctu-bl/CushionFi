@@ -260,7 +260,10 @@ yarn deploy:devnet
 Script behavior:
 - validates RPC,
 - `anchor keys sync`, `anchor build`, IDL sync,
-- `anchor deploy --provider.cluster devnet`,
+- deploys `klend_mock` + `cushion` to devnet,
+- bootstraps mock market/reserves/oracle,
+- keeps reserve liquidity assets on real WSOL + real USDC mint (no mock asset mint),
+- persists bootstrap outputs into `.env` section `KLEND_MOCK_BOOTSTRAP_DEVNET` (scoped `*_DEVNET` keys),
 - initializes position registry and vault.
 
 You can also run environment-specific scripts directly:
@@ -269,6 +272,10 @@ You can also run environment-specific scripts directly:
 yarn init:position-registry:devnet
 yarn init:vault:devnet
 yarn vault:fund:devnet
+yarn verify:devnet-ready
+yarn gate:devnet-ready
+# optional (mutating smoke):
+yarn gate:devnet-ready:smoke
 ```
 
 ### 7.2 `prod` / mainnet profile
@@ -312,7 +319,6 @@ From [`keeper/.env.example`](../keeper/.env.example):
 - `KEEPER_FARMS_PROGRAM_ID`
 - `KEEPER_RESERVE_ADDRESSES`
 - `KEEPER_POLL_INTERVAL_MS`
-- `KEEPER_WITHDRAW_LTV_BPS`
 - `KEEPER_COMPUTE_CONCURRENCY`
 - `KEEPER_EXECUTOR_CONCURRENCY`
 - `KEEPER_AUTO_UPDATE_VAULT_PRICE`
@@ -376,9 +382,10 @@ In worker logic (`keeper/src/worker/ltv_worker.ts`):
 
 ### 10.2 Keeper withdraw trigger
 
-- worker computes `withdrawThresholdWad = maxSafeLtvWad * KEEPER_WITHDRAW_LTV_BPS / 10000`
+- worker computes contract-style `withdrawThresholdWad = (allowedBorrowValueSf / depositedValueSf) * 0.743333333333333333` (WAD-scaled)
 - if `position.injected == true` and `ltvWad <= withdrawThresholdWad`
-- enqueue `withdraw`.
+- enqueue `withdraw`
+- executor runs an additional contract-style precheck using projected `potentialLtv` after withdraw amount and skips withdraw tx when it would fail on-chain with `NotYetSafePosition`.
 
 ### 10.3 On-chain collateral safety guards
 

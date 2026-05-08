@@ -18,7 +18,7 @@ export type ComputeJob =
     };
 
 export type ExecuteJob = {
-  kind: "inject" | "withdraw";
+  kind: "inject" | "withdraw" | "liquidate";
   position: string;
   reason: string;
   dedupeKey: string;
@@ -45,6 +45,7 @@ export type PositionRiskSnapshot = {
   depositedValueSf: bigint;
   debtValueSf: bigint;
   unhealthyBorrowValueSf: bigint;
+  allowedBorrowValueSf: bigint;
   ltvWad: bigint | null;
   maxSafeLtvWad: bigint | null;
   injected?: boolean;

@@ -5,13 +5,16 @@ import { DedupQueue } from "../queue/dedup_queue.ts";
 import type { KeeperRepository } from "../store/repository.ts";
 import type { ComputeJob, ExecuteJob } from "../types.ts";
 
+const WAD = 1_000_000_000_000_000_000n;
+const WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD = 743_333_333_333_333_333n;
+const LIQUIDATION_LTV_THRESHOLD_MULTIPLIER_WAD = 930_000_000_000_000_000n;
+
 export class LtvWorker {
   private readonly name: string;
   private readonly klendClient: KlendChainClient;
   private readonly repository: KeeperRepository;
   private readonly computeQueue: DedupQueue<ComputeJob>;
   private readonly executeQueue: DedupQueue<ExecuteJob>;
-  private readonly withdrawLtvBps: number;
   private readonly connectionSlot: () => Promise<number>;
   private running = true;
 
@@ -21,7 +24,6 @@ export class LtvWorker {
     repository: KeeperRepository,
     computeQueue: DedupQueue<ComputeJob>,
     executeQueue: DedupQueue<ExecuteJob>,
-    withdrawLtvBps: number,
     connectionSlot: () => Promise<number>
   ) {
     this.name = name;
@@ -29,7 +31,6 @@ export class LtvWorker {
     this.repository = repository;
     this.computeQueue = computeQueue;
     this.executeQueue = executeQueue;
-    this.withdrawLtvBps = withdrawLtvBps;
     this.connectionSlot = connectionSlot;
   }
 
@@ -106,7 +107,7 @@ export class LtvWorker {
         ltvPct: wadToPercentString(risk.ltvWad),
         maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
         maxSafeLtvPct: wadToPercentString(risk.maxSafeLtvWad),
-        withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawThresholdWad: null,
         withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
         withdrawEligible: risk.withdrawEligible ?? false,
         slot,
@@ -134,7 +135,7 @@ export class LtvWorker {
         ltvPct: wadToPercentString(risk.ltvWad),
         maxSafeLtvWad: risk.maxSafeLtvWad?.toString() ?? null,
         maxSafeLtvPct: wadToPercentString(risk.maxSafeLtvWad),
-        withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
+        withdrawThresholdWad: null,
         withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
         withdrawEligible: risk.withdrawEligible ?? false,
         slot,
@@ -147,8 +148,23 @@ export class LtvWorker {
       return;
     }
 
-    const withdrawThreshold = (injectThreshold * BigInt(this.withdrawLtvBps)) / 10_000n;
+    const withdrawThreshold =
+      risk.depositedValueSf === 0n
+        ? 0n
+        : (((risk.allowedBorrowValueSf * WAD) / risk.depositedValueSf) *
+            WITHDRAWING_LTV_THRESHOLD_MULTIPLIER_WAD) /
+          WAD;
     const withdrawEligible = positionRecord.injected && ltv <= withdrawThreshold;
+    const liquidateLtvThresholdWad =
+      risk.depositedValueSf === 0n
+        ? null
+        : (((risk.unhealthyBorrowValueSf * WAD) / risk.depositedValueSf) *
+            LIQUIDATION_LTV_THRESHOLD_MULTIPLIER_WAD) /
+          WAD;
+    const liquidateEligible =
+      positionRecord.injected &&
+      liquidateLtvThresholdWad !== null &&
+      ltv >= liquidateLtvThresholdWad;
     risk.withdrawThresholdWad = withdrawThreshold;
     risk.withdrawEligible = withdrawEligible;
     await this.repository.saveRiskSnapshot(risk);
@@ -167,8 +183,20 @@ export class LtvWorker {
       withdrawThresholdWad: risk.withdrawThresholdWad?.toString() ?? null,
       withdrawThresholdPct: wadToPercentString(risk.withdrawThresholdWad ?? null),
       withdrawEligible: risk.withdrawEligible ?? false,
-      slot,
-    });
+        slot,
+      });
+
+    if (liquidateEligible) {
+      const dedupeKey = `action:liquidate:${position}`;
+      const ltvPct = wadToPercentString(ltv);
+      this.executeQueue.enqueue(dedupeKey, {
+        kind: "liquidate",
+        position,
+        reason: `ltv=${ltv.toString()} (${ltvPct}) threshold=${liquidateLtvThresholdWad?.toString() ?? "null"} source=${reason}`,
+        dedupeKey,
+      });
+      return;
+    }
 
     if (!positionRecord.injected && ltv > injectThreshold) {
       const dedupeKey = `action:inject:${position}`;
