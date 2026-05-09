@@ -13,8 +13,7 @@ export function LtvBar({ position }: Props) {
   const ltvPct = ltv * 100;
 
   let fillColor = 'var(--accent)';
-  if (position.status === 'injected') fillColor = 'var(--accent)';
-  else if (ltv >= position.liquidationThreshold) fillColor = 'var(--danger)';
+  if (ltv >= position.liquidationThreshold) fillColor = 'var(--danger)';
   else if (ltv >= position.injectThreshold) fillColor = 'var(--warning)';
 
   return (
