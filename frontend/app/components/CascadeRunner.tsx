@@ -15,7 +15,7 @@ export function useCascadeRunner() {
   const [position, setPosition] = useState<Position>(DEMO_INITIAL_POSITION);
   const [events, setEvents] = useState<CushionEvent[]>([]);
   const [priceHistory, setPriceHistory] = useState<{ t: number; priceUsd: number }[]>([
-    { t: 0, priceUsd: 200 },
+    { t: 0, priceUsd: 90 },
   ]);
   const [state, setState] = useState<RunnerState>("idle");
   const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0].id);
@@ -32,7 +32,7 @@ export function useCascadeRunner() {
     setPosition(DEMO_INITIAL_POSITION);
     positionRef.current = DEMO_INITIAL_POSITION;
     setEvents([]);
-    setPriceHistory([{ t: 0, priceUsd: 200 }]);
+    setPriceHistory([{ t: 0, priceUsd: 90 }]);
     setState("idle");
     startTimeRef.current = null;
     frameIndexRef.current = 0;
