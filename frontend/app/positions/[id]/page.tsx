@@ -165,8 +165,8 @@ export default function PositionDetail({
             <LiquidationSummary
               position={position}
               original={{
-                collateralAmount: 1.0,
-                debtAmount: 45,
+                collateralAmount: 5.0,
+                debtAmount: 225,
                 startPriceUsd: 90,
               }}
               finalPriceUsd={position.collateralPriceUsd > 0 ? position.collateralPriceUsd : 48}

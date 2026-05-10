@@ -6,7 +6,7 @@ const STATS = [
   {
     eyebrow: "01",
     label: "Total Deposits",
-    value: "$225,000",
+    value: "$27,230",
     desc: "USD-equivalent across all liquidity providers in the shared protection vault.",
   },
   {

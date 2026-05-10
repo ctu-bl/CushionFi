@@ -4,10 +4,10 @@ import type { PriceFrame } from './scenarios';
 const INITIAL_POSITION: Position = {
   id: "demo",
   collateralSymbol: "SOL",
-  collateralAmount: 1.0,
+  collateralAmount: 5.0,
   collateralPriceUsd: 90,
   debtSymbol: "USDC",
-  debtAmount: 45,
+  debtAmount: 225,
   ltv: 0.5,
   injectThreshold: 0.6375,
   withdrawThreshold: 0.5575,
