@@ -6,13 +6,13 @@ const STATS = [
   {
     eyebrow: "01",
     label: "Total Deposits",
-    value: "$487,200",
+    value: "$225,000",
     desc: "USD-equivalent across all liquidity providers in the shared protection vault.",
   },
   {
     eyebrow: "02",
     label: "Currently Deployed",
-    value: "$32.18",
+    value: "$2,250",
     desc: "Capital actively protecting borrower positions right now. Rotates as positions are injected and recovered.",
   },
   {
