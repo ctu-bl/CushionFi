@@ -25,7 +25,7 @@ export function LtvBar({ position }: Props) {
         .ltv-bar-header {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 12px;
+          margin-bottom: 28px;
           font-size: 13px;
           color: var(--fg-muted);
         }
@@ -74,6 +74,9 @@ export function LtvBar({ position }: Props) {
           letter-spacing: 0.04em;
           text-transform: uppercase;
         }
+        .ltv-bar-marker.liquidation .ltv-bar-marker-label {
+          top: 40px;
+        }
         .ltv-bar-current {
           position: absolute;
           top: -28px;
@@ -98,9 +101,11 @@ export function LtvBar({ position }: Props) {
       </div>
 
       <div className="ltv-bar-track">
-        <div className="ltv-bar-current" style={{ left: `${ltvPct}%` }}>
-          {ltvPct.toFixed(1)}%
-        </div>
+        {ltvPct > 0 && (
+          <div className="ltv-bar-current" style={{ left: `${ltvPct}%` }}>
+            {ltvPct.toFixed(1)}%
+          </div>
+        )}
         <div
           className={`ltv-bar-fill ${position.status === 'injected' ? 'injected' : ''}`}
           style={{ width: `${ltvPct}%`, background: fillColor }}

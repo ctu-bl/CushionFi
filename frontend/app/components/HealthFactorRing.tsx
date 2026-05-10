@@ -2,6 +2,8 @@
 import type { Position } from '../lib/types';
 
 export function HealthFactorRing({ position }: { position: Position }) {
+  const isLiquidated = position.status === 'liquidated' || position.debtAmount === 0;
+
   const hf = position.liquidationThreshold / Math.max(position.ltv, 0.001);
   const displayHf = Math.min(hf, 9.99);
   const ringPct = Math.max(0, Math.min(1, (hf - 1) / 1));
@@ -33,6 +35,9 @@ export function HealthFactorRing({ position }: { position: Position }) {
           font-size: 22px;
           color: var(--fg);
         }
+        .hf-ring-value.muted {
+          color: var(--fg-dim);
+        }
       `}</style>
       <svg width="88" height="88" className="hf-ring-svg">
         <circle cx="44" cy="44" r={radius} strokeWidth="6" fill="none" className="hf-ring-track" />
@@ -42,15 +47,17 @@ export function HealthFactorRing({ position }: { position: Position }) {
           r={radius}
           strokeWidth="6"
           fill="none"
-          stroke={color}
-          strokeDasharray={`${dash} ${circumference}`}
+          stroke={isLiquidated ? 'var(--fg-dim)' : color}
+          strokeDasharray={isLiquidated ? `0 ${circumference}` : `${dash} ${circumference}`}
           strokeLinecap="round"
           className="hf-ring-fill"
         />
       </svg>
       <div className="hf-ring-info">
         <span className="hf-ring-label">Health Factor</span>
-        <span className="hf-ring-value">{displayHf.toFixed(2)}</span>
+        <span className={`hf-ring-value ${isLiquidated ? 'muted' : ''}`}>
+          {isLiquidated ? '—' : displayHf.toFixed(2)}
+        </span>
       </div>
     </div>
   );
