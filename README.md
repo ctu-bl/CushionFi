@@ -94,7 +94,7 @@ Honest accounting of what's not in this version:
 
 ## Demo
 
-The demo dApp lives at **[app.cushionfi.xyz](https://app.cushionfi.xyz)**.
+The dApp lives at **[app.cushionfi.xyz](https://app.cushionfi.xyz)**.
 
 Click "Run cascade simulation" and watch a compressed 40-second cascade through one position. SOL drops from $90 to $48 — comparable in percentage terms to the October 2025 cascade. The dashboard shows Cushion responding in real time: injecting buffer when LTV crosses the insuring threshold, withdrawing it during recovery, re-injecting on the second drop, and finally executing a controlled liquidation when the cascade goes deep enough.
 
