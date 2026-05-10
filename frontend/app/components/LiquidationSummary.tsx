@@ -12,8 +12,12 @@ type Props = {
 };
 
 export function LiquidationSummary({ original, finalPriceUsd }: Props) {
-  const debtRepaid = original.debtAmount;
-  const openMarketBonus = debtRepaid * 0.05;
+  const drawdownPct = ((original.startPriceUsd - finalPriceUsd) / original.startPriceUsd) * 100;
+  const closedAt = new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <div className="liq-summary">
@@ -37,9 +41,9 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
           display: flex;
           align-items: baseline;
           gap: 16px;
+          flex-wrap: wrap;
           margin-bottom: 24px;
           position: relative;
-          flex-wrap: wrap;
         }
         .liq-summary-eyebrow {
           font-family: var(--font-mono);
@@ -54,12 +58,14 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
         }
         .liq-summary-title {
           font-family: var(--font-display);
-          font-size: 28px;
+          font-size: 32px;
           line-height: 1.1;
           color: var(--fg);
+          letter-spacing: -0.01em;
         }
         .liq-summary-title em {
           font-style: italic;
+          color: var(--accent);
         }
         .liq-summary-grid {
           display: grid;
@@ -76,20 +82,21 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
           color: var(--fg-muted);
           text-transform: uppercase;
           letter-spacing: 0.06em;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
         }
         .liq-summary-stat-value {
           font-family: var(--font-mono);
-          font-size: 22px;
+          font-size: 18px;
           color: var(--fg);
           margin-bottom: 6px;
+          line-height: 1.3;
         }
         .liq-summary-stat-desc {
           font-size: 12px;
           color: var(--fg-muted);
-          line-height: 1.4;
+          line-height: 1.5;
         }
-        .liq-summary-payoff {
+        .liq-summary-footer {
           margin-top: 28px;
           padding: 20px;
           background: var(--bg-elevated);
@@ -97,7 +104,7 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
           border-radius: 4px;
           position: relative;
         }
-        .liq-summary-payoff-label {
+        .liq-summary-footer-label {
           font-family: var(--font-mono);
           font-size: 11px;
           color: var(--accent);
@@ -105,7 +112,7 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
           letter-spacing: 0.08em;
           margin-bottom: 6px;
         }
-        .liq-summary-payoff-text {
+        .liq-summary-footer-text {
           font-size: 14px;
           color: var(--fg);
           line-height: 1.5;
@@ -116,48 +123,44 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
       `}</style>
 
       <div className="liq-summary-header">
-        <span className="liq-summary-eyebrow">Position closed</span>
+        <span className="liq-summary-eyebrow">Position closed · {closedAt}</span>
         <h2 className="liq-summary-title">
-          Cushion executed a <em>controlled exit.</em>
+          Your position closed <em>safely.</em>
         </h2>
       </div>
 
       <div className="liq-summary-grid">
         <div className="liq-summary-stat">
-          <div className="liq-summary-stat-label">Original Position</div>
-          <div className="liq-summary-stat-value">
-            {original.collateralAmount.toFixed(2)} SOL
-          </div>
+          <div className="liq-summary-stat-label">Position state</div>
+          <div className="liq-summary-stat-value">Closed</div>
           <div className="liq-summary-stat-desc">
-            {original.debtAmount.toFixed(2)} USDC borrowed at SOL ${original.startPriceUsd.toFixed(0)}
+            No longer exposed to further price movement. Debt is fully repaid.
           </div>
         </div>
 
         <div className="liq-summary-stat">
-          <div className="liq-summary-stat-label">Liquidation Price</div>
-          <div className="liq-summary-stat-value">
-            ${finalPriceUsd.toFixed(2)}
-          </div>
+          <div className="liq-summary-stat-label">Cascade depth</div>
+          <div className="liq-summary-stat-value">SOL fell {drawdownPct.toFixed(1)}%</div>
           <div className="liq-summary-stat-desc">
-            SOL fell {(((original.startPriceUsd - finalPriceUsd) / original.startPriceUsd) * 100).toFixed(1)}% from entry
+            From ${original.startPriceUsd.toFixed(0)} at entry to ${finalPriceUsd.toFixed(0)} at close.
           </div>
         </div>
 
         <div className="liq-summary-stat">
-          <div className="liq-summary-stat-label">Bonus Recovered</div>
+          <div className="liq-summary-stat-label">Outcome</div>
           <div className="liq-summary-stat-value" style={{ color: 'var(--accent)' }}>
-            ~${openMarketBonus.toFixed(2)}
+            Controlled exit
           </div>
           <div className="liq-summary-stat-desc">
-            Kept inside the protocol instead of leaking to an external bot
+            Better than an open-market liquidation. No bot took your collateral.
           </div>
         </div>
       </div>
 
-      <div className="liq-summary-payoff">
-        <div className="liq-summary-payoff-label">What just happened</div>
-        <div className="liq-summary-payoff-text">
-          Cushion's vault swapped its WSOL collateral into USDC via Orca, repaid the position's debt to Kamino, and reclaimed the remaining collateral. The borrower received a controlled exit, and the liquidation bonus that would have gone to an external bot was captured by the protocol.
+      <div className="liq-summary-footer">
+        <div className="liq-summary-footer-label">What just happened</div>
+        <div className="liq-summary-footer-text">
+          Cushion's vault handled the unwind on your behalf — repaying your debt to Kamino and managing the swap. Nothing else for you to do.
         </div>
       </div>
     </div>
