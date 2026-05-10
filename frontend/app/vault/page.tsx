@@ -4,19 +4,22 @@ import { Card } from '../components/Card';
 
 const STATS = [
   {
+    eyebrow: "01",
     label: "Total Deposits",
     value: "$487,200",
-    desc: "USD-equivalent value across all vault depositors",
+    desc: "USD-equivalent across all liquidity providers in the shared protection vault.",
   },
   {
+    eyebrow: "02",
     label: "Currently Deployed",
     value: "$32.18",
-    desc: "Capital actively protecting positions right now",
+    desc: "Capital actively protecting borrower positions right now. Rotates as positions are injected and recovered.",
   },
   {
+    eyebrow: "03",
     label: "Current APY",
     value: "8.7%",
-    desc: "Annualized yield from interest charged on injected buffer",
+    desc: "Annualized yield to depositors from interest charged on injected buffer capital.",
   },
 ];
 
@@ -46,12 +49,40 @@ export default function VaultPage() {
       <main className="vault-page">
         <style>{`
           .vault-page { max-width: 1024px; margin: 0 auto; padding: 32px 24px; }
+          .vault-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+          }
+          .vault-eyebrow-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse-dot 2s ease-in-out infinite;
+          }
+          @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
           .vault-header h1 {
             font-family: var(--font-display);
-            font-size: 36px;
+            font-size: 44px;
             line-height: 1;
             margin-bottom: 8px;
             color: var(--fg);
+            letter-spacing: -0.01em;
+          }
+          .vault-header h1 em {
+            font-style: italic;
+            color: var(--accent);
           }
           .vault-header p { color: var(--fg-muted); margin-bottom: 32px; }
           .vault-stats {
@@ -60,18 +91,24 @@ export default function VaultPage() {
             gap: 16px;
             margin-bottom: 32px;
           }
+          .vault-stat-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--fg-dim);
+            margin-bottom: 16px;
+          }
+          .vault-stat-value {
+            font-family: var(--font-mono);
+            font-size: 32px;
+            color: var(--fg);
+            margin-bottom: 12px;
+          }
           .vault-stat-label {
             font-size: 12px;
             color: var(--fg-muted);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 12px;
-          }
-          .vault-stat-value {
-            font-family: var(--font-mono);
-            font-size: 32px;
-            color: var(--fg);
-            margin-bottom: 8px;
           }
           .vault-stat-desc {
             font-size: 13px;
@@ -102,7 +139,11 @@ export default function VaultPage() {
         `}</style>
 
         <div className="vault-header">
-          <h1>Cushion Vault</h1>
+          <div className="vault-eyebrow">
+            <span className="vault-eyebrow-dot" />
+            Liquidity layer · Devnet
+          </div>
+          <h1>Cushion <em>Vault</em></h1>
           <p>
             Liquidity providers deposit here. Capital protects borrowers. Interest accrues to depositors.
           </p>
@@ -111,8 +152,9 @@ export default function VaultPage() {
         <div className="vault-stats">
           {STATS.map(s => (
             <Card key={s.label}>
-              <div className="vault-stat-label">{s.label}</div>
+              <div className="vault-stat-eyebrow">{s.eyebrow}</div>
               <div className="vault-stat-value">{s.value}</div>
+              <div className="vault-stat-label">{s.label}</div>
               <div className="vault-stat-desc">{s.desc}</div>
             </Card>
           ))}
