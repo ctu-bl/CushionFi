@@ -7,6 +7,7 @@ import { LtvBar } from '../../components/LtvBar';
 import { PriceChart } from '../../components/PriceChart';
 import { HealthFactorRing } from '../../components/HealthFactorRing';
 import { EventFeed } from '../../components/EventFeed';
+import { LiquidationSummary } from '../../components/LiquidationSummary';
 import { useCascadeRunner, CascadeControls } from '../../components/CascadeRunner';
 
 export default function PositionDetail({
@@ -19,6 +20,8 @@ export default function PositionDetail({
 
   const runner = useCascadeRunner();
   const { position, events, priceHistory, state, play, pause, reset } = runner;
+
+  const isLiquidated = position.status === 'liquidated';
 
   return (
     <>
@@ -41,12 +44,40 @@ export default function PositionDetail({
             flex-wrap: wrap;
             gap: 16px;
           }
+          .position-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+          }
+          .position-eyebrow-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse-dot 2s ease-in-out infinite;
+          }
+          @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
           .position-title-block h1 {
             font-family: var(--font-display);
-            font-size: 32px;
+            font-size: 44px;
             line-height: 1;
             margin-bottom: 8px;
             color: var(--fg);
+            letter-spacing: -0.01em;
+          }
+          .position-title-block h1 em {
+            font-style: italic;
+            color: var(--accent);
           }
           .position-title-block .position-id {
             font-family: var(--font-mono);
@@ -70,6 +101,9 @@ export default function PositionDetail({
             font-size: 20px;
             color: var(--fg);
           }
+          .position-stat-value.muted {
+            color: var(--fg-dim);
+          }
           .ltv-section {
             padding-top: 36px;
             padding-bottom: 36px;
@@ -89,8 +123,12 @@ export default function PositionDetail({
         <div className="position-main">
           <div className="position-header">
             <div className="position-title-block">
-              <h1>SOL/USDC Position</h1>
-              <div className="position-id">id: demo · Wrapped on Kamino</div>
+              <div className="position-eyebrow">
+                <span className="position-eyebrow-dot" />
+                Live position · Wrapped on Kamino
+              </div>
+              <h1>SOL/USDC <em>Position</em></h1>
+              <div className="position-id">id: demo</div>
             </div>
             <CascadeControls
               state={state}
@@ -104,24 +142,36 @@ export default function PositionDetail({
             <div className="position-stats">
               <div>
                 <div className="position-stat-label">Collateral</div>
-                <div className="position-stat-value">
-                  {position.collateralAmount.toFixed(3)} SOL
+                <div className={`position-stat-value ${isLiquidated ? 'muted' : ''}`}>
+                  {isLiquidated ? '—' : `${position.collateralAmount.toFixed(3)} SOL`}
                 </div>
               </div>
               <div>
                 <div className="position-stat-label">Debt</div>
-                <div className="position-stat-value">
-                  {position.debtAmount.toFixed(2)} USDC
+                <div className={`position-stat-value ${isLiquidated ? 'muted' : ''}`}>
+                  {isLiquidated ? '—' : `${position.debtAmount.toFixed(2)} USDC`}
                 </div>
               </div>
               <div>
                 <div className="position-stat-label">SOL Price</div>
-                <div className="position-stat-value">
-                  ${position.collateralPriceUsd.toFixed(2)}
+                <div className={`position-stat-value ${isLiquidated ? 'muted' : ''}`}>
+                  {isLiquidated ? '—' : `$${position.collateralPriceUsd.toFixed(2)}`}
                 </div>
               </div>
             </div>
           </Card>
+
+          {isLiquidated && (
+            <LiquidationSummary
+              position={position}
+              original={{
+                collateralAmount: 1.0,
+                debtAmount: 45,
+                startPriceUsd: 90,
+              }}
+              finalPriceUsd={position.collateralPriceUsd > 0 ? position.collateralPriceUsd : 48}
+            />
+          )}
 
           <Card>
             <div className="ltv-section">
