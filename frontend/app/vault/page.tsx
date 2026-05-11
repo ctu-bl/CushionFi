@@ -1,7 +1,10 @@
 "use client";
+import { useState } from 'react';
 import { AppNav } from '../components/AppNav';
 import { DemoBanner } from '../components/DemoBanner';
 import { Card } from '../components/Card';
+import { ActionButton } from '../components/ActionButton';
+import { ActionModal } from '../components/ActionModal';
 
 const STATS = [
   {
@@ -44,6 +47,9 @@ const RECENT_EVENTS = [
 ];
 
 export default function VaultPage() {
+  const [modalTitle, setModalTitle] = useState<string | null>(null);
+  const closeModal = () => setModalTitle(null);
+
   return (
     <>
       <DemoBanner />
@@ -151,6 +157,23 @@ export default function VaultPage() {
           </p>
         </div>
 
+        <div className="vault-actions">
+          <style>{`
+            .vault-actions {
+              display: flex;
+              gap: 12px;
+              margin-bottom: 40px;
+              flex-wrap: wrap;
+            }
+          `}</style>
+          <ActionButton variant="primary" onClick={() => setModalTitle("Deposit liquidity")}>
+            Deposit
+          </ActionButton>
+          <ActionButton variant="secondary" onClick={() => setModalTitle("Withdraw liquidity")}>
+            Withdraw
+          </ActionButton>
+        </div>
+
         <div className="vault-stats">
           {STATS.map(s => (
             <Card key={s.label}>
@@ -172,6 +195,12 @@ export default function VaultPage() {
           ))}
         </Card>
       </main>
+
+      <ActionModal
+        open={modalTitle !== null}
+        onClose={closeModal}
+        title={modalTitle ?? ''}
+      />
     </>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import { use } from 'react';
+import { use, useState } from 'react';
 import { redirect } from 'next/navigation';
 import { AppNav } from '../../components/AppNav';
 import { DemoBanner } from '../../components/DemoBanner';
@@ -10,6 +10,8 @@ import { HealthFactorRing } from '../../components/HealthFactorRing';
 import { EventFeed } from '../../components/EventFeed';
 import { LiquidationSummary } from '../../components/LiquidationSummary';
 import { useCascadeRunner, CascadeControls } from '../../components/CascadeRunner';
+import { ActionButton } from '../../components/ActionButton';
+import { ActionModal } from '../../components/ActionModal';
 
 export default function PositionDetail({
   params,
@@ -23,6 +25,9 @@ export default function PositionDetail({
   const { position, events, priceHistory, state, play, pause, reset } = runner;
 
   const isLiquidated = position.status === 'liquidated';
+
+  const [modalTitle, setModalTitle] = useState<string | null>(null);
+  const closeModal = () => setModalTitle(null);
 
   return (
     <>
@@ -163,6 +168,36 @@ export default function PositionDetail({
             </div>
           </Card>
 
+          {!isLiquidated && (
+            <div className="position-actions">
+              <style>{`
+                .position-actions {
+                  display: flex;
+                  gap: 12px;
+                  flex-wrap: wrap;
+                }
+                .position-actions-label {
+                  font-size: 11px;
+                  color: var(--fg-muted);
+                  text-transform: uppercase;
+                  letter-spacing: 0.06em;
+                  flex-basis: 100%;
+                  margin-bottom: 4px;
+                }
+              `}</style>
+              <span className="position-actions-label">Manage position</span>
+              <ActionButton onClick={() => setModalTitle("Add collateral")}>
+                Add collateral
+              </ActionButton>
+              <ActionButton onClick={() => setModalTitle("Borrow more")}>
+                Borrow more
+              </ActionButton>
+              <ActionButton onClick={() => setModalTitle("Repay debt")}>
+                Repay debt
+              </ActionButton>
+            </div>
+          )}
+
           {isLiquidated && (
             <LiquidationSummary
               position={position}
@@ -196,6 +231,12 @@ export default function PositionDetail({
           <EventFeed events={events} />
         </div>
       </main>
+
+      <ActionModal
+        open={modalTitle !== null}
+        onClose={closeModal}
+        title={modalTitle ?? ''}
+      />
     </>
   );
 }
