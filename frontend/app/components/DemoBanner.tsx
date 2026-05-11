@@ -45,14 +45,14 @@ export function DemoBanner() {
       `}</style>
       <span className="demo-banner-dot" />
       <span>
-        You're viewing an interactive demo. Live trading opens to whitelist members soon —{' '}
+        You're viewing an interactive demo. Live trading opens to whitelist members soon.{' '}
         <a
           href="https://www.cushionfi.xyz/waitlist"
           target="_blank"
           rel="noreferrer"
           className="demo-banner-link"
         >
-          join the waitlist →
+          Join the waitlist →
         </a>
       </span>
     </div>

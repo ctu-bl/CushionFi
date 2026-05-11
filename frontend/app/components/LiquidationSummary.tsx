@@ -160,7 +160,7 @@ export function LiquidationSummary({ original, finalPriceUsd }: Props) {
       <div className="liq-summary-footer">
         <div className="liq-summary-footer-label">What just happened</div>
         <div className="liq-summary-footer-text">
-          Cushion's vault handled the unwind on your behalf — repaying your debt to Kamino and managing the swap. Nothing else for you to do.
+          Cushion's vault handled the unwind on your behalf. It repaid your debt to Kamino and managed the swap. Nothing else for you to do.
         </div>
       </div>
     </div>

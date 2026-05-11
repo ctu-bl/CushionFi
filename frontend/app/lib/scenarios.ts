@@ -12,7 +12,7 @@ export type PriceFrame = {
 // LTV crosses liquidation threshold (0.6975) when SOL drops below ~$64.52.
 
 export const CASCADE_SCENARIO: PriceFrame[] = [
-  // STAGE 1 — Drop into inject zone
+  // STAGE 1 / Drop into inject zone
   { t: 0,     priceUsd: 90.00, note: "Position opened. SOL at $90." },
   { t: 1500,  priceUsd: 88.00 },
   { t: 3000,  priceUsd: 84.50 },
@@ -21,20 +21,20 @@ export const CASCADE_SCENARIO: PriceFrame[] = [
   { t: 7500,  priceUsd: 71.00 },
   { t: 9000,  priceUsd: 68.00, expectedEvent: "inject", note: "Cushion injects buffer." },
 
-  // STAGE 2 — Recover, withdraw fires
+  // STAGE 2 / Recover, withdraw fires
   { t: 11000, priceUsd: 70.00 },
   { t: 13000, priceUsd: 75.00 },
   { t: 15000, priceUsd: 80.00 },
   { t: 17000, priceUsd: 84.00 },
   { t: 19000, priceUsd: 88.00, expectedEvent: "withdraw", note: "Buffer withdrawn with interest." },
 
-  // STAGE 3 — Drop again into inject zone
+  // STAGE 3 / Drop again into inject zone
   { t: 21000, priceUsd: 84.00 },
   { t: 23000, priceUsd: 78.00 },
   { t: 25000, priceUsd: 73.00 },
   { t: 27000, priceUsd: 69.00, expectedEvent: "inject", note: "Second inject fires." },
 
-  // STAGE 4 — Deeper drop into liquidation zone
+  // STAGE 4 / Deeper drop into liquidation zone
   { t: 30000, priceUsd: 64.00 },
   { t: 33000, priceUsd: 58.00 },
   { t: 36000, priceUsd: 54.00, expectedEvent: "liquidate_swap", note: "Liquidate swap: vault swaps WSOL → USDC via Orca." },
@@ -55,7 +55,7 @@ export const SCENARIOS: Scenario[] = [
     id: "cascade_scenario",
     label: "Cascade Replay",
     description:
-      "A compressed cascade through one position. SOL drops 47% over 40 seconds — the kind of move seen in October 10 2025, November 21 2025, and February 2026 deleveraging events.",
+      "A compressed cascade through one position. SOL drops 47% over 40 seconds. The kind of move seen in October 10 2025, November 21 2025, and February 2026 deleveraging events.",
     frames: CASCADE_SCENARIO,
     totalDurationMs: 42000,
   },
