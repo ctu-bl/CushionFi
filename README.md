@@ -1,6 +1,6 @@
 # Cushion
 
-**Insurance for DeFi loans.**
+**Liquidation protection for DeFi loans.**
 
 Cushion is a liquidation protection layer for borrowers on Solana. It watches positions on Kamino, deploys protective capital from a shared vault when risk rises, and gives borrowers a controlled exit instead of a forced liquidation.
 
