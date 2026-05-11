@@ -1,5 +1,6 @@
 "use client";
 import { AppNav } from '../components/AppNav';
+import { DemoBanner } from '../components/DemoBanner';
 import { Card } from '../components/Card';
 
 const STATS = [
@@ -45,6 +46,7 @@ const RECENT_EVENTS = [
 export default function VaultPage() {
   return (
     <>
+      <DemoBanner />
       <AppNav />
       <main className="vault-page">
         <style>{`

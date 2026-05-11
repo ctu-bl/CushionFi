@@ -22,24 +22,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Cushion — Insurance for DeFi loans',
-  description: 'Liquidation protection for Solana borrowers. Watch positions, deploy buffer capital, give borrowers a controlled exit.',
+  title: 'Cushion — Liquidation protection for DeFi loans on Solana',
+  description: 'Cushion wraps your Solana DeFi loans, watches them 24/7, and intervenes before liquidator bots do. Sleep through the next cascade.',
   icons: {
     icon: '/brand/Icon_White.svg',
   },
   openGraph: {
-    title: 'Cushion — Insurance for DeFi loans',
-    description: 'Liquidation protection for Solana borrowers.',
+    title: 'Cushion — Liquidation protection for DeFi loans',
+    description: 'Cushion wraps your Solana DeFi loans, watches them 24/7, and intervenes before liquidator bots do. Sleep through the next cascade.',
     url: 'https://app.cushionfi.xyz',
     siteName: 'Cushion',
-    images: [{ url: '/brand/Cover.png', width: 1200, height: 630 }],
+    images: [{ url: '/brand/Cover.png', width: 1500, height: 500 }],
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Cushion — Insurance for DeFi loans',
-    description: 'Liquidation protection for Solana borrowers.',
+    title: 'Cushion — Liquidation protection for DeFi loans',
+    description: 'Cushion wraps your Solana DeFi loans, watches them 24/7, and intervenes before liquidator bots do.',
     images: ['/brand/Cover.png'],
   },
 };

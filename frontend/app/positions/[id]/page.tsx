@@ -2,6 +2,7 @@
 import { use } from 'react';
 import { redirect } from 'next/navigation';
 import { AppNav } from '../../components/AppNav';
+import { DemoBanner } from '../../components/DemoBanner';
 import { Card } from '../../components/Card';
 import { LtvBar } from '../../components/LtvBar';
 import { PriceChart } from '../../components/PriceChart';
@@ -25,6 +26,7 @@ export default function PositionDetail({
 
   return (
     <>
+      <DemoBanner />
       <AppNav />
       <main className="position-page">
         <style>{`
