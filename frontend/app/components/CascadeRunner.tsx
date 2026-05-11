@@ -192,7 +192,7 @@ export function CascadeControls({
             ? "Replay scenario"
             : state === "paused"
             ? "Resume"
-            : "▶ Run cascade simulation"}
+            : "▶ Play scenario"}
         </button>
       )}
       {state === "playing" && (

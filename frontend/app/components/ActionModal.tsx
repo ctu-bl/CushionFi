@@ -8,7 +8,7 @@ type Props = {
   description?: string;
 };
 
-const DEFAULT_DESCRIPTION = "Cushion's live actions open to whitelist members in the upcoming alpha. Add your wallet to the waitlist to get early access.";
+const DEFAULT_DESCRIPTION = "This action is available to whitelist members. Cushion's protection layer is live on Solana devnet. Add your wallet to the waitlist for early access.";
 
 export function ActionModal({ open, onClose, title, description }: Props) {
   useEffect(() => {
@@ -138,7 +138,7 @@ export function ActionModal({ open, onClose, title, description }: Props) {
         }
       `}</style>
       <div className="action-modal" onClick={e => e.stopPropagation()}>
-        <div className="action-modal-eyebrow">Available in alpha</div>
+        <div className="action-modal-eyebrow">Whitelist access</div>
         <h2 className="action-modal-title">{title}</h2>
         <p className="action-modal-desc">{description || DEFAULT_DESCRIPTION}</p>
         <div className="action-modal-actions">

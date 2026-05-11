@@ -65,7 +65,7 @@ export function AppNav() {
           <img src="/logo.svg" alt="Cushion" />
         </Link>
 
-        <span className="app-nav-pill">Demo Mode</span>
+        <span className="app-nav-pill">Devnet</span>
 
         <div className="app-nav-links">
           <ActionButton variant="primary" onClick={() => setWrapModalOpen(true)}>
@@ -87,7 +87,7 @@ export function AppNav() {
         open={wrapModalOpen}
         onClose={() => setWrapModalOpen(false)}
         title="Wrap a new position"
-        description="Wrapping live DeFi loans with Cushion opens to whitelist members in the upcoming alpha. Add your wallet to the waitlist to get early access."
+        description="Wrap your Kamino position with Cushion to protect it from liquidation. Available to whitelist members on Solana devnet. Add your wallet to the waitlist for early access."
       />
     </>
   );

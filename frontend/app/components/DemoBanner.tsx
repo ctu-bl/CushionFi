@@ -45,7 +45,7 @@ export function DemoBanner() {
       `}</style>
       <span className="demo-banner-dot" />
       <span>
-        You're viewing an interactive demo. Live trading opens to whitelist members soon.{' '}
+        Cushion is live for whitelist members.{' '}
         <a
           href="https://www.cushionfi.xyz/waitlist"
           target="_blank"
